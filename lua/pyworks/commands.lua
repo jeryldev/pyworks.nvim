@@ -39,7 +39,7 @@ function M.create_commands()
 				return
 			end
 		end
-		
+
 		setup.setup_project()
 	end, {
 		desc = "Setup Python project environment (choose type interactively)",
@@ -56,7 +56,7 @@ function M.create_commands()
 				return
 			end
 		end
-		
+
 		-- Check if already in a Python project
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
@@ -85,7 +85,7 @@ function M.create_commands()
 				return
 			end
 		end
-		
+
 		-- Check if already in a Python project
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
@@ -161,7 +161,7 @@ function M.create_commands()
 		local args = vim.split(opts.args, " ")
 		local filename = args[1]
 		local language = args[2] or "python"
-		
+
 		-- Validate filename is provided
 		if not filename or filename == "" then
 			vim.notify("Usage: :PyworksNewNotebook <filename> [language]", vim.log.levels.ERROR)
