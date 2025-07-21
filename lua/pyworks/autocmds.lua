@@ -10,15 +10,39 @@ function M.setup(config)
 		callback = function()
 			local venv_path = vim.fn.getcwd() .. "/.venv"
 			if vim.fn.isdirectory(venv_path) == 1 then
+				local venv_bin = venv_path .. "/bin"
 				local current_python = vim.fn.exepath("python3")
+
+				-- Add venv/bin to PATH if not already there
+				if not vim.env.PATH:match(venv_bin) then
+					vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+				end
+
 				if not current_python:match(venv_path) then
-					vim.notify("⚠️  Virtual environment not activated!", vim.log.levels.WARN)
+					vim.notify("⚠️  Virtual environment detected but not activated in shell!", vim.log.levels.WARN)
 					vim.notify("Run in terminal: source .venv/bin/activate", vim.log.levels.INFO)
-					vim.notify("Note: Neovim will still use the correct Python for notebooks", vim.log.levels.INFO)
+					vim.notify("Note: Pyworks has added .venv/bin to PATH for this session", vim.log.levels.INFO)
 				end
 			end
 		end,
-		desc = "Check if virtual environment is activated",
+		desc = "Check if virtual environment is activated and add to PATH",
+	})
+
+	-- Also check when changing directories
+	vim.api.nvim_create_autocmd("DirChanged", {
+		pattern = "*",
+		callback = function()
+			local venv_path = vim.fn.getcwd() .. "/.venv"
+			if vim.fn.isdirectory(venv_path) == 1 then
+				local venv_bin = venv_path .. "/bin"
+				-- Add venv/bin to PATH if not already there
+				if not vim.env.PATH:match(venv_bin) then
+					vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+					vim.notify("Added .venv/bin to PATH for " .. vim.fn.getcwd(), vim.log.levels.INFO)
+				end
+			end
+		end,
+		desc = "Update PATH when changing directories",
 	})
 
 	-- Auto-activate virtual environment in terminal
@@ -109,4 +133,3 @@ function M.setup(config)
 end
 
 return M
-

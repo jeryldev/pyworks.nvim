@@ -163,16 +163,16 @@ function M.setup_project()
 	end
 
 	-- Ask what type of project this is
-	local project_types = {}
-	for _, template in ipairs(M.project_templates) do
-		table.insert(project_types, template.name)
+	local project_types = { "Select project type:" }
+	for i, template in ipairs(M.project_templates) do
+		table.insert(project_types, i .. ". " .. template.name)
 	end
 
 	local choice
 	if vim.g._pyworks_project_type then
 		choice = vim.g._pyworks_project_type
 	else
-		choice = vim.fn.inputlist(vim.list_extend({ "Select project type:" }, project_types))
+		choice = vim.fn.inputlist(project_types)
 	end
 
 	if choice == 0 then
@@ -345,4 +345,3 @@ fi
 end
 
 return M
-

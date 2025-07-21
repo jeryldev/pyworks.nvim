@@ -166,8 +166,11 @@ function M.create_notebook(filename, language)
 		vim.notify("Created " .. filename)
 	else
 		vim.notify("Created notebook but error opening: " .. tostring(err), vim.log.levels.WARN)
+		if vim.fn.executable("jupytext") == 0 then
+			vim.notify("jupytext not found! Run :PyworksSetup and choose 'Data Science'", vim.log.levels.ERROR)
+			vim.notify("Make sure your virtual environment is activated", vim.log.levels.INFO)
+		end
 	end
 end
 
 return M
-
