@@ -9,7 +9,9 @@ CONTENTS                                                    *pyworks-contents*
 4. Commands ................................................. |pyworks-commands|
 5. Configuration ............................................ |pyworks-config|
 6. Project Types ............................................ |pyworks-projects|
-7. Troubleshooting .......................................... |pyworks-troubleshooting|
+7. Cell Navigation .......................................... |pyworks-cells|
+8. Integration .............................................. |pyworks-integration|
+9. Troubleshooting .......................................... |pyworks-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                                *pyworks-intro*
@@ -40,8 +42,9 @@ Using lazy.nvim: >lua
   {
     "jeryldev/pyworks.nvim",
     dependencies = {
-      "benlubas/molten-nvim",  -- For notebooks
-      "3rd/image.nvim",        -- For inline images
+      "benlubas/molten-nvim",       -- For notebooks
+      "3rd/image.nvim",             -- For inline images
+      "GCBallesteros/jupytext.nvim", -- For .ipynb files
     },
     config = function()
       require("pyworks").setup()
@@ -146,7 +149,61 @@ Custom ~
 - Decide on Jupyter integration
 
 ==============================================================================
-7. TROUBLESHOOTING                                   *pyworks-troubleshooting*
+7. CELL NAVIGATION                                            *pyworks-cells*
+
+For Python files with cell markers (# %%), pyworks provides navigation:
+
+Keymaps ~
+]j                      Jump to next cell
+[j                      Jump to previous cell
+<leader>jr              Run current cell (with Molten)
+vi%                     Visual select current cell
+
+Cell markers ~
+Cells are defined by lines starting with "# %%" followed by optional text.
+Example: >python
+  # %% Import libraries
+  import pandas as pd
+  import numpy as np
+  
+  # %% Load data
+  df = pd.read_csv('data.csv')
+<
+
+These keymaps work in both .py files and Jupyter notebooks.
+
+==============================================================================
+8. INTEGRATION                                          *pyworks-integration*
+
+Molten.nvim ~
+pyworks integrates deeply with molten-nvim for notebook execution:
+- Automatic kernel initialization
+- Cell execution with output display
+- Inline image support via image.nvim
+- Real-time output updates
+
+Jupytext ~
+Seamless conversion between .ipynb and .py files:
+- Automatic sync between formats
+- Preserves cell metadata
+- Supports percent format (# %%)
+
+Virtual Environments ~
+pyworks automatically detects and activates:
+- .venv (preferred)
+- conda environments
+- pyenv
+- poetry
+- pipenv
+
+Terminal Integration ~
+When auto_activate_venv is enabled:
+- Automatically activates venv in new terminals
+- Works with :terminal and toggleterm
+- Preserves activation across sessions
+
+==============================================================================
+9. TROUBLESHOOTING                                   *pyworks-troubleshooting*
 
 Virtual environment not detected? ~
 Run :PyworksCheck to see current status.
