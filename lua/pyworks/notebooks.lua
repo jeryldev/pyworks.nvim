@@ -67,6 +67,12 @@ local language_specs = {
 
 function M.create_notebook(filename, language)
 	language = language or "python"
+	
+	-- Validate filename doesn't contain invalid characters
+	if filename:match("[<>:|?*]") then
+		vim.notify("Invalid filename! Cannot contain: < > : | ? *", vim.log.levels.ERROR)
+		return
+	end
 
 	-- Define script extensions that match jupytext's expectations
 	local script_ext = { python = ".py", julia = ".jl", r = ".r", R = ".r", bash = ".sh" }
@@ -127,6 +133,15 @@ function M.create_notebook(filename, language)
 	-- Ensure we're using absolute path to avoid path issues
 	if not filename:match("^/") then
 		filename = vim.fn.getcwd() .. "/" .. filename
+	end
+	
+	-- Check if file already exists
+	if vim.fn.filereadable(filename) == 1 then
+		local choice = vim.fn.confirm("File already exists. Overwrite?", "&Yes\n&No", 2)
+		if choice ~= 1 then
+			vim.notify("Notebook creation cancelled", vim.log.levels.INFO)
+			return
+		end
 	end
 
 	-- Manually construct the JSON to ensure proper structure

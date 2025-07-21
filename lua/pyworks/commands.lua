@@ -30,6 +30,16 @@ function M.create_commands()
 
 	-- Main setup command
 	vim.api.nvim_create_user_command("PyworksSetup", function()
+		-- Basic validation
+		local cwd = vim.fn.getcwd()
+		if cwd == vim.fn.expand("~") then
+			vim.notify("Warning: Running PyworksSetup in home directory!", vim.log.levels.WARN)
+			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			if choice ~= 1 then
+				return
+			end
+		end
+		
 		setup.setup_project()
 	end, {
 		desc = "Setup Python project environment (choose type interactively)",
@@ -37,6 +47,16 @@ function M.create_commands()
 
 	-- Convenience command for web development
 	vim.api.nvim_create_user_command("PyworksWeb", function()
+		-- Basic validation
+		local cwd = vim.fn.getcwd()
+		if cwd == vim.fn.expand("~") then
+			vim.notify("Warning: Running PyworksWeb in home directory!", vim.log.levels.WARN)
+			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			if choice ~= 1 then
+				return
+			end
+		end
+		
 		-- Check if already in a Python project
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
@@ -56,6 +76,16 @@ function M.create_commands()
 
 	-- Alias for data science (backwards compatibility)
 	vim.api.nvim_create_user_command("PyworksData", function()
+		-- Basic validation
+		local cwd = vim.fn.getcwd()
+		if cwd == vim.fn.expand("~") then
+			vim.notify("Warning: Running PyworksData in home directory!", vim.log.levels.WARN)
+			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			if choice ~= 1 then
+				return
+			end
+		end
+		
 		-- Check if already in a Python project
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
@@ -209,6 +239,10 @@ function M.create_commands()
 		vim.cmd("PyworksInstallPackages " .. opts.args)
 	end, { nargs = "+", desc = "Alias for PyworksInstallPackages" })
 	vim.api.nvim_create_user_command("PWNewNotebook", function(opts)
+		if opts.args == "" then
+			vim.notify("Usage: :PWNewNotebook <filename> [language]", vim.log.levels.ERROR)
+			return
+		end
 		vim.cmd("PyworksNewNotebook " .. opts.args)
 	end, { nargs = "*", desc = "Alias for PyworksNewNotebook" })
 end
