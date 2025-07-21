@@ -129,8 +129,16 @@ function M.create_commands()
 	-- Create new notebook
 	vim.api.nvim_create_user_command("PyworksNewNotebook", function(opts)
 		local args = vim.split(opts.args, " ")
-		local filename = args[1] or "untitled.ipynb"
+		local filename = args[1]
 		local language = args[2] or "python"
+		
+		-- Validate filename is provided
+		if not filename or filename == "" then
+			vim.notify("Usage: :PyworksNewNotebook <filename> [language]", vim.log.levels.ERROR)
+			vim.notify("Example: :PyworksNewNotebook analysis.ipynb", vim.log.levels.INFO)
+			vim.notify("Languages: python (default), julia, r", vim.log.levels.INFO)
+			return
+		end
 
 		-- Validate language
 		local valid_languages = { python = true, julia = true, r = true }
