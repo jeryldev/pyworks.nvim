@@ -1,0 +1,165 @@
+*pyworks.txt*  Python environments tailored for Neovim
+
+==============================================================================
+CONTENTS                                                    *pyworks-contents*
+
+1. Introduction ............................................. |pyworks-intro|
+2. Requirements ............................................. |pyworks-requirements|
+3. Installation ............................................. |pyworks-installation|
+4. Commands ................................................. |pyworks-commands|
+5. Configuration ............................................ |pyworks-config|
+6. Project Types ............................................ |pyworks-projects|
+7. Troubleshooting .......................................... |pyworks-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                                *pyworks-intro*
+
+pyworks.nvim is a comprehensive Python project management plugin for Neovim
+that handles virtual environments, package installation, and Jupyter notebook
+integration.
+
+Features:
+- Smart project setup with virtual environment creation
+- Background package installation
+- Jupyter notebook support (Python, Julia, R)
+- Environment diagnostics
+- Project templates for different Python workflows
+
+==============================================================================
+2. REQUIREMENTS                                         *pyworks-requirements*
+
+- Neovim >= 0.9.0
+- Python >= 3.8
+- Optional: uv (for faster package management)
+- Optional: molten-nvim (for Jupyter notebook execution)
+
+==============================================================================
+3. INSTALLATION                                         *pyworks-installation*
+
+Using lazy.nvim: >lua
+  {
+    "jeryldev/pyworks.nvim",
+    dependencies = {
+      "benlubas/molten-nvim",  -- For notebooks
+      "3rd/image.nvim",        -- For inline images
+    },
+    config = function()
+      require("pyworks").setup()
+    end,
+  }
+<
+
+==============================================================================
+4. COMMANDS                                                *pyworks-commands*
+
+:PyworksSetup                                                  *:PyworksSetup*
+    Interactive project setup. Choose from:
+    - Data Science / Notebooks
+    - Web Development
+    - General Python Development
+    - Automation / Scripting
+    - Custom
+
+:PyworksWeb                                                      *:PyworksWeb*
+    Quick setup for web development projects (FastAPI/Flask/Django).
+
+:PyworksData                                                    *:PyworksData*
+    Quick setup for data science projects (alias for notebook setup).
+
+:PyworksCheck                                                  *:PyworksCheck*
+    Show comprehensive environment diagnostics:
+    - Python version and paths
+    - Virtual environment status
+    - Installed packages
+    - Jupyter/Molten integration
+
+:PyworksInstall {packages}                                   *:PyworksInstall*
+    Install Python packages in the background.
+    Example: :PyworksInstall pandas numpy matplotlib
+
+:PyworksNew [filename] [language]                               *:PyworksNew*
+    Create a new Jupyter notebook.
+    - filename: Name of the notebook (default: untitled.ipynb)
+    - language: Kernel language (default: python, also: julia, r)
+
+:PyworksEnv                                                      *:PyworksEnv*
+    Show detailed Python environment status.
+
+:PyworksPackages                                            *:PyworksPackages*
+    Browse common Python packages organized by category.
+
+Short aliases:
+:PWSetup        Same as :PyworksSetup
+:PWCheck        Same as :PyworksCheck
+:PWInstall      Same as :PyworksInstall
+:PWNew          Same as :PyworksNew
+
+==============================================================================
+5. CONFIGURATION                                              *pyworks-config*
+
+Setup function accepts these options: >lua
+  require("pyworks").setup({
+    python = {
+      preferred_venv_name = ".venv",  -- Virtual env folder name
+      use_uv = true,                  -- Prefer uv when available
+    },
+    ui = {
+      icons = {
+        python = "🐍",
+        success = "✓",
+        error = "✗",
+        warning = "⚠️",
+      },
+    },
+    auto_activate_venv = true,  -- Auto-activate in terminals
+    create_nvim_lua = {         -- When to create .nvim.lua
+      data_science = true,
+      web = false,
+      general = false,
+      automation = false,
+    },
+  })
+<
+
+==============================================================================
+6. PROJECT TYPES                                           *pyworks-projects*
+
+Data Science / Notebooks ~
+- Packages: numpy, pandas, matplotlib, scikit-learn, jupyter, tensorflow
+- Creates .nvim.lua for Molten integration
+- Full Jupyter notebook support
+
+Web Development ~
+- Packages: fastapi, flask, django, sqlalchemy, pytest, black, ruff
+- Quick command: :PyworksWeb
+
+General Python ~
+- Packages: pytest, black, ruff, mypy, ipython, rich, typer
+- Standard development tools
+
+Automation / Scripting ~
+- Packages: requests, beautifulsoup4, selenium, schedule
+- Tools for automation tasks
+
+Custom ~
+- Choose your own packages
+- Decide on Jupyter integration
+
+==============================================================================
+7. TROUBLESHOOTING                                   *pyworks-troubleshooting*
+
+Virtual environment not detected? ~
+Run :PyworksCheck to see current status.
+Make sure you're in the project root directory.
+
+Packages not installing? ~
+Check :messages for installation progress.
+Ensure virtual environment is activated.
+
+Jupyter notebooks not working? ~
+Verify Molten is installed and registered.
+Run :PyworksCheck to see Molten status.
+Make sure you chose "Data Science" project type.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
