@@ -163,24 +163,40 @@ function M.setup_project()
 	end
 
 	-- Ask what type of project this is
-	local project_types = { "Select project type:" }
-	for i, template in ipairs(M.project_templates) do
-		table.insert(project_types, i .. ". " .. template.name)
+	local template_names = {}
+	for _, template in ipairs(M.project_templates) do
+		table.insert(template_names, template.name)
 	end
 
-	local choice
+	local choice_idx
 	if vim.g._pyworks_project_type then
-		choice = vim.g._pyworks_project_type
+		choice_idx = vim.g._pyworks_project_type
 	else
-		choice = vim.fn.inputlist(project_types)
+		-- Use vim.ui.select for better compatibility
+		local selected = nil
+		vim.ui.select(template_names, {
+			prompt = "Select project type:",
+			format_item = function(item)
+				return item
+			end,
+		}, function(item, idx)
+			selected = idx
+		end)
+
+		-- Wait for selection
+		vim.wait(10000, function()
+			return selected ~= nil
+		end)
+
+		choice_idx = selected
 	end
 
-	if choice == 0 then
+	if not choice_idx then
 		vim.notify("Setup cancelled", vim.log.levels.INFO)
 		return
 	end
 
-	local template = M.project_templates[choice]
+	local template = M.project_templates[choice_idx]
 	vim.notify("Setting up " .. template.name .. " environment with Python: " .. python_path)
 
 	-- Set Python host
