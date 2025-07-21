@@ -67,7 +67,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ```vim
 :PyworksSetup    " Choose 'Data Science / Notebooks'
-:PyworksNew analysis.ipynb
+:PyworksNewNotebook analysis.ipynb
 <leader>ji       " Initialize Jupyter kernel
 ```
 
@@ -82,14 +82,14 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ### Core Commands
 
-| Command                             | Description                             |
-| ----------------------------------- | --------------------------------------- |
-| `:PyworksSetup`                     | Interactive project setup (choose type) |
-| `:PyworksCheck`                     | Show environment diagnostics            |
-| `:PyworksInstall <packages>`        | Install Python packages                 |
-| `:PyworksNew [filename] [language]` | Create Jupyter notebook                 |
-| `:PyworksEnv`                       | Show environment status                 |
-| `:PyworksPackages`                  | Browse common packages                  |
+| Command                                     | Description                             |
+| ------------------------------------------- | --------------------------------------- |
+| `:PyworksSetup`                             | Interactive project setup (choose type) |
+| `:PyworksCheckEnvironment`                  | Show environment diagnostics            |
+| `:PyworksInstallPackages <packages>`        | Install Python packages                 |
+| `:PyworksNewNotebook [filename] [language]` | Create Jupyter notebook                 |
+| `:PyworksShowEnvironment`                   | Show environment status                 |
+| `:PyworksBrowsePackages`                    | Browse common packages                  |
 
 ### Quick Setup Commands
 
@@ -100,12 +100,12 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ### Short Aliases
 
-| Alias        | Full Command      |
-| ------------ | ----------------- |
-| `:PWSetup`   | `:PyworksSetup`   |
-| `:PWCheck`   | `:PyworksCheck`   |
-| `:PWInstall` | `:PyworksInstall` |
-| `:PWNew`     | `:PyworksNew`     |
+| Alias            | Full Command               |
+| ---------------- | -------------------------- |
+| `:PWSetup`       | `:PyworksSetup`            |
+| `:PWCheck`       | `:PyworksCheckEnvironment` |
+| `:PWInstall`     | `:PyworksInstallPackages`  |
+| `:PWNewNotebook` | `:PyworksNewNotebook`      |
 
 ## 🛠️ Project Types
 
@@ -173,21 +173,21 @@ nvim
 :PyworksSetup
 " Select: Data Science / Notebooks
 " Restart Neovim after setup
-:PyworksNew exploration.ipynb
+:PyworksNewNotebook exploration.ipynb
 ```
 
 ### Installing Additional Packages
 
 ```vim
-:PyworksInstall scikit-learn xgboost lightgbm
+:PyworksInstallPackages scikit-learn xgboost lightgbm
 " Or browse available packages:
-:PyworksPackages
+:PyworksBrowsePackages
 ```
 
 ### Checking Your Environment
 
 ```vim
-:PyworksCheck
+:PyworksCheckEnvironment
 " Shows:
 " - Python version and path
 " - Virtual environment status
@@ -227,8 +227,8 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 ### Virtual Environment Not Detected
 
 ```vim
-:PyworksCheck  " Check current status
-:PyworksEnv    " Detailed environment info
+:PyworksCheckEnvironment  " Check current status
+:PyworksShowEnvironment   " Detailed environment info
 ```
 
 ### Packages Not Installing
@@ -239,7 +239,7 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 ### Jupyter Notebooks Not Working
 
-- Run `:PyworksCheck` to verify Molten is registered
+- Run `:PyworksCheckEnvironment` to verify Molten is registered
 - Ensure you selected "Data Science" project type
 - Restart Neovim after initial setup
 
@@ -256,4 +256,3 @@ MIT License - see [LICENSE](LICENSE) for details
 ---
 
 Made with ❤️ for Python developers using Neovim
-

@@ -4,25 +4,25 @@
 
 - `:PyworksSetup` - Interactive setup for any Python project type
 - `:PyworksWeb` - Quick setup for web development (FastAPI/Flask/Django)
-- `:PyworksNew [filename] [language]` - Create new Jupyter notebook
-- `:PyworksCheck` - Run diagnostics to verify installation
-- `:PyworksInstall <packages>` - Install ANY Python package from PyPI
-- `:PyworksPackages` - Show common packages with categories
-- `:PyworksEnv` - Show Python environment status
+- `:PyworksNewNotebook [filename] [language]` - Create new Jupyter notebook
+- `:PyworksCheckEnvironment` - Run diagnostics to verify installation
+- `:PyworksInstallPackages <packages>` - Install ANY Python package from PyPI
+- `:PyworksBrowsePackages` - Show common packages with categories
+- `:PyworksShowEnvironment` - Show Python environment status
 
 ### Short Aliases
 
 - `:PWSetup` - Same as :PyworksSetup
-- `:PWCheck` - Same as :PyworksCheck
-- `:PWInstall` - Same as :PyworksInstall
-- `:PWNew` - Same as :PyworksNew
+- `:PWCheck` - Same as :PyworksCheckEnvironment
+- `:PWInstall` - Same as :PyworksInstallPackages
+- `:PWNewNotebook` - Same as :PyworksNewNotebook
 
 ## Getting Started
 
 ### For Data Science Projects
 
 1. Run `:PyworksSetup` and choose "Data Science / Notebooks"
-2. Create notebook: `:PyworksNew [filename]`
+2. Create notebook: `:PyworksNewNotebook [filename]`
 3. Initialize kernel: `<leader>ji`
 
 ### For Web Development
@@ -39,7 +39,7 @@ cd ~/projects/ml_analysis
 nvim
 # :PyworksSetup → Choose "Data Science"
 # Restart nvim
-# :PyworksNew analysis
+# :PyworksNewNotebook analysis
 # <leader>ji to initialize kernel
 ```
 
@@ -91,7 +91,7 @@ nvim
 - Activation is the same: `source .venv/bin/activate`
 - The setup automatically detects and uses `uv` for faster package installation when available
 
-## What PyworksCheck Shows
+## What PyworksCheckEnvironment Shows
 
 - Python host configuration status
 - Virtual environment detection
@@ -146,8 +146,8 @@ nvim
 ## Supported Languages
 
 - Python (default)
-- Julia (`:PyworksNew notebook julia`)
-- R (`:PyworksNew notebook r`)
+- Julia (`:PyworksNewNotebook notebook julia`)
+- R (`:PyworksNewNotebook notebook r`)
 - Bash and others supported via kernel
 
 ## Troubleshooting

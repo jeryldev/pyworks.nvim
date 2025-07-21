@@ -206,8 +206,8 @@ function M.show_packages()
 	}
 
 	local lines = { "=== Common Python Packages ===", "" }
-	table.insert(lines, "Install with: :PyworksInstall <package-name>")
-	table.insert(lines, "Example: :PyworksInstall pandas matplotlib scikit-learn")
+	table.insert(lines, "Install with: :PyworksInstallPackages <package-name>")
+	table.insert(lines, "Example: :PyworksInstallPackages pandas matplotlib scikit-learn")
 	table.insert(lines, "")
 
 	for category, packages in pairs(package_categories) do
@@ -220,8 +220,8 @@ function M.show_packages()
 
 	table.insert(lines, "💡 Tips:")
 	table.insert(lines, "- You can install ANY package from PyPI, not just these")
-	table.insert(lines, "- Install multiple at once: :PyworksInstall pandas numpy matplotlib")
-	table.insert(lines, "- Check installed: :PyworksCheck")
+	table.insert(lines, "- Install multiple at once: :PyworksInstallPackages pandas numpy matplotlib")
+	table.insert(lines, "- Check installed: :PyworksCheckEnvironment")
 
 	M.show_in_float(lines, "Python Packages")
 end
@@ -253,7 +253,7 @@ function M.show_env_status()
 			print("")
 			print("Note: This only affects:")
 			print("- Running Python in the terminal")
-			print("- Installing packages with pip (use :PyworksInstall instead)")
+			print("- Installing packages with pip (use :PyworksInstallPackages instead)")
 			print("")
 			print("Notebooks will still work correctly!")
 		end
@@ -290,4 +290,3 @@ function M.show_in_float(lines, title)
 end
 
 return M
-

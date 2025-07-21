@@ -69,33 +69,33 @@ Using lazy.nvim: >lua
 :PyworksData                                                    *:PyworksData*
     Quick setup for data science projects (alias for notebook setup).
 
-:PyworksCheck                                                  *:PyworksCheck*
+:PyworksCheckEnvironment                            *:PyworksCheckEnvironment*
     Show comprehensive environment diagnostics:
     - Python version and paths
     - Virtual environment status
     - Installed packages
     - Jupyter/Molten integration
 
-:PyworksInstall {packages}                                   *:PyworksInstall*
+:PyworksInstallPackages {packages}               *:PyworksInstallPackages*
     Install Python packages in the background.
-    Example: :PyworksInstall pandas numpy matplotlib
+    Example: :PyworksInstallPackages pandas numpy matplotlib
 
-:PyworksNew [filename] [language]                               *:PyworksNew*
+:PyworksNewNotebook [filename] [language]               *:PyworksNewNotebook*
     Create a new Jupyter notebook.
     - filename: Name of the notebook (default: untitled.ipynb)
     - language: Kernel language (default: python, also: julia, r)
 
-:PyworksEnv                                                      *:PyworksEnv*
+:PyworksShowEnvironment                          *:PyworksShowEnvironment*
     Show detailed Python environment status.
 
-:PyworksPackages                                            *:PyworksPackages*
+:PyworksBrowsePackages                          *:PyworksBrowsePackages*
     Browse common Python packages organized by category.
 
 Short aliases:
 :PWSetup        Same as :PyworksSetup
-:PWCheck        Same as :PyworksCheck
-:PWInstall      Same as :PyworksInstall
-:PWNew          Same as :PyworksNew
+:PWCheck        Same as :PyworksCheckEnvironment
+:PWInstall      Same as :PyworksInstallPackages
+:PWNewNotebook  Same as :PyworksNewNotebook
 
 ==============================================================================
 5. CONFIGURATION                                              *pyworks-config*
@@ -206,7 +206,7 @@ When auto_activate_venv is enabled:
 9. TROUBLESHOOTING                                   *pyworks-troubleshooting*
 
 Virtual environment not detected? ~
-Run :PyworksCheck to see current status.
+Run :PyworksCheckEnvironment to see current status.
 Make sure you're in the project root directory.
 
 Packages not installing? ~
@@ -215,7 +215,7 @@ Ensure virtual environment is activated.
 
 Jupyter notebooks not working? ~
 Verify Molten is installed and registered.
-Run :PyworksCheck to see Molten status.
+Run :PyworksCheckEnvironment to see Molten status.
 Make sure you chose "Data Science" project type.
 
 ==============================================================================
