@@ -19,7 +19,6 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 - Python 3.8+
 - Optional but recommended:
   - [`uv`](https://github.com/astral-sh/uv) for faster package management
-  - [`quarto-nvim`](https://github.com/quarto-dev/quarto-nvim) for enhanced notebook features (optional)
 
 ## 🚀 Installation
 
@@ -38,14 +37,6 @@ A comprehensive Python project management plugin for Neovim that handles virtual
     "3rd/image.nvim",              -- For inline plots/images
     "GCBallesteros/jupytext.nvim",  -- For .ipynb file support
 
-    -- Optional but recommended
-    {
-      "quarto-dev/quarto-nvim",   -- Enhanced notebook features
-      dependencies = {
-        "jmbuhr/otter.nvim",      -- LSP features in code blocks
-        "nvim-treesitter/nvim-treesitter",
-      },
-    },
   },
   lazy = false,  -- Load immediately for autocmds
   config = function()
@@ -239,8 +230,37 @@ pyworks.nvim automatically configures Molten when you choose a data science proj
 | `molten-nvim`   | Jupyter kernel management & cell execution | Yes (for notebooks)      |
 | `jupytext.nvim` | Open/save .ipynb files                     | Yes (for notebooks)      |
 | `image.nvim`    | Display plots and images inline            | Yes (for data science)   |
-| `quarto-nvim`   | Enhanced notebook features, LSP in cells   | Optional but recommended |
-| `otter.nvim`    | LSP support inside code blocks             | Optional (with quarto)   |
+
+### Works Well With
+
+While not required, these plugins enhance the notebook experience:
+- [quarto-nvim](https://github.com/quarto-dev/quarto-nvim) - Enhanced notebook features and `.qmd` file support
+- [otter.nvim](https://github.com/jmbuhr/otter.nvim) - LSP features inside code cells (requires quarto-nvim)
+
+To add these optional enhancements, add this to your Neovim config:
+
+```lua
+{
+  "quarto-dev/quarto-nvim",
+  dependencies = {
+    "jmbuhr/otter.nvim",
+    "nvim-treesitter/nvim-treesitter",
+  },
+  ft = { "quarto", "markdown" },
+  opts = {
+    lspFeatures = {
+      enabled = true,
+      languages = { "r", "python", "julia", "bash", "html" },
+      diagnostics = { enabled = true, triggers = { "BufWritePost" } },
+      completion = { enabled = true },
+    },
+    codeRunner = {
+      enabled = true,
+      default_method = "molten",
+    },
+  },
+}
+```
 
 ### LazyVim
 
@@ -283,7 +303,11 @@ MIT License - see [LICENSE](LICENSE) for details
 
 - Built for the Neovim community
 - Inspired by various Python workflow tools
-- Special thanks to [molten-nvim](https://github.com/benlubas/molten-nvim) for excellent Jupyter integration
+- Special thanks to these amazing projects:
+  - [molten-nvim](https://github.com/benlubas/molten-nvim) - For bringing Jupyter's power to Neovim
+  - [jupytext.nvim](https://github.com/GCBallesteros/jupytext.nvim) - For seamless .ipynb file support
+  - [image.nvim](https://github.com/3rd/image.nvim) - For inline image rendering
+  - [uv](https://github.com/astral-sh/uv) - For lightning-fast Python package management
 
 ---
 
