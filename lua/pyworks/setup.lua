@@ -7,15 +7,15 @@ local M = {}
 local function better_confirm(msg, choices, default)
 	-- Force redraw to ensure UI is ready
 	vim.cmd("redraw!")
-	
+
 	-- Use confirm but ensure we're in normal mode first
 	vim.cmd("stopinsert")
-	
+
 	-- Small delay to ensure UI is ready
 	vim.defer_fn(function()
 		-- This will automatically position cursor in the command line
 	end, 10)
-	
+
 	return vim.fn.confirm(msg, choices, default)
 end
 
@@ -163,18 +163,18 @@ function M.setup_project()
 		end
 
 		vim.notify("Virtual environment created successfully!", vim.log.levels.INFO)
-		
+
 		-- Add venv/bin to PATH immediately
 		local venv_bin = venv_path .. "/bin"
 		if not vim.env.PATH:match(venv_bin) then
 			vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
 			vim.notify("Added .venv/bin to PATH", vim.log.levels.INFO)
 		end
-		
+
 		-- Set Python host immediately
 		vim.g.python3_host_prog = python_path
 		vim.notify("Set Python host to: " .. python_path, vim.log.levels.INFO)
-		
+
 		-- Install pynvim immediately (essential for Molten)
 		vim.notify("Installing pynvim (required for Neovim integration)...")
 		local pynvim_cmd
@@ -183,20 +183,21 @@ function M.setup_project()
 		else
 			pynvim_cmd = string.format("%s -m pip install pynvim", python_path)
 		end
-		
+
 		local pynvim_result = vim.fn.system(pynvim_cmd)
 		if vim.v.shell_error ~= 0 then
 			vim.notify("Failed to install pynvim: " .. pynvim_result, vim.log.levels.ERROR)
 			return
 		end
 		vim.notify("✓ pynvim installed successfully!", vim.log.levels.INFO)
-		
+
 		-- Update remote plugins in the background
 		vim.notify("Updating remote plugins...")
-		local update_cmd = string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
+		local update_cmd =
+			string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
 		vim.fn.system(update_cmd)
 		vim.notify("✓ Remote plugins updated!", vim.log.levels.INFO)
-		
+
 		-- Continue with the rest of the setup
 		vim.notify("Continuing with project setup...", vim.log.levels.INFO)
 	end
@@ -214,7 +215,7 @@ function M.setup_project()
 		-- Ensure UI is ready
 		vim.cmd("redraw!")
 		vim.cmd("stopinsert")
-		
+
 		-- Use vim.ui.select for better compatibility
 		vim.schedule(function()
 			vim.ui.select(template_names, {
