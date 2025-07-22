@@ -137,6 +137,9 @@ function M.create_notebook(filename, language)
 
 	-- Check if file already exists
 	if vim.fn.filereadable(filename) == 1 then
+		-- Better confirm dialog
+		vim.cmd("redraw!")
+		vim.cmd("stopinsert")
 		local choice = vim.fn.confirm("File already exists. Overwrite?", "&Yes\n&No", 2)
 		if choice ~= 1 then
 			vim.notify("Notebook creation cancelled", vim.log.levels.INFO)

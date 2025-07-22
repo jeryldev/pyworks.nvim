@@ -3,6 +3,13 @@
 
 local M = {}
 
+-- Helper function for better confirm dialogs
+local function better_confirm(msg, choices, default)
+	vim.cmd("redraw!")
+	vim.cmd("stopinsert")
+	return vim.fn.confirm(msg, choices, default)
+end
+
 -- Helper function to check if we're in a valid Python project
 local function check_project_state()
 	local venv_path = vim.fn.getcwd() .. "/.venv"
@@ -34,7 +41,7 @@ function M.create_commands()
 		local cwd = vim.fn.getcwd()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksSetup in home directory!", vim.log.levels.WARN)
-			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			local choice = better_confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
 			if choice ~= 1 then
 				return
 			end
@@ -51,7 +58,7 @@ function M.create_commands()
 		local cwd = vim.fn.getcwd()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksWeb in home directory!", vim.log.levels.WARN)
-			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			local choice = better_confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
 			if choice ~= 1 then
 				return
 			end
@@ -61,7 +68,7 @@ function M.create_commands()
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
 			local choice =
-				vim.fn.confirm("Virtual environment already exists. Continue with web setup?", "&Yes\n&No", 1)
+				better_confirm("Virtual environment already exists. Continue with web setup?", "&Yes\n&No", 1)
 			if choice ~= 1 then
 				return
 			end
@@ -80,7 +87,7 @@ function M.create_commands()
 		local cwd = vim.fn.getcwd()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksData in home directory!", vim.log.levels.WARN)
-			local choice = vim.fn.confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
+			local choice = better_confirm("Are you sure you want to create a Python project here?", "&Yes\n&No", 2)
 			if choice ~= 1 then
 				return
 			end
@@ -90,7 +97,7 @@ function M.create_commands()
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 1 then
 			local choice =
-				vim.fn.confirm("Virtual environment already exists. Continue with data science setup?", "&Yes\n&No", 1)
+				better_confirm("Virtual environment already exists. Continue with data science setup?", "&Yes\n&No", 1)
 			if choice ~= 1 then
 				return
 			end
@@ -182,7 +189,7 @@ function M.create_commands()
 		local venv_path = vim.fn.getcwd() .. "/.venv"
 		if vim.fn.isdirectory(venv_path) == 0 then
 			vim.notify("No virtual environment found!", vim.log.levels.ERROR)
-			local choice = vim.fn.confirm("Run :PyworksSetup to create one?", "&Yes\n&No", 1)
+			local choice = better_confirm("Run :PyworksSetup to create one?", "&Yes\n&No", 1)
 			if choice == 1 then
 				vim.g._pyworks_project_type = 1 -- Data Science
 				setup.setup_project()
@@ -197,7 +204,7 @@ function M.create_commands()
 
 			if needs_setup then
 				local msg = string.format("Project setup needed: %s\n\nRun :PyworksSetup first?", reason)
-				local choice = vim.fn.confirm(msg, "&Yes\n&No\n&Cancel", 1)
+				local choice = better_confirm(msg, "&Yes\n&No\n&Cancel", 1)
 
 				if choice == 1 then
 					-- Set type to data science for notebook creation

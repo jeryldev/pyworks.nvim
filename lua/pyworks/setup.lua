@@ -3,6 +3,22 @@
 
 local M = {}
 
+-- Helper function for better confirm dialogs
+local function better_confirm(msg, choices, default)
+	-- Force redraw to ensure UI is ready
+	vim.cmd("redraw!")
+	
+	-- Use confirm but ensure we're in normal mode first
+	vim.cmd("stopinsert")
+	
+	-- Small delay to ensure UI is ready
+	vim.defer_fn(function()
+		-- This will automatically position cursor in the command line
+	end, 10)
+	
+	return vim.fn.confirm(msg, choices, default)
+end
+
 -- Package display name to import name mapping
 M.package_map = {
 	["scikit-learn"] = "sklearn",
@@ -131,7 +147,7 @@ function M.setup_project()
 		local has_uv = vim.fn.executable("uv") == 1
 		local msg = has_uv and "No .venv found. Create virtual environment with uv?"
 			or "No .venv found. Create virtual environment with python?"
-		local choice = vim.fn.confirm(msg, "&Yes\n&Cancel", 1)
+		local choice = better_confirm(msg, "&Yes\n&Cancel", 1)
 
 		if choice ~= 1 then
 			return
@@ -147,19 +163,42 @@ function M.setup_project()
 		end
 
 		vim.notify("Virtual environment created successfully!", vim.log.levels.INFO)
-		vim.notify("Please activate the virtual environment and re-run :PyworksSetup", vim.log.levels.WARN)
-		vim.notify("Run: source .venv/bin/activate", vim.log.levels.INFO)
-		return
-	end
-
-	-- Check if venv is activated
-	local current_python = vim.fn.exepath("python3")
-	if not current_python:match(venv_path) then
-		vim.notify("Virtual environment not activated. Please run: source .venv/bin/activate", vim.log.levels.WARN)
-		vim.notify(
-			"Note: This works the same whether you created the venv with uv or python -m venv",
-			vim.log.levels.INFO
-		)
+		
+		-- Add venv/bin to PATH immediately
+		local venv_bin = venv_path .. "/bin"
+		if not vim.env.PATH:match(venv_bin) then
+			vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+			vim.notify("Added .venv/bin to PATH", vim.log.levels.INFO)
+		end
+		
+		-- Set Python host immediately
+		vim.g.python3_host_prog = python_path
+		vim.notify("Set Python host to: " .. python_path, vim.log.levels.INFO)
+		
+		-- Install pynvim immediately (essential for Molten)
+		vim.notify("Installing pynvim (required for Neovim integration)...")
+		local pynvim_cmd
+		if has_uv then
+			pynvim_cmd = string.format("cd %s && %s/uv pip install pynvim", vim.fn.getcwd(), venv_bin)
+		else
+			pynvim_cmd = string.format("%s -m pip install pynvim", python_path)
+		end
+		
+		local pynvim_result = vim.fn.system(pynvim_cmd)
+		if vim.v.shell_error ~= 0 then
+			vim.notify("Failed to install pynvim: " .. pynvim_result, vim.log.levels.ERROR)
+			return
+		end
+		vim.notify("✓ pynvim installed successfully!", vim.log.levels.INFO)
+		
+		-- Update remote plugins in the background
+		vim.notify("Updating remote plugins...")
+		local update_cmd = string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
+		vim.fn.system(update_cmd)
+		vim.notify("✓ Remote plugins updated!", vim.log.levels.INFO)
+		
+		-- Continue with the rest of the setup
+		vim.notify("Continuing with project setup...", vim.log.levels.INFO)
 	end
 
 	-- Ask what type of project this is
@@ -172,20 +211,26 @@ function M.setup_project()
 		local template = M.project_templates[vim.g._pyworks_project_type]
 		M.continue_setup(template, python_path, venv_path)
 	else
+		-- Ensure UI is ready
+		vim.cmd("redraw!")
+		vim.cmd("stopinsert")
+		
 		-- Use vim.ui.select for better compatibility
-		vim.ui.select(template_names, {
-			prompt = "Select project type:",
-			format_item = function(item)
-				return item
-			end,
-		}, function(item, idx)
-			if not idx then
-				vim.notify("Setup cancelled", vim.log.levels.INFO)
-				return
-			end
+		vim.schedule(function()
+			vim.ui.select(template_names, {
+				prompt = "Select project type:",
+				format_item = function(item)
+					return item
+				end,
+			}, function(item, idx)
+				if not idx then
+					vim.notify("Setup cancelled", vim.log.levels.INFO)
+					return
+				end
 
-			local template = M.project_templates[idx]
-			M.continue_setup(template, python_path, venv_path)
+				local template = M.project_templates[idx]
+				M.continue_setup(template, python_path, venv_path)
+			end)
 		end)
 	end
 end
@@ -198,7 +243,9 @@ function M.continue_setup(template, python_path, venv_path)
 	vim.g.python3_host_prog = python_path
 
 	-- Install packages
-	local has_uv = vim.fn.executable("uv") == 1
+	-- Check for uv in venv first, then system
+	local venv_bin = venv_path .. "/bin"
+	local has_uv = vim.fn.executable(venv_bin .. "/uv") == 1 or vim.fn.executable("uv") == 1
 
 	-- Check and install essential packages
 	local missing_essential = M.check_missing_packages(python_path, template.essential)
@@ -214,7 +261,7 @@ function M.continue_setup(template, python_path, venv_path)
 		if #missing_optional > 0 then
 			vim.notify(#missing_optional .. " project packages missing: " .. table.concat(missing_optional, ", "))
 			local pkg_choice =
-				vim.fn.confirm("Install project packages now?", "&Yes\n&No (install later)\n&Show list", 1)
+				better_confirm("Install project packages now?", "&Yes\n&No (install later)\n&Show list", 1)
 
 			if pkg_choice == 1 then
 				M.install_packages_async(missing_optional, vim.fn.getcwd(), python_path, has_uv)
@@ -238,7 +285,7 @@ function M.continue_setup(template, python_path, venv_path)
 	-- Write .nvim.lua if needed
 	local create_nvim_lua = template.create_nvim_lua
 	if create_nvim_lua == nil then -- Custom project
-		create_nvim_lua = vim.fn.confirm("Create .nvim.lua for Python host?", "&Yes\n&No", 2) == 1
+		create_nvim_lua = better_confirm("Create .nvim.lua for Python host?", "&Yes\n&No", 2) == 1
 	end
 
 	if create_nvim_lua then
@@ -252,7 +299,8 @@ function M.continue_setup(template, python_path, venv_path)
 	end
 
 	vim.notify("Pyworks setup complete!", vim.log.levels.INFO)
-	vim.notify("Please restart Neovim for changes to take effect", vim.log.levels.WARN)
+	vim.notify("🎉 Everything is configured! Please restart Neovim once to activate Molten.", vim.log.levels.WARN)
+	vim.notify("Tip: Try :Lazy reload first - it might work without restart!", vim.log.levels.INFO)
 end
 
 -- Check for missing packages
