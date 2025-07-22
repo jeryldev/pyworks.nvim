@@ -398,7 +398,9 @@ fi
 						or line:match("Installed %d+ packages")
 						or line:match("Audited %d+ packages")
 						or line:match("^%s*%+%s*") -- Package install progress
-						or line:match("^%s*[%w%-%.]+%s*$")
+						or line:match("^%s*[%w%-%.]+==[%d%.]+") -- Package with version (e.g., torch==2.7.1)
+						or line:match("^%s*[%w%-%.]+%s*$") -- Package name only
+						or line:match("^%s*⚠%s*[%w%-%.]+") -- Warning symbol with package
 					then -- Package names
 						-- This is normal output, not an error
 					else
