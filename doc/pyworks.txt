@@ -8,10 +8,11 @@ CONTENTS                                                    *pyworks-contents*
 3. Installation ............................................. |pyworks-installation|
 4. Commands ................................................. |pyworks-commands|
 5. Configuration ............................................ |pyworks-config|
-6. Project Types ............................................ |pyworks-projects|
-7. Cell Navigation .......................................... |pyworks-cells|
-8. Integration .............................................. |pyworks-integration|
-9. Troubleshooting .......................................... |pyworks-troubleshooting|
+6. Workflow ................................................. |pyworks-workflow|
+7. Project Types ............................................ |pyworks-projects|
+8. Cell Navigation .......................................... |pyworks-cells|
+9. Integration .............................................. |pyworks-integration|
+10. Troubleshooting ......................................... |pyworks-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                                *pyworks-intro*
@@ -124,22 +125,34 @@ Setup function accepts these options: >lua
       },
     },
     auto_activate_venv = true,  -- Auto-activate in terminals
-    create_nvim_lua = {         -- When to create .nvim.lua
-      data_science = true,
-      web = false,
-      general = false,
-      automation = false,
-    },
+    -- Note: .nvim.lua is no longer created automatically
+    -- Python host is configured by pyworks autocmds
   })
 <
 
 ==============================================================================
-6. PROJECT TYPES                                           *pyworks-projects*
+6. WORKFLOW                                                  *pyworks-workflow*
+
+Quick Start ~
+1. Run :PyworksSetup in your project directory
+2. Select project type (Data Science, Web, etc.)
+3. Restart Neovim once (required only after initial setup)
+4. Start coding! Everything is configured automatically
+
+Automatic Features ~
+When you open Neovim in a directory with .venv:
+- Automatically adds .venv/bin to PATH
+- Sets python3_host_prog to the venv Python  
+- Activates venv in terminal buffers
+- No manual activation needed!
+
+==============================================================================
+7. PROJECT TYPES                                           *pyworks-projects*
 
 Data Science / Notebooks ~
 - Packages: numpy, pandas, matplotlib, scikit-learn, jupyter, tensorflow
-- Creates .nvim.lua for Molten integration
-- Full Jupyter notebook support
+- Auto-configures Python host for Molten integration
+- Full Jupyter notebook support with jupytext pre-installed
 
 Web Development ~
 - Packages: fastapi, flask, django, sqlalchemy, pytest, black, ruff
@@ -158,7 +171,7 @@ Custom ~
 - Decide on Jupyter integration
 
 ==============================================================================
-7. CELL NAVIGATION                                            *pyworks-cells*
+8. CELL NAVIGATION                                            *pyworks-cells*
 
 For Python files with cell markers (# %%), pyworks provides navigation:
 
@@ -182,7 +195,7 @@ Example: >python
 These keymaps work in both .py files and Jupyter notebooks.
 
 ==============================================================================
-8. INTEGRATION                                          *pyworks-integration*
+9. INTEGRATION                                          *pyworks-integration*
 
 Molten.nvim ~
 pyworks integrates deeply with molten-nvim for notebook execution:
@@ -212,15 +225,24 @@ When auto_activate_venv is enabled:
 - Preserves activation across sessions
 
 ==============================================================================
-9. TROUBLESHOOTING                                   *pyworks-troubleshooting*
+10. TROUBLESHOOTING                                  *pyworks-troubleshooting*
 
 Virtual environment not detected? ~
+Run :PyworksDebug to check and fix configuration.
 Run :PyworksCheckEnvironment to see current status.
 Make sure you're in the project root directory.
+
+Python host not configured? ~
+Run :PyworksDebug - it will automatically fix PATH and Python host.
+pyworks now loads immediately on startup to ensure proper configuration.
 
 Packages not installing? ~
 Check :messages for installation progress.
 Ensure virtual environment is activated.
+
+Jupytext not found? ~
+Run :PyworksDebug to check if jupytext is in PATH.
+Jupytext is now installed automatically during initial setup.
 
 Jupyter notebooks not working? ~
 Verify Molten is installed and registered.

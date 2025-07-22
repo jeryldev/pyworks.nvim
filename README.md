@@ -47,7 +47,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
       },
     },
   },
-  ft = { "python", "ipynb", "quarto", "markdown" },
+  lazy = false,  -- Load immediately for autocmds
   config = function()
     require("pyworks").setup({
       -- Configuration options (optional)
@@ -87,7 +87,8 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 | `:PyworksSetup`                             | Interactive project setup (choose type) |
 | `:PyworksCheckEnvironment`                  | Show environment diagnostics            |
 | `:PyworksInstallPackages <packages>`        | Install Python packages                 |
-| `:PyworksNewNotebook [filename] [language]` | Create Jupyter notebook                 |
+| `:PyworksNewNotebook <filename> [language]` | Create Jupyter notebook (filename required) |
+| `:PyworksDebug`                             | Debug pyworks configuration             |
 | `:PyworksShowEnvironment`                   | Show environment status                 |
 | `:PyworksBrowsePackages`                    | Browse common packages                  |
 
@@ -113,7 +114,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 - **Packages**: numpy, pandas, matplotlib, scikit-learn, jupyter, and more
 - **Features**: Full Jupyter integration with Molten
-- **Creates**: `.nvim.lua` for proper Python host configuration
+- **Auto-configures**: Python host and PATH for notebooks
 
 ### 2. Web Development
 
@@ -150,12 +151,6 @@ require("pyworks").setup({
     },
   },
   auto_activate_venv = true,  -- Auto-activate in terminals
-  create_nvim_lua = {         -- When to create .nvim.lua
-    data_science = true,
-    web = false,
-    general = false,
-    automation = false,
-  },
 })
 ```
 
@@ -227,6 +222,7 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 ### Virtual Environment Not Detected
 
 ```vim
+:PyworksDebug             " Debug configuration and fix issues
 :PyworksCheckEnvironment  " Check current status
 :PyworksShowEnvironment   " Detailed environment info
 ```
@@ -239,9 +235,16 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 ### Jupyter Notebooks Not Working
 
+- Run `:PyworksDebug` to check jupytext and Python host configuration
 - Run `:PyworksCheckEnvironment` to verify Molten is registered
 - Ensure you selected "Data Science" project type
 - Restart Neovim after initial setup
+
+### Python Host Configuration Issues
+
+- Run `:PyworksDebug` to see current configuration
+- The command will automatically fix PATH and Python host if needed
+- pyworks now loads immediately on startup to ensure proper configuration
 
 ## 📝 License
 
