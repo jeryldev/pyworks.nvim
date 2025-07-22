@@ -85,6 +85,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 _Video demonstration of pyworks.nvim setup process and basic commands_
 
 <!-- TODO: Update with actual hosted URL -->
+
 [Setup Demo Video](https://github.com/jeryldev/pyworks.nvim/docs/assets/setup-demo.gif)
 
 **What you'll see:**
@@ -99,6 +100,7 @@ _Video demonstration of pyworks.nvim setup process and basic commands_
 _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 <!-- TODO: Update with actual hosted URL -->
+
 [Notebook Workflow Demo Video](https://github.com/jeryldev/pyworks.nvim/docs/assets/notebook-workflow-demo.gif)
 
 **What you'll see:**
