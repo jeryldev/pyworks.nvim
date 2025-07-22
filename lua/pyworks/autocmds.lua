@@ -8,24 +8,37 @@ function M.setup(config)
 	vim.api.nvim_create_autocmd("VimEnter", {
 		pattern = "*",
 		callback = function()
-			local venv_path = vim.fn.getcwd() .. "/.venv"
-			if vim.fn.isdirectory(venv_path) == 1 then
-				local venv_bin = venv_path .. "/bin"
-				local current_python = vim.fn.exepath("python3")
+			-- Ensure this runs after plugins are loaded
+			vim.schedule(function()
+				local venv_path = vim.fn.getcwd() .. "/.venv"
 
-				-- Add venv/bin to PATH if not already there
-				if not vim.env.PATH:match(venv_bin) then
-					vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
-				end
+				if vim.fn.isdirectory(venv_path) == 1 then
+					local venv_bin = venv_path .. "/bin"
+					local python_path = venv_path .. "/bin/python3"
+					local current_python = vim.fn.exepath("python3")
 
-				if not current_python:match(venv_path) then
-					vim.notify("⚠️  Virtual environment detected but not activated in shell!", vim.log.levels.WARN)
-					vim.notify("Run in terminal: source .venv/bin/activate", vim.log.levels.INFO)
-					vim.notify("Note: Pyworks has added .venv/bin to PATH for this session", vim.log.levels.INFO)
+					-- Add venv/bin to PATH if not already there
+					if not vim.env.PATH:match(vim.pesc(venv_bin)) then
+						vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+					end
+
+					-- Always set Python host
+					vim.g.python3_host_prog = python_path
+
+					-- Only show the warning if the venv isn't being used at all
+					if not current_python:match(venv_path) and not vim.env.PATH:match(venv_path) then
+						vim.notify(
+							"💡 Tip: You can activate the venv in your shell with: source .venv/bin/activate",
+							vim.log.levels.INFO
+						)
+					else
+						-- Silently confirm everything is set up correctly
+						vim.cmd("silent! doautocmd User PyworksVenvActivated")
+					end
 				end
-			end
+			end) -- End of vim.schedule
 		end,
-		desc = "Check if virtual environment is activated and add to PATH",
+		desc = "Check if virtual environment is activated, add to PATH, and set Python host",
 	})
 
 	-- Also check when changing directories
@@ -35,14 +48,18 @@ function M.setup(config)
 			local venv_path = vim.fn.getcwd() .. "/.venv"
 			if vim.fn.isdirectory(venv_path) == 1 then
 				local venv_bin = venv_path .. "/bin"
+				local python_path = venv_path .. "/bin/python3"
+
 				-- Add venv/bin to PATH if not already there
-				if not vim.env.PATH:match(venv_bin) then
+				if not vim.env.PATH:match(vim.pesc(venv_bin)) then
 					vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
-					vim.notify("Added .venv/bin to PATH for " .. vim.fn.getcwd(), vim.log.levels.INFO)
 				end
+
+				-- Update Python host to match current directory's venv
+				vim.g.python3_host_prog = python_path
 			end
 		end,
-		desc = "Update PATH when changing directories",
+		desc = "Update PATH and Python host when changing directories",
 	})
 
 	-- Auto-activate virtual environment in terminal

@@ -3,20 +3,19 @@
 
 local M = {}
 
--- Helper function for better confirm dialogs
-local function better_confirm(msg, choices, default)
-	-- Force redraw to ensure UI is ready
-	vim.cmd("redraw!")
-
-	-- Use confirm but ensure we're in normal mode first
-	vim.cmd("stopinsert")
-
-	-- Small delay to ensure UI is ready
-	vim.defer_fn(function()
-		-- This will automatically position cursor in the command line
-	end, 10)
-
-	return vim.fn.confirm(msg, choices, default)
+-- Helper function for better selection using vim.ui.select
+local function better_select(prompt, items, callback)
+	vim.ui.select(items, {
+		prompt = prompt,
+		format_item = function(item)
+			return item
+		end,
+		kind = "select",
+	}, function(item, idx)
+		if callback then
+			callback(idx, item)
+		end
+	end)
 end
 
 -- Package display name to import name mapping
@@ -34,7 +33,7 @@ M.package_map = {
 M.project_templates = {
 	{
 		name = "Data Science / Notebooks",
-		essential = { "pynvim", "jupyter_client", "ipykernel", "jupytext" },
+		essential = { "jupyter_client", "ipykernel" }, -- pynvim and jupytext are pre-installed
 		optional = {
 			"numpy",
 			"pandas",
@@ -49,11 +48,10 @@ M.project_templates = {
 			"torch",
 			"torchvision",
 		},
-		create_nvim_lua = true,
 	},
 	{
 		name = "Web Development (FastAPI/Flask/Django)",
-		essential = { "pynvim" },
+		essential = {}, -- pynvim is pre-installed
 		optional = {
 			"fastapi",
 			"uvicorn[standard]",
@@ -69,11 +67,10 @@ M.project_templates = {
 			"black",
 			"ruff",
 		},
-		create_nvim_lua = false,
 	},
 	{
 		name = "General Python Development",
-		essential = { "pynvim" },
+		essential = {}, -- pynvim is pre-installed
 		optional = {
 			"pytest",
 			"black",
@@ -85,11 +82,10 @@ M.project_templates = {
 			"typer",
 			"click",
 		},
-		create_nvim_lua = false,
 	},
 	{
 		name = "Automation / Scripting",
-		essential = { "pynvim" },
+		essential = {}, -- pynvim is pre-installed
 		optional = {
 			"requests",
 			"beautifulsoup4",
@@ -100,13 +96,11 @@ M.project_templates = {
 			"rich",
 			"typer",
 		},
-		create_nvim_lua = false,
 	},
 	{
 		name = "Custom (choose your own packages)",
-		essential = { "pynvim" },
+		essential = {}, -- pynvim is pre-installed
 		optional = {},
-		create_nvim_lua = nil, -- Will ask
 	},
 }
 
@@ -125,8 +119,8 @@ function M.is_setup_needed()
 		return true, "Python host not configured for this project"
 	end
 
-	-- Check essential packages
-	local essential_packages = { "pynvim" }
+	-- Check essential packages (these are pre-installed during venv creation)
+	local essential_packages = { "pynvim", "jupytext" }
 	for _, pkg in ipairs(essential_packages) do
 		local check_cmd = string.format("%s -c 'import %s' 2>/dev/null", python_path, pkg)
 		if vim.fn.system(check_cmd) ~= "" then
@@ -137,71 +131,8 @@ function M.is_setup_needed()
 	return false, "Setup complete"
 end
 
--- Main setup function
-function M.setup_project()
-	local venv_path = vim.fn.getcwd() .. "/.venv"
-	local python_path = venv_path .. "/bin/python3"
-
-	-- Check if venv exists, create if it doesn't
-	if vim.fn.isdirectory(venv_path) == 0 then
-		local has_uv = vim.fn.executable("uv") == 1
-		local msg = has_uv and "No .venv found. Create virtual environment with uv?"
-			or "No .venv found. Create virtual environment with python?"
-		local choice = better_confirm(msg, "&Yes\n&Cancel", 1)
-
-		if choice ~= 1 then
-			return
-		end
-
-		vim.notify("Creating virtual environment" .. (has_uv and " with uv..." or "..."))
-		local create_cmd = has_uv and "uv venv" or "python3 -m venv .venv"
-
-		local result = vim.fn.system("cd " .. vim.fn.getcwd() .. " && " .. create_cmd)
-		if vim.v.shell_error ~= 0 then
-			vim.notify("Failed to create virtual environment: " .. result, vim.log.levels.ERROR)
-			return
-		end
-
-		vim.notify("Virtual environment created successfully!", vim.log.levels.INFO)
-
-		-- Add venv/bin to PATH immediately
-		local venv_bin = venv_path .. "/bin"
-		if not vim.env.PATH:match(venv_bin) then
-			vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
-			vim.notify("Added .venv/bin to PATH", vim.log.levels.INFO)
-		end
-
-		-- Set Python host immediately
-		vim.g.python3_host_prog = python_path
-		vim.notify("Set Python host to: " .. python_path, vim.log.levels.INFO)
-
-		-- Install pynvim immediately (essential for Molten)
-		vim.notify("Installing pynvim (required for Neovim integration)...")
-		local pynvim_cmd
-		if has_uv then
-			pynvim_cmd = string.format("cd %s && %s/uv pip install pynvim", vim.fn.getcwd(), venv_bin)
-		else
-			pynvim_cmd = string.format("%s -m pip install pynvim", python_path)
-		end
-
-		local pynvim_result = vim.fn.system(pynvim_cmd)
-		if vim.v.shell_error ~= 0 then
-			vim.notify("Failed to install pynvim: " .. pynvim_result, vim.log.levels.ERROR)
-			return
-		end
-		vim.notify("✓ pynvim installed successfully!", vim.log.levels.INFO)
-
-		-- Update remote plugins in the background
-		vim.notify("Updating remote plugins...")
-		local update_cmd =
-			string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
-		vim.fn.system(update_cmd)
-		vim.notify("✓ Remote plugins updated!", vim.log.levels.INFO)
-
-		-- Continue with the rest of the setup
-		vim.notify("Continuing with project setup...", vim.log.levels.INFO)
-	end
-
+-- Continue setup after venv creation
+local function continue_after_venv_creation(venv_path, python_path)
 	-- Ask what type of project this is
 	local template_names = {}
 	for _, template in ipairs(M.project_templates) do
@@ -212,27 +143,93 @@ function M.setup_project()
 		local template = M.project_templates[vim.g._pyworks_project_type]
 		M.continue_setup(template, python_path, venv_path)
 	else
-		-- Ensure UI is ready
-		vim.cmd("redraw!")
-		vim.cmd("stopinsert")
+		-- Use better_select for proper focus
+		better_select("Select project type:", template_names, function(choice, selected)
+			if not choice then
+				vim.notify("Setup cancelled", vim.log.levels.INFO)
+				return
+			end
 
-		-- Use vim.ui.select for better compatibility
-		vim.schedule(function()
-			vim.ui.select(template_names, {
-				prompt = "Select project type:",
-				format_item = function(item)
-					return item
-				end,
-			}, function(item, idx)
-				if not idx then
-					vim.notify("Setup cancelled", vim.log.levels.INFO)
-					return
-				end
-
-				local template = M.project_templates[idx]
-				M.continue_setup(template, python_path, venv_path)
-			end)
+			local template = M.project_templates[choice]
+			M.continue_setup(template, python_path, venv_path)
 		end)
+	end
+end
+
+-- Main setup function
+function M.setup_project()
+	local venv_path = vim.fn.getcwd() .. "/.venv"
+	local python_path = venv_path .. "/bin/python3"
+
+	-- Check if venv exists, create if it doesn't
+	if vim.fn.isdirectory(venv_path) == 0 then
+		local has_uv = vim.fn.executable("uv") == 1
+		local options = has_uv and {
+			"Create virtual environment with uv",
+			"Cancel setup",
+		} or {
+			"Create virtual environment with python",
+			"Cancel setup",
+		}
+
+		better_select("Virtual environment setup:", options, function(choice, item)
+			if not choice or choice ~= 1 then
+				return
+			end
+
+			vim.notify("Creating virtual environment" .. (has_uv and " with uv..." or "..."))
+			local create_cmd = has_uv and "uv venv" or "python3 -m venv .venv"
+
+			local result = vim.fn.system("cd " .. vim.fn.getcwd() .. " && " .. create_cmd)
+			if vim.v.shell_error ~= 0 then
+				vim.notify("Failed to create virtual environment: " .. result, vim.log.levels.ERROR)
+				return
+			end
+
+			vim.notify("Virtual environment created successfully!", vim.log.levels.INFO)
+
+			-- Add venv/bin to PATH immediately
+			local venv_bin = venv_path .. "/bin"
+			if not vim.env.PATH:match(venv_bin) then
+				vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+			end
+
+			-- Set Python host immediately
+			vim.g.python3_host_prog = python_path
+
+			-- Install essential packages immediately (pynvim and jupytext)
+			vim.notify("Installing essential packages (pynvim, jupytext)...")
+			local essential_cmd
+			if has_uv then
+				-- Use system uv to install into the venv we just created
+				-- uv pip install automatically detects and uses .venv in current directory
+				essential_cmd = string.format("cd %s && uv pip install pynvim jupytext", vim.fn.getcwd())
+			else
+				essential_cmd = string.format("%s -m pip install pynvim jupytext", python_path)
+			end
+
+			local essential_result = vim.fn.system(essential_cmd)
+			if vim.v.shell_error ~= 0 then
+				vim.notify("Failed to install essential packages: " .. essential_result, vim.log.levels.ERROR)
+				return
+			end
+			vim.notify("✓ pynvim and jupytext installed successfully!", vim.log.levels.INFO)
+
+			-- Update remote plugins in the background
+			vim.notify("Updating remote plugins...")
+			local update_cmd =
+				string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
+			vim.fn.system(update_cmd)
+			vim.notify("✓ Remote plugins updated!", vim.log.levels.INFO)
+
+			-- Continue with the rest of the setup
+
+			-- Now continue with project type selection
+			continue_after_venv_creation(venv_path, python_path)
+		end)
+	else
+		-- Venv already exists, continue with setup
+		continue_after_venv_creation(venv_path, python_path)
 	end
 end
 
@@ -261,47 +258,39 @@ function M.continue_setup(template, python_path, venv_path)
 		local missing_optional = M.check_missing_packages(python_path, template.optional)
 		if #missing_optional > 0 then
 			vim.notify(#missing_optional .. " project packages missing: " .. table.concat(missing_optional, ", "))
-			local pkg_choice =
-				better_confirm("Install project packages now?", "&Yes\n&No (install later)\n&Show list", 1)
+			better_select(
+				"Project packages:",
+				{ "Install now", "Skip installation", "Show missing packages" },
+				function(pkg_choice)
+					if pkg_choice == 1 then
+						M.install_packages_async(missing_optional, vim.fn.getcwd(), python_path, has_uv)
+					elseif pkg_choice == 3 then
+						vim.notify("Missing: " .. table.concat(missing_optional, ", "), vim.log.levels.INFO)
+					end
 
-			if pkg_choice == 1 then
-				M.install_packages_async(missing_optional, vim.fn.getcwd(), python_path, has_uv)
-			elseif pkg_choice == 3 then
-				vim.notify("Missing: " .. table.concat(missing_optional, ", "), vim.log.levels.INFO)
-			end
-		end
-	elseif choice == 5 then -- Custom
-		local custom = vim.fn.input("Enter packages (space-separated): ")
-		if custom ~= "" then
-			local packages = vim.split(custom, " ")
-			M.install_packages_async(packages, vim.fn.getcwd(), python_path, has_uv)
+					-- Complete setup
+					M.complete_setup(python_path)
+				end
+			)
+			return -- Exit here, completion will happen in callback
 		end
 	end
 
+	-- If we get here, no optional packages or none missing, complete setup
+	M.complete_setup(python_path)
+end
+
+-- Complete the setup process
+function M.complete_setup(python_path)
 	-- Update remote plugins
 	vim.notify("Updating remote plugins...")
 	local update_cmd = string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
 	vim.fn.system(update_cmd)
 
-	-- Write .nvim.lua if needed
-	local create_nvim_lua = template.create_nvim_lua
-	if create_nvim_lua == nil then -- Custom project
-		create_nvim_lua = better_confirm("Create .nvim.lua for Python host?", "&Yes\n&No", 2) == 1
-	end
-
-	if create_nvim_lua then
-		local nvim_config = string.format("vim.g.python3_host_prog = '%s'", python_path)
-		local config_file = io.open(".nvim.lua", "w")
-		if config_file then
-			config_file:write(nvim_config)
-			config_file:close()
-			vim.notify("Created .nvim.lua with Python host configuration", vim.log.levels.INFO)
-		end
-	end
+	-- Python host is automatically configured by pyworks autocmds
 
 	vim.notify("Pyworks setup complete!", vim.log.levels.INFO)
 	vim.notify("🎉 Everything is configured! Please restart Neovim once to activate Molten.", vim.log.levels.WARN)
-	vim.notify("Tip: Try :Lazy reload first - it might work without restart!", vim.log.levels.INFO)
 end
 
 -- Check for missing packages
@@ -391,8 +380,38 @@ fi
 			end
 		end,
 		on_stderr = function(_, data)
+			-- Collect lines that are actually errors
+			local has_error = false
+			local error_lines = {}
+
 			for _, line in ipairs(data) do
-				if line ~= "" and not line:match("WARNING") then
+				if line ~= "" then
+					-- Skip known non-error output from pip/uv
+					if
+						line:match("WARNING")
+						or line:match("Collecting")
+						or line:match("Using cached")
+						or line:match("Installing collected packages")
+						or line:match("Successfully installed")
+						or line:match("Resolved %d+ packages")
+						or line:match("Prepared %d+ packages")
+						or line:match("Installed %d+ packages")
+						or line:match("Audited %d+ packages")
+						or line:match("^%s*%+%s*") -- Package install progress
+						or line:match("^%s*[%w%-%.]+%s*$")
+					then -- Package names
+						-- This is normal output, not an error
+					else
+						-- This might be an actual error
+						table.insert(error_lines, line)
+						has_error = true
+					end
+				end
+			end
+
+			-- Only show actual errors
+			if has_error then
+				for _, line in ipairs(error_lines) do
 					vim.schedule(function()
 						vim.notify("  ⚠ " .. line, vim.log.levels.WARN)
 					end)
@@ -400,8 +419,6 @@ fi
 			end
 		end,
 	})
-
-	vim.notify("Installation job started (ID: " .. job_id .. ")", vim.log.levels.INFO)
 end
 
 return M

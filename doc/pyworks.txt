@@ -80,16 +80,25 @@ Using lazy.nvim: >lua
     Install Python packages in the background.
     Example: :PyworksInstallPackages pandas numpy matplotlib
 
-:PyworksNewNotebook [filename] [language]               *:PyworksNewNotebook*
+:PyworksNewNotebook {filename} [language]               *:PyworksNewNotebook*
     Create a new Jupyter notebook.
-    - filename: Name of the notebook (default: untitled.ipynb)
+    - filename: Name of the notebook (required)
     - language: Kernel language (default: python, also: julia, r)
+    Example: :PyworksNewNotebook analysis.ipynb
 
 :PyworksShowEnvironment                          *:PyworksShowEnvironment*
     Show detailed Python environment status.
 
 :PyworksBrowsePackages                          *:PyworksBrowsePackages*
     Browse common Python packages organized by category.
+
+:PyworksDebug                                              *:PyworksDebug*
+    Show debug information about pyworks configuration:
+    - Current directory and venv path
+    - Python host configuration
+    - PATH environment status
+    - jupytext availability
+    Can manually fix configuration if needed.
 
 Short aliases:
 :PWSetup        Same as :PyworksSetup
