@@ -23,5 +23,5 @@ venv/
 # Local config
 .nvim.lua
 
-# Large demo videos (>100MB)
-demos/notebook-workflow-demo.mov
+# Demo videos (keep only GIFs)
+demos/*.mov
