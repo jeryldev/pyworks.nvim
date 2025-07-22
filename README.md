@@ -78,19 +78,52 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 " Start coding your API!
 ```
 
+## 🎬 Demonstrations
+
+### Setup and Usage
+
+_Video demonstration of pyworks.nvim setup process and basic commands_
+
+<!-- Replace [setup-demo-video-id] with actual video ID after uploading -->
+
+<https://github.com/user-attachments/assets/[setup-demo-video-id>]
+
+**What you'll see:**
+
+- Running `:PyworksSetup` and choosing project type
+- Virtual environment creation with automatic package installation
+- Python host configuration and PATH setup
+- Creating notebooks with `:PyworksNewNotebook`
+
+### Notebook Workflow
+
+_Video demonstration of Jupyter notebook workflow with Molten integration_
+
+<!-- Replace [notebook-demo-video-id] with actual video ID after uploading -->
+
+<https://github.com/user-attachments/assets/[notebook-demo-video-id>]
+
+**What you'll see:**
+
+- Cell navigation with `]j` and `[j` (next/previous cell)
+- Running cells with `<leader>jr` (run current cell)
+- Visual selection execution with `<leader>jv`
+- Chart generation with matplotlib, seaborn, and plotly
+- Real-time output display and image rendering
+
 ## 📚 Commands
 
 ### Core Commands
 
-| Command                                     | Description                             |
-| ------------------------------------------- | --------------------------------------- |
-| `:PyworksSetup`                             | Interactive project setup (choose type) |
-| `:PyworksCheckEnvironment`                  | Show environment diagnostics            |
-| `:PyworksInstallPackages <packages>`        | Install Python packages                 |
+| Command                                     | Description                                 |
+| ------------------------------------------- | ------------------------------------------- |
+| `:PyworksSetup`                             | Interactive project setup (choose type)     |
+| `:PyworksCheckEnvironment`                  | Show environment diagnostics                |
+| `:PyworksInstallPackages <packages>`        | Install Python packages                     |
 | `:PyworksNewNotebook <filename> [language]` | Create Jupyter notebook (filename required) |
-| `:PyworksDebug`                             | Debug pyworks configuration             |
-| `:PyworksShowEnvironment`                   | Show environment status                 |
-| `:PyworksBrowsePackages`                    | Browse common packages                  |
+| `:PyworksDebug`                             | Debug pyworks configuration                 |
+| `:PyworksShowEnvironment`                   | Show environment status                     |
+| `:PyworksBrowsePackages`                    | Browse common packages                      |
 
 ### Quick Setup Commands
 
