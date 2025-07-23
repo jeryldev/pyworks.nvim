@@ -22,11 +22,14 @@ that handles virtual environments, package installation, and Jupyter notebook
 integration.
 
 Features:
-- Smart project setup with virtual environment creation
-- Background package installation
-- Jupyter notebook support (Python, Julia, R)
-- Environment diagnostics
+- Async project setup with non-blocking virtual environment creation
+- Background package installation with progress indicators
+- Enhanced Jupyter notebook support with auto kernel initialization
+- Comprehensive environment diagnostics with actionable feedback
 - Project templates for different Python workflows
+- Interactive package browser with categories and search
+- Robust error handling and recovery suggestions
+- Performance optimizations with intelligent caching
 
 ==============================================================================
 2. REQUIREMENTS                                         *pyworks-requirements*
@@ -57,12 +60,17 @@ Using lazy.nvim: >lua
 4. COMMANDS                                                *pyworks-commands*
 
 :PyworksSetup                                                  *:PyworksSetup*
-    Interactive project setup. Choose from:
-    - Data Science / Notebooks
+    Interactive project setup with async operations. Choose from:
+    - Data Science / Notebooks (with auto kernel init)
     - Web Development
     - General Python Development
     - Automation / Scripting
     - Custom
+    
+    Features:
+    - Non-blocking virtual environment creation
+    - Progress indicators for all operations
+    - Automatic error recovery suggestions
 
 :PyworksWeb                                                      *:PyworksWeb*
     Quick setup for web development projects (FastAPI/Flask/Django).
@@ -78,20 +86,31 @@ Using lazy.nvim: >lua
     - Jupyter/Molten integration
 
 :PyworksInstallPackages {packages}               *:PyworksInstallPackages*
-    Install Python packages in the background.
+    Install Python packages asynchronously in the background.
+    - Non-blocking operation with progress indicator
+    - Continue coding while packages install
+    - Clear error messages if installation fails
     Example: :PyworksInstallPackages pandas numpy matplotlib
 
 :PyworksNewNotebook {filename} [language]               *:PyworksNewNotebook*
-    Create a new Jupyter notebook.
+    Create a new Jupyter notebook with enhanced features.
     - filename: Name of the notebook (required)
     - language: Kernel language (default: python, also: julia, r)
+    - Auto-initializes kernel for Python notebooks
+    - Progress indicator during creation
+    - Async file operations
     Example: :PyworksNewNotebook analysis.ipynb
 
 :PyworksShowEnvironment                          *:PyworksShowEnvironment*
     Show detailed Python environment status.
 
 :PyworksBrowsePackages                          *:PyworksBrowsePackages*
-    Browse common Python packages organized by category.
+    Interactive package browser with enhanced features:
+    - Browse by category (Data Science, ML, Web Dev, etc.)
+    - Package descriptions for each entry
+    - Search functionality
+    - Install entire categories at once
+    - Smart navigation with back button
 
 :PyworksDebug                                              *:PyworksDebug*
     Show debug information about pyworks configuration:

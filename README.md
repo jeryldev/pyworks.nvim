@@ -6,12 +6,14 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## ✨ Features
 
-- 🚀 **Smart Project Setup** - Automatically detects and creates virtual environments using `uv` or `python -m venv`
-- 📦 **Package Management** - Install packages in the background while you keep coding
-- 📓 **Jupyter Integration** - Create and work with Jupyter notebooks (Python, Julia, R)
-- 🔍 **Environment Diagnostics** - Check Python setup, installed packages, and potential issues
+- 🚀 **Async Project Setup** - Non-blocking virtual environment creation and package installation
+- 📦 **Smart Package Browser** - Interactive package browser with categories and descriptions
+- 📓 **Enhanced Jupyter Integration** - Auto-kernel initialization and better cell navigation
+- 🔍 **Real-time Diagnostics** - Environment health checks with actionable feedback
 - 🎯 **Project Templates** - Pre-configured setups for data science, web development, and more
 - ⚡ **Auto-activation** - Automatically activates virtual environments in Neovim terminals
+- 🔄 **Progress Indicators** - Visual feedback for all long-running operations
+- 🛡️ **Robust Error Handling** - Clear error messages with recovery suggestions
 
 ## 📋 Requirements
 
@@ -51,6 +53,22 @@ A comprehensive Python project management plugin for Neovim that handles virtual
   end,
 }
 ```
+
+## 🆕 What's New
+
+### Performance & UX Improvements
+
+- **Async Everything**: Virtual environment creation and package installation no longer freeze Neovim
+- **Smart Package Browser**: Browse packages by category with descriptions, search, or install entire categories
+- **Better Notifications**: Progress indicators show exactly what's happening with timing information
+- **Auto Kernel Init**: Creating a Python notebook automatically initializes the Jupyter kernel
+
+### Code Quality
+
+- **Centralized Configuration**: Better state management and configuration validation
+- **Robust Error Handling**: No more crashes - clear error messages with recovery suggestions
+- **Performance Caching**: Reduced filesystem calls with intelligent caching
+- **Code Deduplication**: Shared utilities module for consistent behavior
 
 ## 🎯 Quick Start
 
@@ -102,15 +120,15 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ### Core Commands
 
-| Command                                     | Description                                 |
-| ------------------------------------------- | ------------------------------------------- |
-| `:PyworksSetup`                             | Interactive project setup (choose type)     |
-| `:PyworksCheckEnvironment`                  | Show environment diagnostics                |
-| `:PyworksInstallPackages <packages>`        | Install Python packages                     |
-| `:PyworksNewNotebook <filename> [language]` | Create Jupyter notebook (filename required) |
-| `:PyworksDebug`                             | Debug pyworks configuration                 |
-| `:PyworksShowEnvironment`                   | Show environment status                     |
-| `:PyworksBrowsePackages`                    | Browse common packages                      |
+| Command                                     | Description                                     |
+| ------------------------------------------- | ----------------------------------------------- |
+| `:PyworksSetup`                             | Interactive project setup with async operations |
+| `:PyworksCheckEnvironment`                  | Show comprehensive environment diagnostics      |
+| `:PyworksInstallPackages <packages>`        | Install packages in background (non-blocking)   |
+| `:PyworksNewNotebook <filename> [language]` | Create notebook with auto kernel initialization |
+| `:PyworksDebug`                             | Debug configuration and fix common issues       |
+| `:PyworksShowEnvironment`                   | Display current Python environment status       |
+| `:PyworksBrowsePackages`                    | Interactive package browser with categories     |
 
 ### Quick Setup Commands
 
@@ -225,15 +243,16 @@ pyworks.nvim automatically configures Molten when you choose a data science proj
 
 ### Dependencies Explained
 
-| Plugin          | Purpose                                    | Required                 |
-| --------------- | ------------------------------------------ | ------------------------ |
-| `molten-nvim`   | Jupyter kernel management & cell execution | Yes (for notebooks)      |
-| `jupytext.nvim` | Open/save .ipynb files                     | Yes (for notebooks)      |
-| `image.nvim`    | Display plots and images inline            | Yes (for data science)   |
+| Plugin          | Purpose                                    | Required               |
+| --------------- | ------------------------------------------ | ---------------------- |
+| `molten-nvim`   | Jupyter kernel management & cell execution | Yes (for notebooks)    |
+| `jupytext.nvim` | Open/save .ipynb files                     | Yes (for notebooks)    |
+| `image.nvim`    | Display plots and images inline            | Yes (for data science) |
 
 ### Works Well With
 
 While not required, these plugins enhance the notebook experience:
+
 - [quarto-nvim](https://github.com/quarto-dev/quarto-nvim) - Enhanced notebook features and `.qmd` file support
 - [otter.nvim](https://github.com/jmbuhr/otter.nvim) - LSP features inside code cells (requires quarto-nvim)
 

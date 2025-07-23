@@ -2,15 +2,17 @@
 -- Handles automatic commands
 
 local M = {}
+local config = require("pyworks.config")
+local utils = require("pyworks.utils")
 
-function M.setup(config)
+function M.setup(user_config)
 	-- Check if venv should be activated on startup
 	vim.api.nvim_create_autocmd("VimEnter", {
 		pattern = "*",
 		callback = function()
 			-- Ensure this runs after plugins are loaded
 			vim.schedule(function()
-				local venv_path = vim.fn.getcwd() .. "/.venv"
+				local cwd, venv_path = utils.get_project_paths()
 
 				if vim.fn.isdirectory(venv_path) == 1 then
 					local venv_bin = venv_path .. "/bin"
@@ -24,6 +26,8 @@ function M.setup(config)
 
 					-- Always set Python host
 					vim.g.python3_host_prog = python_path
+					config.set_state("venv.python_path", python_path)
+					config.update_venv_state(venv_path)
 
 					-- Only show the warning if the venv isn't being used at all
 					if not current_python:match(venv_path) and not vim.env.PATH:match(venv_path) then
@@ -45,7 +49,7 @@ function M.setup(config)
 	vim.api.nvim_create_autocmd("DirChanged", {
 		pattern = "*",
 		callback = function()
-			local venv_path = vim.fn.getcwd() .. "/.venv"
+			local cwd, venv_path = utils.get_project_paths()
 			if vim.fn.isdirectory(venv_path) == 1 then
 				local venv_bin = venv_path .. "/bin"
 				local python_path = venv_path .. "/bin/python3"
@@ -57,13 +61,15 @@ function M.setup(config)
 
 				-- Update Python host to match current directory's venv
 				vim.g.python3_host_prog = python_path
+				config.set_state("venv.python_path", python_path)
+				config.update_venv_state(venv_path)
 			end
 		end,
 		desc = "Update PATH and Python host when changing directories",
 	})
 
 	-- Auto-activate virtual environment in terminal
-	if config.auto_activate_venv then
+	if user_config.auto_activate_venv then
 		vim.api.nvim_create_autocmd("TermOpen", {
 			pattern = "*",
 			callback = function()

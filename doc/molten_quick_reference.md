@@ -1,14 +1,22 @@
 # Molten Quick Reference Card
 
+## 🆕 What's New in Pyworks
+
+- **Async Operations**: Setup and package installation no longer freeze Neovim
+- **Smart Package Browser**: Interactive categories with descriptions
+- **Auto Kernel Init**: Notebooks automatically initialize kernels
+- **Progress Indicators**: Visual feedback for all operations
+- **Better Error Handling**: Clear messages with recovery suggestions
+
 ## Pyworks Commands
 
-- `:PyworksSetup` - Interactive setup for any Python project type
+- `:PyworksSetup` - Interactive setup with async venv creation
 - `:PyworksWeb` - Quick setup for web development (FastAPI/Flask/Django)
-- `:PyworksNewNotebook [filename] [language]` - Create new Jupyter notebook
-- `:PyworksCheckEnvironment` - Run diagnostics to verify installation
-- `:PyworksInstallPackages <packages>` - Install ANY Python package from PyPI
-- `:PyworksBrowsePackages` - Show common packages with categories
-- `:PyworksShowEnvironment` - Show Python environment status
+- `:PyworksNewNotebook [filename] [language]` - Create notebook with auto kernel init
+- `:PyworksCheckEnvironment` - Comprehensive diagnostics with actionable feedback
+- `:PyworksInstallPackages <packages>` - Background package installation
+- `:PyworksBrowsePackages` - Interactive package browser with search
+- `:PyworksShowEnvironment` - Display Python environment status
 
 ### Short Aliases
 
@@ -79,11 +87,14 @@ nvim
 - Choose your own packages
 - Decide if you need `.nvim.lua`
 
-## Features
+## Enhanced Features
 
-- **Creates virtual environment** - Uses `uv venv` if available, otherwise `python3 -m venv`
-- **Non-blocking installation** - Runs in background so you can keep working
-- **Smart package detection** - Only installs what's missing
+- **Async Virtual Environment Creation** - Non-blocking setup with progress indicators
+- **Background Package Installation** - Continue coding while packages install
+- **Smart Package Browser** - Browse by category, search, or install entire collections
+- **Auto Kernel Initialization** - Notebooks automatically set up Jupyter kernels
+- **Intelligent Caching** - Reduced filesystem calls for better performance
+- **Comprehensive Error Handling** - Clear messages with suggested fixes
 
 ## Virtual Environment Notes
 

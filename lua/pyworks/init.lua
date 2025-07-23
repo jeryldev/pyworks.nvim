@@ -2,39 +2,21 @@
 -- Main module
 
 local M = {}
-
--- Default configuration
-M.config = {
-	-- Python settings
-	python = {
-		preferred_venv_name = ".venv",
-		use_uv = true, -- Prefer uv over pip/venv when available
-	},
-	-- UI settings
-	ui = {
-		icons = {
-			python = "🐍",
-			success = "✓",
-			error = "✗",
-			warning = "⚠️",
-			info = "ℹ",
-		},
-	},
-	-- Auto-activation in terminal
-	auto_activate_venv = true,
-	-- Create .nvim.lua for notebook projects
-	create_nvim_lua = {
-		data_science = true,
-		web = false,
-		general = false,
-		automation = false,
-	},
-}
+local config = require("pyworks.config")
 
 -- Setup function
 function M.setup(opts)
-	-- Merge user config with defaults
-	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+	-- Validate and setup configuration
+	if opts then
+		local ok, errors = config.validate_config(opts)
+		if not ok then
+			vim.notify("pyworks.nvim: Invalid configuration:\n" .. table.concat(errors, "\n"), vim.log.levels.ERROR)
+			return
+		end
+	end
+
+	-- Setup configuration
+	M.config = config.setup(opts)
 
 	-- Load submodules
 	require("pyworks.commands").setup()
@@ -45,7 +27,12 @@ function M.setup(opts)
 	require("pyworks.commands").create_commands()
 
 	-- Mark setup as complete
-	vim.g.pyworks_setup_complete = true
+	config.set_state("setup_completed", true)
+end
+
+-- Expose config for backward compatibility
+function M.get_config()
+	return config.current
 end
 
 return M

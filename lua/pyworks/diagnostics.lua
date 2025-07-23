@@ -120,110 +120,177 @@ end
 
 -- Show common packages
 function M.show_packages()
+	local utils = require("pyworks.utils")
+	local config = require("pyworks.config")
+
 	local package_categories = {
-		["🔬 Data Science Essentials"] = {
-			"numpy",
-			"pandas",
-			"matplotlib",
-			"seaborn",
-			"scipy",
-			"statsmodels",
-			"scikit-learn",
-			"jupyter",
-			"notebook",
+		{
+			name = "🔬 Data Science Essentials",
+			packages = {
+				{ name = "numpy", desc = "Numerical computing with arrays" },
+				{ name = "pandas", desc = "Data manipulation and analysis" },
+				{ name = "matplotlib", desc = "Plotting and visualization" },
+				{ name = "seaborn", desc = "Statistical data visualization" },
+				{ name = "scipy", desc = "Scientific computing tools" },
+				{ name = "statsmodels", desc = "Statistical modeling" },
+				{ name = "scikit-learn", desc = "Machine learning library" },
+				{ name = "jupyter", desc = "Interactive notebooks" },
+				{ name = "notebook", desc = "Jupyter notebook interface" },
+			},
 		},
-		["🤖 Machine Learning"] = {
-			"tensorflow",
-			"keras",
-			"torch",
-			"torchvision",
-			"xgboost",
-			"lightgbm",
-			"catboost",
-			"optuna",
-			"mlflow",
+		{
+			name = "🤖 Machine Learning",
+			packages = {
+				{ name = "tensorflow", desc = "Deep learning framework" },
+				{ name = "torch", desc = "PyTorch deep learning" },
+				{ name = "transformers", desc = "State-of-the-art NLP" },
+				{ name = "xgboost", desc = "Gradient boosting" },
+				{ name = "lightgbm", desc = "Fast gradient boosting" },
+				{ name = "catboost", desc = "Gradient boosting with categorical features" },
+				{ name = "optuna", desc = "Hyperparameter optimization" },
+				{ name = "mlflow", desc = "ML lifecycle platform" },
+			},
 		},
-		["📊 Visualization"] = {
-			"plotly",
-			"bokeh",
-			"altair",
-			"holoviews",
-			"dash",
-			"streamlit",
-			"gradio",
-			"panel",
+		{
+			name = "📊 Visualization",
+			packages = {
+				{ name = "plotly", desc = "Interactive graphing" },
+				{ name = "bokeh", desc = "Interactive visualization" },
+				{ name = "altair", desc = "Declarative visualization" },
+				{ name = "dash", desc = "Web apps for Python" },
+				{ name = "streamlit", desc = "Data apps framework" },
+				{ name = "gradio", desc = "ML web demos" },
+			},
 		},
-		["🗄️ Data Engineering"] = {
-			"dask",
-			"ray",
-			"vaex",
-			"polars",
-			"pyarrow",
-			"sqlalchemy",
-			"pymongo",
-			"redis-py",
+		{
+			name = "🌐 Web Development",
+			packages = {
+				{ name = "fastapi", desc = "Modern web API framework" },
+				{ name = "flask", desc = "Micro web framework" },
+				{ name = "django", desc = "Full-stack web framework" },
+				{ name = "requests", desc = "HTTP library" },
+				{ name = "httpx", desc = "Async HTTP client" },
+				{ name = "beautifulsoup4", desc = "Web scraping" },
+				{ name = "uvicorn[standard]", desc = "ASGI server" },
+			},
 		},
-		["🌐 Web & APIs"] = {
-			"requests",
-			"httpx",
-			"beautifulsoup4",
-			"scrapy",
-			"fastapi",
-			"flask",
-			"django",
-			"aiohttp",
-		},
-		["🔧 Utilities"] = {
-			"tqdm",
-			"rich",
-			"typer",
-			"click",
-			"python-dotenv",
-			"pydantic",
-			"pytest",
-			"black",
-			"ruff",
-		},
-		["📚 NLP & Text"] = {
-			"nltk",
-			"spacy",
-			"transformers",
-			"langchain",
-			"openai",
-			"anthropic",
-			"gensim",
-			"textblob",
-		},
-		["🖼️ Computer Vision"] = {
-			"opencv-python",
-			"pillow",
-			"scikit-image",
-			"albumentations",
-			"detectron2",
-			"ultralytics",
-			"mediapipe",
+		{
+			name = "🛠️ Developer Tools",
+			packages = {
+				{ name = "pytest", desc = "Testing framework" },
+				{ name = "black", desc = "Code formatter" },
+				{ name = "ruff", desc = "Fast Python linter" },
+				{ name = "mypy", desc = "Static type checker" },
+				{ name = "rich", desc = "Rich terminal output" },
+				{ name = "typer", desc = "CLI app builder" },
+				{ name = "python-dotenv", desc = "Load .env files" },
+				{ name = "pydantic", desc = "Data validation" },
+			},
 		},
 	}
 
-	local lines = { "=== Common Python Packages ===", "" }
-	table.insert(lines, "Install with: :PyworksInstallPackages <package-name>")
-	table.insert(lines, "Example: :PyworksInstallPackages pandas matplotlib scikit-learn")
-	table.insert(lines, "")
-
-	for category, packages in pairs(package_categories) do
-		table.insert(lines, category)
-		for _, pkg in ipairs(packages) do
-			table.insert(lines, "  • " .. pkg)
-		end
-		table.insert(lines, "")
+	-- Interactive category selection
+	local category_names = {}
+	for _, cat in ipairs(package_categories) do
+		table.insert(category_names, cat.name)
 	end
+	table.insert(category_names, "📋 View All Packages")
+	table.insert(category_names, "🔍 Search Package")
 
-	table.insert(lines, "💡 Tips:")
-	table.insert(lines, "- You can install ANY package from PyPI, not just these")
-	table.insert(lines, "- Install multiple at once: :PyworksInstallPackages pandas numpy matplotlib")
-	table.insert(lines, "- Check installed: :PyworksCheckEnvironment")
+	utils.better_select("Browse Python packages:", category_names, function(selected)
+		if not selected then
+			return
+		end
 
-	M.show_in_float(lines, "Python Packages")
+		if selected == "📋 View All Packages" then
+			-- Show all in floating window
+			local lines = { "=== Python Package Browser ===", "" }
+			table.insert(lines, config.format_message("Install: :PyworksInstallPackages <package>", "info"))
+			table.insert(lines, "")
+
+			for _, category in ipairs(package_categories) do
+				table.insert(lines, category.name)
+				table.insert(lines, string.rep("─", 50))
+				for _, pkg in ipairs(category.packages) do
+					table.insert(lines, string.format("  %-20s %s", pkg.name, pkg.desc or ""))
+				end
+				table.insert(lines, "")
+			end
+
+			table.insert(lines, config.format_message("Tips:", "info"))
+			table.insert(lines, "• Install multiple: :PyworksInstallPackages pandas numpy")
+			table.insert(lines, "• Check installed: :PyworksCheckEnvironment")
+			table.insert(lines, "• Install ANY PyPI package!")
+
+			M.show_in_float(lines, "Python Packages")
+		elseif selected == "🔍 Search Package" then
+			-- Search functionality
+			vim.ui.input({
+				prompt = "Search package name: ",
+			}, function(query)
+				if query and query ~= "" then
+					vim.cmd("PyworksInstallPackages " .. query)
+				end
+			end)
+		else
+			-- Show packages from selected category
+			for _, category in ipairs(package_categories) do
+				if category.name == selected then
+					local items = {}
+
+					-- Add packages with descriptions
+					for _, pkg in ipairs(category.packages) do
+						table.insert(items, string.format("%-20s - %s", pkg.name, pkg.desc or ""))
+					end
+
+					-- Add action items
+					table.insert(items, "")
+					table.insert(items, "📦 Install All " .. category.name .. " Packages")
+					table.insert(items, "🔙 Back to Categories")
+
+					utils.better_select(category.name .. " packages:", items, function(item_selected)
+						if not item_selected then
+							return
+						end
+
+						if item_selected == "🔙 Back to Categories" then
+							M.show_packages()
+							return
+						elseif item_selected:match("^📦 Install All") then
+							-- Install all packages in category
+							local pkg_names = {}
+							for _, pkg in ipairs(category.packages) do
+								table.insert(pkg_names, pkg.name)
+							end
+							local cmd = "PyworksInstallPackages " .. table.concat(pkg_names, " ")
+
+							vim.ui.select({ "Yes", "No" }, {
+								prompt = "Install all " .. #pkg_names .. " packages?",
+							}, function(confirm)
+								if confirm == "Yes" then
+									vim.cmd(cmd)
+								end
+							end)
+						elseif item_selected ~= "" then
+							-- Extract package name from selection
+							local pkg_name = item_selected:match("^(%S+)")
+							if pkg_name then
+								vim.ui.input({
+									prompt = "Install command: ",
+									default = "PyworksInstallPackages " .. pkg_name,
+								}, function(cmd)
+									if cmd and cmd ~= "" then
+										vim.cmd(cmd)
+									end
+								end)
+							end
+						end
+					end)
+					break
+				end
+			end
+		end
+	end)
 end
 
 -- Show environment status

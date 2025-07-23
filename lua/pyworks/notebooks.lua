@@ -5,10 +5,9 @@ local M = {}
 
 -- Function to get Python version
 local function get_python_version()
-	local handle = io.popen("python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:3])))'")
-	if handle then
-		local version = handle:read("*a"):gsub("\n", "")
-		handle:close()
+	local result = vim.fn.system("python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:3])))'")
+	if vim.v.shell_error == 0 and result then
+		local version = result:gsub("\n", "")
 		return version ~= "" and version or "3.11.0"
 	end
 	return "3.11.0"
@@ -168,27 +167,51 @@ function M.create_notebook(filename, language)
 		template.nbformat_minor
 	)
 
-	-- Write the notebook file
-	local file = io.open(filename, "w")
-	if file then
-		file:write(notebook_json)
-		file:close()
-	else
-		vim.notify("Failed to create notebook", vim.log.levels.ERROR)
-		return
-	end
+	-- Write the notebook file asynchronously
+	local utils = require("pyworks.utils")
 
-	-- Open the notebook with error handling
-	local ok, err = pcall(vim.cmd, "edit " .. filename)
-	if ok then
-		vim.notify("Created " .. filename)
-	else
-		vim.notify("Created notebook but error opening: " .. tostring(err), vim.log.levels.WARN)
-		if vim.fn.executable("jupytext") == 0 then
-			vim.notify("jupytext not found! Run :PyworksSetup and choose 'Data Science'", vim.log.levels.ERROR)
-			vim.notify("Make sure your virtual environment is activated", vim.log.levels.INFO)
+	-- Start progress indicator
+	local progress_id = utils.progress_start("Creating notebook " .. vim.fn.fnamemodify(filename, ":t"))
+
+	-- Write file asynchronously
+	vim.schedule(function()
+		local success, err = utils.safe_file_write(filename, notebook_json)
+		if not success then
+			utils.progress_end(progress_id, false, err)
+			return
 		end
-	end
+
+		utils.progress_end(progress_id, true)
+
+		-- Open the notebook
+		vim.schedule(function()
+			local ok, open_err = pcall(vim.cmd, "edit " .. filename)
+			if ok then
+				utils.notify(
+					"Notebook ready: " .. vim.fn.fnamemodify(filename, ":t"),
+					vim.log.levels.INFO,
+					nil,
+					"success"
+				)
+
+				-- Auto-initialize kernel for Python notebooks
+				if language:lower() == "python" then
+					vim.defer_fn(function()
+						require("pyworks.molten").init_kernel(true) -- true for silent/auto mode
+					end, 500)
+				end
+			else
+				utils.notify("Created notebook but error opening: " .. tostring(open_err), vim.log.levels.WARN)
+				if vim.fn.executable("jupytext") == 0 then
+					utils.notify(
+						"jupytext not found! Run :PyworksSetup and choose 'Data Science'",
+						vim.log.levels.ERROR
+					)
+					vim.notify("Make sure your virtual environment is activated", vim.log.levels.INFO)
+				end
+			end
+		end)
+	end)
 end
 
 return M

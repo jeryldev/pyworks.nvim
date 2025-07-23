@@ -2,25 +2,11 @@
 -- Defines all user commands
 
 local M = {}
-
--- Helper function for better selection using vim.ui.select
-local function better_select(prompt, items, callback)
-	vim.ui.select(items, {
-		prompt = prompt,
-		format_item = function(item)
-			return item
-		end,
-		kind = "select",
-	}, function(item, idx)
-		if callback then
-			callback(idx, item)
-		end
-	end)
-end
+local utils = require("pyworks.utils")
 
 -- Helper function to check if we're in a valid Python project
 local function check_project_state()
-	local venv_path = vim.fn.getcwd() .. "/.venv"
+	local cwd, venv_path = utils.get_project_paths()
 	local has_venv = vim.fn.isdirectory(venv_path) == 1
 	local python_path = venv_path .. "/bin/python3"
 	local has_python_host = vim.g.python3_host_prog == python_path
@@ -46,11 +32,11 @@ function M.create_commands()
 	-- Main setup command
 	vim.api.nvim_create_user_command("PyworksSetup", function()
 		-- Basic validation
-		local cwd = vim.fn.getcwd()
+		local cwd, venv_path = utils.get_project_paths()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksSetup in home directory!", vim.log.levels.WARN)
-			better_select("Home directory project:", { "Create Python project here", "Cancel" }, function(choice)
-				if choice == 1 then
+			utils.better_select("Home directory project:", { "Create Python project here", "Cancel" }, function(item)
+				if item == "Create Python project here" then
 					setup.setup_project()
 				end
 			end)
@@ -64,7 +50,7 @@ function M.create_commands()
 	-- Convenience command for web development
 	vim.api.nvim_create_user_command("PyworksWeb", function()
 		-- Basic validation
-		local cwd = vim.fn.getcwd()
+		local cwd, venv_path = utils.get_project_paths()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksWeb in home directory!", vim.log.levels.WARN)
 		end
@@ -79,7 +65,7 @@ function M.create_commands()
 	-- Alias for data science (backwards compatibility)
 	vim.api.nvim_create_user_command("PyworksData", function()
 		-- Basic validation
-		local cwd = vim.fn.getcwd()
+		local cwd, venv_path = utils.get_project_paths()
 		if cwd == vim.fn.expand("~") then
 			vim.notify("Warning: Running PyworksData in home directory!", vim.log.levels.WARN)
 		end
@@ -100,11 +86,12 @@ function M.create_commands()
 
 	-- Debug command to check Python host
 	vim.api.nvim_create_user_command("PyworksDebug", function()
-		local venv_path = vim.fn.getcwd() .. "/.venv"
+		local cwd, venv_path = utils.get_project_paths()
 		local python_path = venv_path .. "/bin/python3"
 
 		vim.notify("=== Pyworks Debug Info ===", vim.log.levels.INFO)
-		vim.notify("Current directory: " .. vim.fn.getcwd(), vim.log.levels.INFO)
+		local cwd = utils.get_project_paths()
+		vim.notify("Current directory: " .. cwd, vim.log.levels.INFO)
 		vim.notify("Expected venv path: " .. venv_path, vim.log.levels.INFO)
 		vim.notify("Venv exists: " .. (vim.fn.isdirectory(venv_path) == 1 and "Yes" or "No"), vim.log.levels.INFO)
 		vim.notify("Expected Python: " .. python_path, vim.log.levels.INFO)
@@ -141,7 +128,7 @@ function M.create_commands()
 			return
 		end
 
-		local venv_path = vim.fn.getcwd() .. "/.venv"
+		local cwd, venv_path = utils.get_project_paths()
 		local python_path = venv_path .. "/bin/python3"
 
 		if vim.fn.isdirectory(venv_path) == 0 then
@@ -157,7 +144,7 @@ function M.create_commands()
 		end
 
 		local has_uv = vim.fn.executable("uv") == 1
-		setup.install_packages_async(vim.split(packages, " "), vim.fn.getcwd(), python_path, has_uv)
+		setup.install_packages_async(vim.split(packages, " "), cwd, python_path, has_uv)
 	end, {
 		nargs = "+",
 		desc = "Install specific Python packages in project environment",
@@ -200,15 +187,16 @@ function M.create_commands()
 		end
 
 		-- Check if virtual environment exists
-		local venv_path = vim.fn.getcwd() .. "/.venv"
+		local cwd, venv_path = utils.get_project_paths()
 		if vim.fn.isdirectory(venv_path) == 0 then
 			vim.notify("No virtual environment found!", vim.log.levels.ERROR)
-			local choice = better_select("Virtual environment required:", { "Run PyworksSetup", "Cancel" }, 1)
-			if choice == 1 then
-				vim.g._pyworks_project_type = 1 -- Data Science
-				setup.setup_project()
-				vim.g._pyworks_project_type = nil
-			end
+			utils.better_select("Virtual environment required:", { "Run PyworksSetup", "Cancel" }, function(item)
+				if item == "Run PyworksSetup" then
+					vim.g._pyworks_project_type = 1 -- Data Science
+					setup.setup_project()
+					vim.g._pyworks_project_type = nil
+				end
+			end)
 			return
 		end
 
@@ -218,11 +206,11 @@ function M.create_commands()
 
 			if needs_setup then
 				vim.notify("Project setup needed: " .. reason, vim.log.levels.WARN)
-				better_select(
+				utils.better_select(
 					"Setup required:",
 					{ "Run PyworksSetup first", "Continue anyway", "Cancel" },
-					function(choice)
-						if choice == 1 then
+					function(item)
+						if item == "Run PyworksSetup first" then
 							-- Set type to data science for notebook creation
 							vim.g._pyworks_project_type = 1
 							setup.setup_project()
@@ -231,7 +219,7 @@ function M.create_commands()
 							vim.defer_fn(function()
 								notebooks.create_notebook(filename, language)
 							end, 1000)
-						elseif choice == 2 then
+						elseif item == "Continue anyway" then
 							-- Continue anyway - check jupytext
 							if vim.fn.executable("jupytext") == 0 then
 								vim.notify("jupytext not found!", vim.log.levels.ERROR)
