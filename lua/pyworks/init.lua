@@ -149,6 +149,16 @@ function M.setup(opts)
 			vim.notify("Image support not available", vim.log.levels.WARN)
 		end
 	end, { desc = "[J]upyter [C]lear images" })
+	
+	-- Package management keybindings
+	vim.keymap.set("n", "<leader>pi", function()
+		local detector = require("pyworks.package-detector")
+		detector.install_suggested()
+	end, { desc = "[P]yworks [I]nstall suggested packages" })
+	
+	vim.keymap.set("n", "<leader>pa", function()
+		vim.cmd("PyworksAnalyzeImports")
+	end, { desc = "[P]yworks [A]nalyze imports" })
 
 	-- Mark setup as complete
 	config.set_state("setup_completed", true)

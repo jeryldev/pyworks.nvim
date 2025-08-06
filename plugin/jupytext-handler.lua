@@ -72,6 +72,12 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 			local notebook_type = filetype:gsub("^%l", string.upper)
 			vim.notify("📓 " .. notebook_type .. " notebook opened", vim.log.levels.INFO)
 			
+			-- Analyze imports after a delay to let the buffer settle
+			vim.defer_fn(function()
+				local detector = require("pyworks.package-detector")
+				detector.analyze_buffer()
+			end, 1500)
+			
 			-- Check if virtual environment exists
 			local venv_exists = vim.fn.isdirectory(vim.fn.getcwd() .. "/.venv") == 1
 			if not venv_exists then
@@ -105,13 +111,24 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 								-- Find matching kernel for the detected file type
 								local matching_kernel = nil
 								local kernel_to_find = ""
+								local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
 								
 								if filetype == "python" then
 									kernel_to_find = "python3"
+									-- First try project-specific kernel
 									for _, k in ipairs(available_kernels) do
-										if k == "python3" or k:match("^python") then
+										if k == project_name or k:match(project_name) then
 											matching_kernel = k
 											break
+										end
+									end
+									-- Fall back to generic python kernel
+									if not matching_kernel then
+										for _, k in ipairs(available_kernels) do
+											if k == "python3" or k:match("^python") then
+												matching_kernel = k
+												break
+											end
 										end
 									end
 								elseif filetype == "julia" then

@@ -63,10 +63,23 @@ function M.init_kernel(silent_mode)
 	local matching_kernel = nil
 	
 	if filetype == "python" then
+		-- First, try to find a project-specific kernel
+		local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
 		for _, k in ipairs(available_kernels) do
-			if k.name == "python3" or k.name:match("^python") then
+			-- Prefer project-specific kernels
+			if k.name == project_name or k.name:match(project_name) then
 				matching_kernel = k.name
 				break
+			end
+		end
+		
+		-- If no project kernel, fall back to python3
+		if not matching_kernel then
+			for _, k in ipairs(available_kernels) do
+				if k.name == "python3" or k.name:match("^python") then
+					matching_kernel = k.name
+					break
+				end
 			end
 		end
 	elseif filetype == "julia" then

@@ -129,7 +129,22 @@ function M.create_commands()
 		end
 
 		local cwd, venv_path = utils.get_project_paths()
+		
+		-- Debug output
+		utils.notify("Working in: " .. cwd, vim.log.levels.INFO)
+		utils.notify("Venv path: " .. venv_path, vim.log.levels.INFO)
+		
 		local python_path = venv_path .. "/bin/python3"
+		
+		-- Try python3 first, then python
+		if vim.fn.executable(python_path) ~= 1 then
+			python_path = venv_path .. "/bin/python"
+			if vim.fn.executable(python_path) ~= 1 then
+				vim.notify("Python not found in virtual environment!", vim.log.levels.ERROR)
+				vim.notify("Run :PyworksSetup to fix the environment.", vim.log.levels.INFO)
+				return
+			end
+		end
 
 		if vim.fn.isdirectory(venv_path) == 0 then
 			vim.notify("No virtual environment found!", vim.log.levels.ERROR)
@@ -290,6 +305,56 @@ function M.create_commands()
 		end
 		vim.cmd("PyworksNewNotebook " .. opts.args)
 	end, { nargs = "*", desc = "Alias for PyworksNewNotebook" })
+	
+	-- Import analysis commands
+	vim.api.nvim_create_user_command("PyworksAnalyzeImports", function()
+		local detector = require("pyworks.package-detector")
+		local result = detector.analyze_buffer()
+		if result and #result.missing == 0 and #result.compatibility == 0 then
+			utils.notify("✓ All imported packages are available!", vim.log.levels.INFO)
+		end
+	end, {
+		desc = "Analyze Python imports and check for missing packages",
+	})
+	
+	vim.api.nvim_create_user_command("PyworksInstallSuggested", function()
+		local detector = require("pyworks.package-detector")
+		detector.install_suggested()
+	end, {
+		desc = "Install packages suggested by import analysis",
+	})
+	
+	-- Kernel management commands
+	vim.api.nvim_create_user_command("PyworksCheckKernel", function()
+		local kernel_mgr = require("pyworks.kernel-manager")
+		local success, kernel_name = kernel_mgr.ensure_project_kernel()
+		if success then
+			utils.notify("✓ Project kernel ready: " .. kernel_name, vim.log.levels.INFO)
+			utils.notify("This kernel uses: " .. vim.fn.getcwd() .. "/.venv/bin/python", vim.log.levels.INFO)
+		else
+			utils.notify("⚠️ Kernel issue: " .. kernel_name, vim.log.levels.WARN)
+			utils.notify("Run :PyworksSetup to fix this", vim.log.levels.INFO)
+		end
+	end, {
+		desc = "Check and ensure project-specific Jupyter kernel exists",
+	})
+	
+	vim.api.nvim_create_user_command("PyworksListKernels", function()
+		local kernel_mgr = require("pyworks.kernel-manager")
+		local kernels = kernel_mgr.list_kernels()
+		if #kernels == 0 then
+			utils.notify("No Jupyter kernels found", vim.log.levels.WARN)
+		else
+			utils.notify("Available Jupyter kernels:", vim.log.levels.INFO)
+			for _, kernel in ipairs(kernels) do
+				local is_project = kernel.name == vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+				local marker = is_project and " [PROJECT]" or ""
+				utils.notify("  • " .. kernel.display .. " (" .. kernel.name .. ")" .. marker, vim.log.levels.INFO)
+			end
+		end
+	end, {
+		desc = "List all available Jupyter kernels",
+	})
 end
 
 return M

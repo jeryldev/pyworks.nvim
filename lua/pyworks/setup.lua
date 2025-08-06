@@ -320,6 +320,21 @@ function M.complete_setup(python_path)
 	local update_cmd = string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
 	vim.fn.system(update_cmd)
 
+	-- Create project-specific Jupyter kernel if ipykernel is available
+	local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+	local has_ipykernel = vim.fn.system(python_path .. " -c 'import ipykernel' 2>/dev/null")
+	if vim.v.shell_error == 0 then
+		vim.notify("Creating project-specific Jupyter kernel...")
+		local kernel_cmd = string.format(
+			"%s -m ipykernel install --user --name %s --display-name 'Python (%s)'",
+			python_path, project_name, project_name
+		)
+		vim.fn.system(kernel_cmd)
+		if vim.v.shell_error == 0 then
+			utils.notify("✓ Created kernel: " .. project_name, vim.log.levels.INFO)
+		end
+	end
+
 	-- Python host is automatically configured by pyworks autocmds
 
 	utils.notify("Setup complete!", vim.log.levels.INFO, "Success", "success")
@@ -369,13 +384,25 @@ function M.install_packages_async(packages, cwd, python_path, has_uv, callback)
 	utils.notify("Installing packages in background...", vim.log.levels.INFO)
 	utils.notify("You can continue working. Check :messages for progress.", vim.log.levels.INFO)
 
+	-- Debug: Show what we're about to run
+	utils.notify("Current directory: " .. cwd, vim.log.levels.INFO)
+	utils.notify("Python path: " .. python_path, vim.log.levels.INFO)
+	utils.notify("Packages: " .. table.concat(packages, ", "), vim.log.levels.INFO)
+	
 	-- Build install command
 	local cmd
 	if has_uv then
-		cmd = "uv pip install " .. table.concat(packages, " ")
+		-- UV needs to know which Python environment to use
+		cmd = "uv pip install --python " .. python_path .. " " .. table.concat(packages, " ")
 	else
+		-- Ensure pip is available first
+		local ensure_pip = python_path .. " -m ensurepip 2>/dev/null"
+		vim.fn.system(ensure_pip)
+		
 		cmd = python_path .. " -m pip install " .. table.concat(packages, " ")
 	end
+	
+	utils.notify("Command: " .. cmd, vim.log.levels.DEBUG)
 
 	local progress_id = utils.progress_start("Installing " .. #packages .. " packages")
 
@@ -383,11 +410,25 @@ function M.install_packages_async(packages, cwd, python_path, has_uv, callback)
 	local job_id = utils.async_system_call(cmd, function(success, stdout, stderr, exit_code)
 		if success then
 			utils.progress_end(progress_id, true, "Packages installed successfully!")
+			-- Show what was installed
+			if stdout and stdout ~= "" then
+				local installed_lines = vim.split(stdout, "\n")
+				for _, line in ipairs(installed_lines) do
+					if line:match("Successfully installed") then
+						utils.notify(line, vim.log.levels.INFO)
+						break
+					end
+				end
+			end
 		else
 			utils.progress_end(progress_id, false, "Some packages failed to install")
 			-- Log the error details
+			utils.notify("Exit code: " .. tostring(exit_code), vim.log.levels.ERROR)
 			if stderr and stderr ~= "" then
-				utils.notify("Installation errors: " .. stderr, vim.log.levels.WARN)
+				utils.notify("Installation errors: " .. stderr, vim.log.levels.ERROR)
+			end
+			if stdout and stdout ~= "" then
+				utils.notify("Output: " .. stdout, vim.log.levels.WARN)
 			end
 		end
 
