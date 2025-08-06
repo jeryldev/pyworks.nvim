@@ -6,65 +6,137 @@ local utils = require("pyworks.utils")
 
 -- Initialize Molten with better UX
 function M.init_kernel(silent_mode)
-	-- Start progress indicator
-	local progress_id = silent_mode and nil or utils.progress_start("Initializing Jupyter kernel")
-
-	-- Run initialization asynchronously
-	vim.schedule(function()
-		-- Check if already initialized
-		local kernels = vim.fn.MoltenAvailableKernels()
-
-		-- If no kernels available, show error
-		if vim.tbl_isempty(kernels or {}) then
-			if progress_id then
-				utils.progress_end(progress_id, false, "No kernels found")
+	-- Check if MoltenInit exists
+	if vim.fn.exists(":MoltenInit") ~= 2 then
+		utils.notify("Jupyter not configured. Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.ERROR)
+		return
+	end
+	
+	-- Check if we have a virtual environment
+	local venv_exists = vim.fn.isdirectory(vim.fn.getcwd() .. "/.venv") == 1
+	if not venv_exists then
+		utils.notify("No Python environment found!", vim.log.levels.ERROR)
+		utils.notify("Run :PyworksSetup and choose 'Data Science / Notebooks' to get started", vim.log.levels.INFO)
+		return
+	end
+	
+	-- Check if Jupyter is installed
+	local has_jupyter = vim.fn.system("cd " .. vim.fn.getcwd() .. " && .venv/bin/python -c 'import jupyter_client' 2>/dev/null")
+	if vim.v.shell_error ~= 0 then
+		utils.notify("Jupyter not installed in this environment!", vim.log.levels.ERROR)
+		utils.notify("Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.INFO)
+		return
+	end
+	
+	-- Get list of available kernels
+	local kernels_list = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
+	if vim.v.shell_error ~= 0 or not kernels_list then
+		utils.notify("No Jupyter kernels found!", vim.log.levels.ERROR)
+		utils.notify("Install with: python -m ipykernel install --user", vim.log.levels.INFO)
+		return
+	end
+	
+	local ok, kernels_data = pcall(vim.json.decode, kernels_list)
+	if not ok or not kernels_data or not kernels_data.kernelspecs then
+		-- Fall back to Molten's built-in selection
+		vim.cmd("MoltenInit")
+		return
+	end
+	
+	-- Build list of available kernels
+	local available_kernels = {}
+	for kernel_name, kernel_info in pairs(kernels_data.kernelspecs) do
+		table.insert(available_kernels, {
+			name = kernel_name,
+			display = kernel_info.spec and kernel_info.spec.display_name or kernel_name
+		})
+	end
+	
+	if #available_kernels == 0 then
+		utils.notify("No Jupyter kernels found!", vim.log.levels.ERROR)
+		utils.notify("Install with: python -m ipykernel install --user", vim.log.levels.INFO)
+		return
+	end
+	
+	-- Detect file type to find matching kernel
+	local filetype = vim.bo.filetype
+	local matching_kernel = nil
+	
+	if filetype == "python" then
+		for _, k in ipairs(available_kernels) do
+			if k.name == "python3" or k.name:match("^python") then
+				matching_kernel = k.name
+				break
 			end
-			if not silent_mode then
-				utils.notify("No Jupyter kernels found! Run :PyworksSetup first.", vim.log.levels.ERROR)
-			end
-			return
 		end
-
-		-- If only one kernel (usually python3), just use it
-		if #kernels == 1 then
-			local kernel = kernels[1]
-
-			-- Initialize asynchronously
-			vim.schedule(function()
-				local ok = pcall(vim.cmd, "MoltenInit " .. kernel)
-				if ok then
-					if progress_id then
-						utils.progress_end(progress_id, true)
-					elseif not silent_mode then
-						utils.notify("Kernel ready: " .. kernel, vim.log.levels.INFO, nil, "success")
-					end
-				else
-					if progress_id then
-						utils.progress_end(progress_id, false, "Failed to initialize kernel")
-					end
+	elseif filetype == "julia" then
+		for _, k in ipairs(available_kernels) do
+			if k.name:match("^julia") then
+				matching_kernel = k.name
+				break
+			end
+		end
+	elseif filetype == "r" then
+		for _, k in ipairs(available_kernels) do
+			if k.name == "ir" or k.name:match("^ir$") then
+				matching_kernel = k.name
+				break
+			end
+		end
+	end
+	
+	-- If we found a matching kernel, auto-initialize it
+	if matching_kernel then
+		local progress_id = not silent_mode and utils.progress_start("Initializing " .. matching_kernel .. " kernel") or nil
+		
+		vim.schedule(function()
+			local ok = pcall(vim.cmd, "MoltenInit " .. matching_kernel)
+			if ok then
+				if progress_id then
+					utils.progress_end(progress_id, true)
+				elseif not silent_mode then
+					utils.notify("✓ " .. matching_kernel .. " kernel initialized", vim.log.levels.INFO)
 				end
-			end)
-			return
+			else
+				if progress_id then
+					utils.progress_end(progress_id, false, "Failed to initialize")
+				end
+				-- Show kernel selection dialog
+				M.show_kernel_selection(available_kernels)
+			end
+		end)
+	else
+		-- No matching kernel, show selection dialog
+		if not silent_mode then
+			M.show_kernel_selection(available_kernels)
 		end
+	end
+end
 
-		-- Multiple kernels available, let user choose
-		if progress_id then
-			utils.progress_end(progress_id, false) -- End progress before showing select
-		end
-
-		utils.better_select("Select Jupyter kernel:", kernels, function(selected)
-			if selected then
-				local init_progress = utils.progress_start("Initializing " .. selected)
+-- Show kernel selection dialog
+function M.show_kernel_selection(kernels)
+	local kernel_names = {}
+	for _, k in ipairs(kernels) do
+		table.insert(kernel_names, k.display .. " (" .. k.name .. ")")
+	end
+	
+	utils.better_select("Select Jupyter kernel:", kernel_names, function(selected)
+		if selected then
+			-- Extract kernel name from selection
+			local kernel_name = selected:match("%((.-)%)$")
+			if kernel_name then
+				local progress_id = utils.progress_start("Initializing " .. kernel_name)
 				vim.schedule(function()
-					local ok = pcall(vim.cmd, "MoltenInit " .. selected)
+					local ok = pcall(vim.cmd, "MoltenInit " .. kernel_name)
 					if ok then
-						utils.progress_end(init_progress, true)
+						utils.progress_end(progress_id, true)
+						utils.notify("✓ Kernel ready! Use <leader>jl to run lines, <leader>jv for selections", vim.log.levels.INFO)
 					else
-						utils.progress_end(init_progress, false, "Failed to initialize")
+						utils.progress_end(progress_id, false, "Failed to initialize kernel")
 					end
 				end)
 			end
-		end)
+		end
 	end)
 end
 

@@ -172,7 +172,7 @@ function M.create_commands()
 			return
 		end
 		
-		local fixer = require("pyworks.jupytext-fix")
+		local fixer = require("pyworks.jupytext")
 		local fixed = fixer.fix_notebook_metadata(filepath)
 		if fixed then
 			vim.notify("Fixed notebook metadata: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)

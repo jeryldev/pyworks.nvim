@@ -115,7 +115,8 @@ nvim
 - `<leader>ji` - Initialize kernel (start here!)
 - `<leader>js` - Show status/info (kernel, cells)
 - `<leader>jl` - Evaluate current line (creates new cell)
-- `<leader>jv` - Evaluate visual selection
+- `<leader>jr` - Select current cell (visual selection)
+- `<leader>jv` - Run visual selection (or last selection if in normal mode)
 - `<leader>je` - Evaluate with operator (e.g., `<leader>jei{` for inner block)
 
 ## Cell Navigation
@@ -124,7 +125,6 @@ nvim
 - `[%` or `<leader>j[` - Previous cell
 - `]j` - Next # %% cell marker
 - `[j` - Previous # %% cell marker
-- `<leader>jr` - Select current cell
 - `vi%` - Visual select current cell (custom)
 
 ## Output Management

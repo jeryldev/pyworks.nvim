@@ -118,8 +118,8 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 **What you'll see:**
 
 - Cell navigation with `]j` and `[j` (next/previous cell)
-- Running cells with `<leader>jr` (run current cell)
-- Visual selection execution with `<leader>jv`
+- Selecting cells with `<leader>jr` (select current cell)
+- Running selections with `<leader>jv` (run visual selection)
 - Chart generation with matplotlib, seaborn, and plotly
 - Real-time output display and image rendering
 
@@ -244,10 +244,10 @@ pyworks.nvim automatically configures Molten when you choose a data science proj
 
 - `<leader>ji` - Initialize kernel
 - `<leader>jl` - Run current line
-- `<leader>jv` - Run visual selection
 - `<leader>jr` - Select current cell
+- `<leader>jv` - Run visual selection
 - `[j` / `]j` - Navigate between cells
-- See all keybindings in `doc/molten_quick_reference.md`
+- See all keybindings in `docs/molten_quick_reference.md`
 
 ### Dependencies Explained
 

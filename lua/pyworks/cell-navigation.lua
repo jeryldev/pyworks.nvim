@@ -81,7 +81,7 @@ function M.setup()
 		vim.cmd("normal! " .. start_pos .. "GV" .. end_pos .. "G")
 	end, { desc = "Visual select current cell" })
 
-	-- Select current cell
+	-- Select current cell (visual selection only)
 	vim.keymap.set("n", "<leader>jr", function()
 		-- Find cell boundaries
 		local start_pos = vim.fn.search("^# %%", "bcnW")
@@ -104,39 +104,21 @@ function M.setup()
 			return
 		end
 
-		-- Flash highlight to show what will run
+		-- Flash highlight to show what will be selected
 		flash_cell_highlight(start_pos, end_pos, 150)
 
-		-- Move to start of cell
+		-- Move to start of cell and select to end
 		vim.api.nvim_win_set_cursor(0, { start_pos, 0 })
-
-		-- Select the cell visually
-		vim.cmd("normal! V" .. end_pos .. "G")
-	end, { desc = "[J]upyter select cu[R]rent cell" })
-
-	vim.keymap.set("n", "<leader>jV", function()
-		-- Find cell boundaries
-		local start_pos = vim.fn.search("^# %%", "bcnW")
-		if start_pos == 0 then
-			start_pos = 1
-		else
-			start_pos = start_pos + 1
-		end
-
-		local end_pos = vim.fn.search("^# %%", "nW")
-		if end_pos == 0 then
-			end_pos = vim.fn.line("$")
-		else
-			end_pos = end_pos - 1
-		end
-
-		-- Select the cell
-		vim.cmd("normal! " .. start_pos .. "GV" .. end_pos .. "G")
-
-		-- Notify what will be run
+		
+		-- Enter visual line mode and select to end
+		vim.cmd("normal! V")
+		vim.api.nvim_win_set_cursor(0, { end_pos, 0 })
+		
+		-- Notify what was selected
 		local lines = end_pos - start_pos + 1
-		vim.notify("Selected " .. lines .. " lines. Press <leader>jv to run", vim.log.levels.INFO)
-	end, { desc = "[J]upyter [V]isually select current cell" })
+		vim.notify("Selected " .. lines .. " lines. While in visual mode, press <leader>jv to run", vim.log.levels.INFO)
+	end, { desc = "[J]upyter select cu[r]rent cell" })
+
 end
 
 return M
