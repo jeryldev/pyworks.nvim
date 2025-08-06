@@ -64,27 +64,40 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 					needs_update = true
 				end
 				
-				-- Add Python metadata if missing
+				-- Only add Python metadata if no language is specified at all
 				if not notebook.metadata.language_info or not notebook.metadata.language_info.name then
-					notebook.metadata.language_info = {
-						codemirror_mode = { name = "ipython", version = 3 },
-						file_extension = ".py",
-						mimetype = "text/x-python",
-						name = "python",
-						nbconvert_exporter = "python",
-						pygments_lexer = "ipython3",
-						version = "3.11.0",
-					}
-					needs_update = true
+					-- Check if kernelspec exists and has a language
+					local language = nil
+					if notebook.metadata.kernelspec and notebook.metadata.kernelspec.language then
+						language = notebook.metadata.kernelspec.language
+					end
+					
+					-- Default to Python only if no language detected
+					if not language then
+						notebook.metadata.language_info = {
+							codemirror_mode = { name = "ipython", version = 3 },
+							file_extension = ".py",
+							mimetype = "text/x-python",
+							name = "python",
+							nbconvert_exporter = "python",
+							pygments_lexer = "ipython3",
+							version = "3.11.0",
+						}
+						needs_update = true
+					end
 				end
 				
+				-- Only add Python kernelspec if no kernelspec exists at all
 				if not notebook.metadata.kernelspec then
-					notebook.metadata.kernelspec = {
-						display_name = "Python 3",
-						language = "python",
-						name = "python3",
-					}
-					needs_update = true
+					-- Only default to Python if no other language info exists
+					if not notebook.metadata.language_info or notebook.metadata.language_info.name == "python" then
+						notebook.metadata.kernelspec = {
+							display_name = "Python 3",
+							language = "python",
+							name = "python3",
+						}
+						needs_update = true
+					end
 				end
 				
 				-- Write back if updated and retry

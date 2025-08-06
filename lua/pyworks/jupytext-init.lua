@@ -46,28 +46,39 @@ function M.setup()
 				needs_update = true
 			end
 			
-			-- Add Python language_info if missing
+			-- Only add Python metadata if no language is specified
 			if not notebook.metadata.language_info or not notebook.metadata.language_info.name then
-				notebook.metadata.language_info = {
-					codemirror_mode = { name = "ipython", version = 3 },
-					file_extension = ".py",
-					mimetype = "text/x-python",
-					name = "python",
-					nbconvert_exporter = "python",
-					pygments_lexer = "ipython3",
-					version = "3.11.0",
-				}
-				needs_update = true
+				-- Check if kernelspec has a language hint
+				local language = nil
+				if notebook.metadata.kernelspec and notebook.metadata.kernelspec.language then
+					language = notebook.metadata.kernelspec.language
+				end
+				
+				-- Only default to Python if no language detected
+				if not language then
+					notebook.metadata.language_info = {
+						codemirror_mode = { name = "ipython", version = 3 },
+						file_extension = ".py",
+						mimetype = "text/x-python",
+						name = "python",
+						nbconvert_exporter = "python",
+						pygments_lexer = "ipython3",
+						version = "3.11.0",
+					}
+					needs_update = true
+				end
 			end
 			
-			-- Add Python kernelspec if missing
+			-- Only add Python kernelspec if missing and appropriate
 			if not notebook.metadata.kernelspec then
-				notebook.metadata.kernelspec = {
-					display_name = "Python 3",
-					language = "python",
-					name = "python3",
-				}
-				needs_update = true
+				if not notebook.metadata.language_info or notebook.metadata.language_info.name == "python" then
+					notebook.metadata.kernelspec = {
+						display_name = "Python 3",
+						language = "python",
+						name = "python3",
+					}
+					needs_update = true
+				end
 			end
 			
 			-- Write back if updated
