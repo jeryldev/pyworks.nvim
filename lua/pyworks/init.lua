@@ -6,6 +6,10 @@ local config = require("pyworks.config")
 
 -- Setup function
 function M.setup(opts)
+	
+	-- Setup jupytext metadata fixing
+	require("pyworks.jupytext-init").setup()
+	
 	-- Validate and setup configuration
 	if opts then
 		local ok, errors = config.validate_config(opts)

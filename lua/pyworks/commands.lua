@@ -164,6 +164,28 @@ function M.create_commands()
 		desc = "Show Python environment status",
 	})
 
+	-- Fix notebook metadata command
+	vim.api.nvim_create_user_command("PyworksFixNotebook", function(opts)
+		local filepath = opts.args ~= "" and opts.args or vim.fn.expand("%:p")
+		if not filepath:match("%.ipynb$") then
+			vim.notify("Not a notebook file: " .. filepath, vim.log.levels.ERROR)
+			return
+		end
+		
+		local fixer = require("pyworks.jupytext-fix")
+		local fixed = fixer.fix_notebook_metadata(filepath)
+		if fixed then
+			vim.notify("Fixed notebook metadata: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
+			vim.notify("Please reopen the file to load with fixed metadata", vim.log.levels.INFO)
+		else
+			vim.notify("Notebook already has proper metadata: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
+		end
+	end, {
+		nargs = "?",
+		complete = "file",
+		desc = "Fix Jupyter notebook metadata for Python",
+	})
+
 	-- Create new notebook
 	vim.api.nvim_create_user_command("PyworksNewNotebook", function(opts)
 		local args = vim.split(opts.args, " ")

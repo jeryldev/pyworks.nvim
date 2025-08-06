@@ -8,19 +8,25 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 - 🚀 **Async Project Setup** - Non-blocking virtual environment creation and package installation
 - 📦 **Smart Package Browser** - Interactive package browser with categories and descriptions
-- 📓 **Enhanced Jupyter Integration** - Auto-kernel initialization and better cell navigation
+- 📓 **Seamless Jupyter Support** - Edit .ipynb files as Python code with automatic conversion
 - 🔍 **Real-time Diagnostics** - Environment health checks with actionable feedback
 - 🎯 **Project Templates** - Pre-configured setups for data science, web development, and more
 - ⚡ **Auto-activation** - Automatically activates virtual environments in Neovim terminals
 - 🔄 **Progress Indicators** - Visual feedback for all long-running operations
 - 🛡️ **Robust Error Handling** - Clear error messages with recovery suggestions
+- 📔 **Smart Notebook Handling** - Automatic metadata fixing and format conversion
 
 ## 📋 Requirements
 
 - Neovim ≥ 0.9.0
 - Python 3.8+
-- Optional but recommended:
-  - [`uv`](https://github.com/astral-sh/uv) for faster package management
+
+### For Notebook Support
+- `jupytext` CLI - Required to open/edit .ipynb files
+- **Automatically installed** by pyworks during any project setup
+
+### Optional
+- [`uv`](https://github.com/astral-sh/uv) - Faster package management (10-100x faster than pip)
 
 ## 🚀 Installation
 
@@ -30,15 +36,16 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 {
   "jeryldev/pyworks.nvim",
   dependencies = {
-    -- Required for notebook support
+    -- Jupyter notebook file support (automatically configured)
+    "GCBallesteros/jupytext.nvim",  -- For .ipynb file support
+    
+    -- Required for notebook execution
     {
       "benlubas/molten-nvim",
       version = "^1.0.0",
       build = ":UpdateRemotePlugins",
     },
     "3rd/image.nvim",              -- For inline plots/images
-    "GCBallesteros/jupytext.nvim",  -- For .ipynb file support
-
   },
   lazy = false,  -- Load immediately for autocmds
   config = function()
@@ -126,6 +133,7 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `:PyworksCheckEnvironment`                  | Show comprehensive environment diagnostics      |
 | `:PyworksInstallPackages <packages>`        | Install packages in background (non-blocking)   |
 | `:PyworksNewNotebook <filename> [language]` | Create notebook with auto kernel initialization |
+| `:PyworksFixNotebook [filename]`            | Fix notebook missing Python metadata            |
 | `:PyworksDebug`                             | Debug configuration and fix common issues       |
 | `:PyworksShowEnvironment`                   | Display current Python environment status       |
 | `:PyworksBrowsePackages`                    | Interactive package browser with categories     |
@@ -296,6 +304,25 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 ```
 
 ### Packages Not Installing
+
+- Ensure you have a virtual environment: `:PyworksSetup`
+- Check if `uv` is installed for faster operations
+- Use `:PyworksDebug` to see package manager details
+
+### Notebook Support
+
+pyworks.nvim handles Jupyter notebooks seamlessly:
+
+- **Automatic conversion**: Notebooks are converted to Python percent format for editing
+- **Automatic metadata fixing**: Missing Python metadata is added automatically
+- **Save support**: Changes are saved back to the original .ipynb format
+
+If a notebook doesn't open correctly:
+
+```vim
+:PyworksFixNotebook       " Fix current notebook
+:PyworksFixNotebook path/to/notebook.ipynb  " Fix specific notebook
+```
 
 - Ensure your virtual environment is activated
 - Check if `uv` is installed for faster installs

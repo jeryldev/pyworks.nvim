@@ -34,10 +34,16 @@ Features:
 ==============================================================================
 2. REQUIREMENTS                                         *pyworks-requirements*
 
+Core Requirements:
 - Neovim >= 0.9.0
 - Python >= 3.8
-- Optional: uv (for faster package management)
-- Optional: molten-nvim (for Jupyter notebook execution)
+
+For Notebook Support:
+- jupytext CLI - Required to open/edit .ipynb files (auto-installed by pyworks)
+- molten-nvim - Required for notebook execution (Neovim plugin dependency)
+
+Optional:
+- uv - For faster package management (10-100x faster than pip)
 
 ==============================================================================
 3. INSTALLATION                                         *pyworks-installation*
@@ -46,9 +52,9 @@ Using lazy.nvim: >lua
   {
     "jeryldev/pyworks.nvim",
     dependencies = {
+      "GCBallesteros/jupytext.nvim", -- For .ipynb files
       "benlubas/molten-nvim",       -- For notebooks
       "3rd/image.nvim",             -- For inline images
-      "GCBallesteros/jupytext.nvim", -- For .ipynb files
     },
     config = function()
       require("pyworks").setup()
@@ -100,6 +106,14 @@ Using lazy.nvim: >lua
     - Progress indicator during creation
     - Async file operations
     Example: :PyworksNewNotebook analysis.ipynb
+
+:PyworksFixNotebook [filename]                          *:PyworksFixNotebook*
+    Fix Jupyter notebook missing Python metadata.
+    - filename: Optional path to notebook (default: current file)
+    - Automatically adds language_info and kernelspec for Python
+    - Fixes "attempt to concatenate field 'style'" errors
+    Example: :PyworksFixNotebook
+    Example: :PyworksFixNotebook path/to/notebook.ipynb
 
 :PyworksShowEnvironment                          *:PyworksShowEnvironment*
     Show detailed Python environment status.

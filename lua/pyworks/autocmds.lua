@@ -6,6 +6,8 @@ local config = require("pyworks.config")
 local utils = require("pyworks.utils")
 
 function M.setup(user_config)
+	-- Create augroup for pyworks
+	local pyworks_group = vim.api.nvim_create_augroup("PyworksAutocmds", { clear = true })
 	-- Check if venv should be activated on startup
 	vim.api.nvim_create_autocmd("VimEnter", {
 		pattern = "*",
@@ -116,6 +118,85 @@ function M.setup(user_config)
 		})
 	end
 
+	-- Pre-process notebooks to add missing metadata
+	-- This runs BEFORE the file is actually read
+	vim.api.nvim_create_autocmd("BufReadPre", {
+		group = pyworks_group,
+		pattern = "*.ipynb",
+		callback = function()
+			local filepath = vim.fn.expand("<afile>:p")
+			-- Pre-processing notebook
+			
+			-- Ensure the jupytext-fix module is available
+			local ok, fixer = pcall(require, "pyworks.jupytext-fix")
+			if ok then
+				local fixed = fixer.fix_notebook_metadata(filepath)
+				if fixed then
+					-- Silently fixed notebook metadata
+				end
+			else
+				-- Fallback inline fix
+				local file = io.open(filepath, "r")
+				if not file then
+					return
+				end
+				local content = file:read("*all")
+				file:close()
+
+				-- Try to parse as JSON
+				local json_ok, notebook = pcall(vim.json.decode, content)
+				if json_ok and notebook then
+					local needs_update = false
+
+					-- Ensure metadata exists
+					if not notebook.metadata then
+						notebook.metadata = {}
+						needs_update = true
+					end
+
+					-- Add Python language_info if missing
+					if not notebook.metadata.language_info or not notebook.metadata.language_info.name then
+						notebook.metadata.language_info = {
+							codemirror_mode = {
+								name = "ipython",
+								version = 3,
+							},
+							file_extension = ".py",
+							mimetype = "text/x-python",
+							name = "python",
+							nbconvert_exporter = "python",
+							pygments_lexer = "ipython3",
+							version = "3.11.0",
+						}
+						needs_update = true
+					end
+
+					-- Add Python kernelspec if missing
+					if not notebook.metadata.kernelspec or not notebook.metadata.kernelspec.language then
+						notebook.metadata.kernelspec = {
+							display_name = "Python 3",
+							language = "python",
+							name = "python3",
+						}
+						needs_update = true
+					end
+
+					-- Write back to file if updated
+					if needs_update then
+						local fixed_json = vim.json.encode(notebook)
+						local write_file = io.open(filepath, "w")
+						if write_file then
+							write_file:write(fixed_json)
+							write_file:close()
+							-- Silently fixed notebook metadata
+						end
+					end
+				end
+			end
+		end,
+		desc = "Fix notebook metadata before jupytext processes it",
+	})
+
 	-- Prevent notebook corruption on save
 	vim.api.nvim_create_autocmd("BufWritePre", {
 		pattern = "*.ipynb",
@@ -145,6 +226,32 @@ function M.setup(user_config)
 						cell.execution_count = cell.execution_count or vim.NIL
 						cell.metadata = cell.metadata or {}
 					end
+				end
+
+				-- Ensure metadata has language info for jupytext
+				if not notebook.metadata then
+					notebook.metadata = {}
+				end
+				if not notebook.metadata.language_info or not notebook.metadata.language_info.name then
+					notebook.metadata.language_info = {
+						codemirror_mode = {
+							name = "ipython",
+							version = 3,
+						},
+						file_extension = ".py",
+						mimetype = "text/x-python",
+						name = "python",
+						nbconvert_exporter = "python",
+						pygments_lexer = "ipython3",
+						version = "3.11.0",
+					}
+				end
+				if not notebook.metadata.kernelspec or not notebook.metadata.kernelspec.language then
+					notebook.metadata.kernelspec = {
+						display_name = "Python 3",
+						language = "python",
+						name = "python3",
+					}
 				end
 
 				-- Write back the fixed content using vim.json.encode
