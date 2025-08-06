@@ -76,10 +76,19 @@ function M.evaluate_line()
 	-- Execute the command
 	vim.cmd("MoltenEvaluateLine")
 
-	-- Restore cursor position
+	-- Restore cursor position safely
 	vim.schedule(function()
-		vim.api.nvim_win_set_cursor(0, cursor)
+		if vim.api.nvim_win_is_valid(0) and cursor and #cursor == 2 then
+			pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+		end
 	end)
+end
+
+-- Evaluate visual selection
+function M.evaluate_visual()
+	-- Make sure we're executing from visual mode
+	-- The keybinding should be called while still in visual mode
+	vim.cmd("MoltenEvaluateVisual")
 end
 
 -- Run current cell with visual feedback
