@@ -141,14 +141,45 @@ Short aliases:
 :PWNewNotebook  Same as :PyworksNewNotebook
 
 ==============================================================================
-5. CONFIGURATION                                              *pyworks-config*
+5. KEYBINDINGS                                            *pyworks-keybindings*
+
+Jupyter/Notebook keybindings:
+<leader>ji      Initialize Jupyter kernel
+<leader>jl      Evaluate current line
+<leader>jv      Evaluate visual selection (works in visual and normal mode)
+<leader>jr      Select current cell (visual selection)
+<leader>je      Evaluate operator
+<leader>jo      Open output window
+<leader>jh      Hide output
+<leader>jd      Delete cell output
+<leader>js      Show kernel status/info
+<leader>jc      Clear images
+
+Package management keybindings:
+<leader>pi      Install suggested packages (detected from imports)
+<leader>pa      Analyze imports in current buffer
+
+==============================================================================
+6. CONFIGURATION                                              *pyworks-config*
 
 Setup function accepts these options: >lua
   require("pyworks").setup({
+    -- Python environment settings
     python = {
       preferred_venv_name = ".venv",  -- Virtual env folder name
       use_uv = true,                  -- Prefer uv when available
     },
+    
+    -- Molten/Jupyter output configuration (NEW!)
+    molten = {
+      virt_text_output = false,      -- Show output in window vs virtual text
+      output_virt_lines = false,      -- Use virtual lines for output
+      virt_lines_off_by_1 = false,    -- Offset output by 1 line
+      output_win_max_height = 30,     -- Maximum output window height
+      auto_open_output = true,        -- Auto show output after execution
+      output_win_style = "minimal",   -- Window style: "minimal" or "none"
+    },
+    
     ui = {
       icons = {
         python = "🐍",
@@ -157,6 +188,7 @@ Setup function accepts these options: >lua
         warning = "⚠️",
       },
     },
+    
     auto_activate_venv = true,  -- Auto-activate in terminals
     -- Note: .nvim.lua is no longer created automatically
     -- Python host is configured by pyworks autocmds
@@ -164,7 +196,7 @@ Setup function accepts these options: >lua
 <
 
 ==============================================================================
-6. WORKFLOW                                                  *pyworks-workflow*
+7. WORKFLOW                                                  *pyworks-workflow*
 
 Quick Start ~
 1. Run :PyworksSetup in your project directory

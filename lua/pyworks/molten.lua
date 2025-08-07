@@ -60,14 +60,40 @@ function M.init_kernel(silent_mode)
 	
 	-- Detect file type to find matching kernel
 	local filetype = vim.bo.filetype
+	local filename = vim.fn.expand("%:t")
 	local matching_kernel = nil
 	
-	if filetype == "python" then
+	-- For notebooks, try to detect language from metadata
+	local notebook_language = nil
+	if filename:match("%.ipynb$") then
+		-- Try to get language from notebook metadata
+		local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+		local content = table.concat(lines, "\n")
+		local ok, notebook = pcall(vim.json.decode, content)
+		if ok and notebook and notebook.metadata then
+			if notebook.metadata.language_info and notebook.metadata.language_info.name then
+				notebook_language = notebook.metadata.language_info.name
+			elseif notebook.metadata.kernelspec and notebook.metadata.kernelspec.language then
+				notebook_language = notebook.metadata.kernelspec.language
+			end
+		end
+		-- Default to Python if no language detected
+		notebook_language = notebook_language or "python"
+	end
+	
+	-- Check if it's a notebook or Python file
+	if filetype == "python" or notebook_language == "python" then
 		-- First, try to find a project-specific kernel
 		local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+		
+		-- Debug output
+		if not silent_mode then
+			utils.notify("Looking for kernel matching project: " .. project_name, vim.log.levels.DEBUG)
+		end
+		
 		for _, k in ipairs(available_kernels) do
-			-- Prefer project-specific kernels
-			if k.name == project_name or k.name:match(project_name) then
+			-- Prefer project-specific kernels (exact match or contains project name)
+			if k.name == project_name or k.name:lower() == project_name:lower() then
 				matching_kernel = k.name
 				break
 			end
@@ -82,14 +108,14 @@ function M.init_kernel(silent_mode)
 				end
 			end
 		end
-	elseif filetype == "julia" then
+	elseif filetype == "julia" or notebook_language == "julia" then
 		for _, k in ipairs(available_kernels) do
 			if k.name:match("^julia") then
 				matching_kernel = k.name
 				break
 			end
 		end
-	elseif filetype == "r" then
+	elseif filetype == "r" or notebook_language == "r" then
 		for _, k in ipairs(available_kernels) do
 			if k.name == "ir" or k.name:match("^ir$") then
 				matching_kernel = k.name
@@ -100,24 +126,11 @@ function M.init_kernel(silent_mode)
 	
 	-- If we found a matching kernel, auto-initialize it
 	if matching_kernel then
-		local progress_id = not silent_mode and utils.progress_start("Initializing " .. matching_kernel .. " kernel") or nil
-		
-		vim.schedule(function()
-			local ok = pcall(vim.cmd, "MoltenInit " .. matching_kernel)
-			if ok then
-				if progress_id then
-					utils.progress_end(progress_id, true)
-				elseif not silent_mode then
-					utils.notify("✓ " .. matching_kernel .. " kernel initialized", vim.log.levels.INFO)
-				end
-			else
-				if progress_id then
-					utils.progress_end(progress_id, false, "Failed to initialize")
-				end
-				-- Show kernel selection dialog
-				M.show_kernel_selection(available_kernels)
-			end
-		end)
+		-- Just initialize directly without any fancy stuff
+		vim.cmd("MoltenInit " .. matching_kernel)
+		if not silent_mode then
+			utils.notify("✓ Initialized kernel: " .. matching_kernel, vim.log.levels.INFO)
+		end
 	else
 		-- No matching kernel, show selection dialog
 		if not silent_mode then
@@ -140,6 +153,7 @@ function M.show_kernel_selection(kernels)
 			if kernel_name then
 				local progress_id = utils.progress_start("Initializing " .. kernel_name)
 				vim.schedule(function()
+					-- Initialize kernel (don't use shared - it breaks images)
 					local ok = pcall(vim.cmd, "MoltenInit " .. kernel_name)
 					if ok then
 						utils.progress_end(progress_id, true)

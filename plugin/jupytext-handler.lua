@@ -156,6 +156,16 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 										local ok = pcall(vim.cmd, "MoltenInit " .. matching_kernel)
 										if ok then
 											vim.b[bufnr].molten_kernel_initialized = true
+											
+											-- Auto-fix output display after kernel init
+											vim.defer_fn(function()
+												if vim.fn.exists("*MoltenUpdateOption") == 1 then
+													vim.cmd("silent! call MoltenUpdateOption('virt_text_output', v:false)")
+													vim.cmd("silent! call MoltenUpdateOption('output_virt_lines', v:false)")
+													vim.cmd("silent! call MoltenUpdateOption('virt_lines_off_by_1', v:false)")
+												end
+											end, 200)
+											
 											vim.notify("✓ Kernel ready! Use <leader>jl to run lines, <leader>jv for selections", vim.log.levels.INFO)
 										else
 											vim.notify("Failed to initialize kernel. Press <leader>ji to try manually", vim.log.levels.WARN)

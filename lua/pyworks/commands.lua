@@ -355,6 +355,58 @@ function M.create_commands()
 	end, {
 		desc = "List all available Jupyter kernels",
 	})
+	
+	
+	-- Check image support
+	vim.api.nvim_create_user_command("PyworksCheckImages", function()
+		utils.notify("=== Image Support Check ===", vim.log.levels.INFO)
+		
+		-- Check terminal
+		local term = vim.env.TERM or ""
+		local kitty_id = vim.env.KITTY_WINDOW_ID
+		local ghostty = vim.env.GHOSTTY_RESOURCES_DIR or vim.env.TERM_PROGRAM == "ghostty"
+		local wezterm = vim.env.WEZTERM_EXECUTABLE
+		local iterm = vim.env.ITERM_PROFILE
+		
+		if kitty_id then
+			utils.notify("✓ Kitty terminal detected - images should work!", vim.log.levels.INFO)
+		elseif ghostty then
+			utils.notify("✓ Ghostty terminal detected - images should work!", vim.log.levels.INFO)
+		elseif wezterm then
+			utils.notify("⚠️ WezTerm detected - limited image support", vim.log.levels.WARN)
+			utils.notify("For best results, use Kitty or Ghostty terminal", vim.log.levels.INFO)
+		elseif iterm then
+			utils.notify("⚠️ iTerm2 detected - limited image support", vim.log.levels.WARN)
+			utils.notify("For best results, use Kitty or Ghostty terminal", vim.log.levels.INFO)
+		else
+			utils.notify("✗ Terminal does not support images: " .. term, vim.log.levels.ERROR)
+			utils.notify("Images require Kitty or Ghostty terminal", vim.log.levels.INFO)
+			utils.notify("Install Ghostty from: https://ghostty.org", vim.log.levels.INFO)
+		end
+		
+		-- Check image.nvim
+		local has_image = pcall(require, "image")
+		if has_image then
+			utils.notify("✓ image.nvim is installed", vim.log.levels.INFO)
+		else
+			utils.notify("✗ image.nvim not found", vim.log.levels.ERROR)
+		end
+		
+		-- Check Molten configuration
+		utils.notify("Molten image provider: " .. tostring(vim.g.molten_image_provider), vim.log.levels.INFO)
+		utils.notify("Molten image location: " .. tostring(vim.g.molten_image_location), vim.log.levels.INFO)
+		utils.notify("Molten virt_text_output: " .. tostring(vim.g.molten_virt_text_output), vim.log.levels.INFO)
+		
+		-- Provide help
+		if not kitty_id then
+			utils.notify("\nTo enable image support:", vim.log.levels.INFO)
+			utils.notify("1. Install Kitty: brew install --cask kitty", vim.log.levels.INFO)
+			utils.notify("2. Launch Neovim from Kitty terminal", vim.log.levels.INFO)
+			utils.notify("3. Images will display inline in notebooks", vim.log.levels.INFO)
+		end
+	end, {
+		desc = "Check if terminal supports inline images",
+	})
 end
 
 return M

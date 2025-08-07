@@ -8,6 +8,7 @@ local utils = require("pyworks.utils")
 function M.setup(user_config)
 	-- Create augroup for pyworks
 	local pyworks_group = vim.api.nvim_create_augroup("PyworksAutocmds", { clear = true })
+	
 	-- Check if venv should be activated on startup
 	vim.api.nvim_create_autocmd("VimEnter", {
 		pattern = "*",
@@ -197,6 +198,35 @@ function M.setup(user_config)
 		desc = "Fix notebook metadata before jupytext processes it",
 	})
 
+	-- Auto-initialize Jupyter kernel when opening notebooks
+	vim.api.nvim_create_autocmd("BufReadPost", {
+		group = pyworks_group,
+		pattern = "*.ipynb",
+		callback = function()
+			-- Wait for buffer to be fully loaded and jupytext to process it
+			vim.defer_fn(function()
+				-- Check if Molten is available
+				if vim.fn.exists(":MoltenInit") ~= 2 then
+					return
+				end
+				
+				-- Check if kernel is already initialized for this buffer
+				if vim.fn.exists("*MoltenRunningKernels") == 1 then
+					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+					if #buffer_kernels > 0 then
+						-- Kernel already running for this buffer
+						return
+					end
+				end
+				
+				-- Auto-initialize kernel silently
+				local molten = require("pyworks.molten")
+				molten.init_kernel(true) -- true for silent mode
+			end, 1000) -- Wait for jupytext to process
+		end,
+		desc = "Auto-initialize Jupyter kernel for notebooks",
+	})
+	
 	-- Prevent notebook corruption on save
 	vim.api.nvim_create_autocmd("BufWritePre", {
 		pattern = "*.ipynb",

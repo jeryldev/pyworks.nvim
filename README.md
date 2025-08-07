@@ -44,8 +44,25 @@ A comprehensive Python project management plugin for Neovim that handles virtual
       "benlubas/molten-nvim",
       version = "^1.0.0",
       build = ":UpdateRemotePlugins",
+      init = function()
+        -- Minimal Molten configuration for image support
+        vim.g.molten_image_provider = "image.nvim"
+        vim.g.molten_output_win_max_height = 20
+      end,
     },
-    "3rd/image.nvim",              -- For inline plots/images
+    {
+      "3rd/image.nvim",
+      opts = {
+        backend = "kitty",  -- Requires Kitty or Ghostty terminal
+        integrations = {},  -- Empty for Molten compatibility
+        max_width = 100,
+        max_height = 12,
+        max_height_window_percentage = math.huge,
+        max_width_window_percentage = math.huge,
+        window_overlap_clear_enabled = true,
+        window_overlap_clear_ft_ignore = { "cmp_menu", "cmp_docs", "" },
+      },
+    },
   },
   lazy = false,  -- Load immediately for autocmds
   config = function()
@@ -77,6 +94,26 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 - **Performance Caching**: Reduced filesystem calls with intelligent caching
 - **Code Deduplication**: Shared utilities module for consistent behavior
 
+## 📓 Jupyter Notebook Support
+
+### Output Display
+
+Pyworks uses Molten's default popup window behavior for displaying cell outputs:
+
+- **Cell outputs appear in floating windows** when you hover over executed cells
+- **Images and plots display in the popup** (requires Kitty or Ghostty terminal)
+- **Tables and text output** show in the floating window
+- Use `<leader>jo` to manually open output, `<leader>jh` to hide
+
+> **Note**: Inline virtual text display for outputs is currently not supported due to Molten limitations with image rendering.
+
+### Terminal Requirements for Images
+
+For image/plot display in notebooks, you need:
+- **Kitty terminal** (recommended) - `brew install --cask kitty`
+- **Ghostty terminal** (alternative) - Supports Kitty graphics protocol
+- Other terminals will show text output only
+
 ## 🎯 Quick Start
 
 ### Data Science Project
@@ -84,7 +121,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 ```vim
 :PyworksSetup    " Choose 'Data Science / Notebooks'
 :PyworksNewNotebook analysis.ipynb
-<leader>ji       " Initialize Jupyter kernel
+<leader>ji       " Initialize Jupyter kernel (auto-detects project kernel)
 ```
 
 ### Web Development Project
@@ -154,6 +191,30 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `:PWInstall`     | `:PyworksInstallPackages`  |
 | `:PWNewNotebook` | `:PyworksNewNotebook`      |
 
+## ⌨️ Keybindings
+
+### Jupyter/Notebook Operations
+
+| Keybinding   | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| `<leader>ji` | Initialize Jupyter kernel                           |
+| `<leader>jl` | Evaluate current line                               |
+| `<leader>jv` | Evaluate visual selection                           |
+| `<leader>jr` | Select current cell (visual selection)              |
+| `<leader>je` | Evaluate operator                                   |
+| `<leader>jo` | Open output window                                  |
+| `<leader>jh` | Hide output                                         |
+| `<leader>jd` | Delete cell output                                  |
+| `<leader>js` | Show kernel status/info                             |
+| `<leader>jc` | Clear images                                         |
+
+### Package Management
+
+| Keybinding   | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| `<leader>pi` | Install suggested packages (from import detection)  |
+| `<leader>pa` | Analyze imports in current buffer                   |
+
 ## 🛠️ Project Types
 
 ### 1. Data Science / Notebooks
@@ -182,12 +243,26 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ## 🔧 Configuration
 
+### Full Configuration Options
+
 ```lua
 require("pyworks").setup({
+  -- Python environment settings
   python = {
     preferred_venv_name = ".venv",  -- Virtual environment folder name
     use_uv = true,                  -- Prefer uv over pip when available
   },
+  
+  -- Molten/Jupyter output configuration (NEW!)
+  molten = {
+    virt_text_output = false,      -- false = show output in window below cell
+    output_virt_lines = false,      -- false = don't use virtual lines
+    virt_lines_off_by_1 = false,    -- false = output directly below cell
+    output_win_max_height = 30,     -- Maximum height of output window
+    auto_open_output = true,        -- Automatically show output after execution
+    output_win_style = "minimal",   -- Window style: "minimal" or "none"
+  },
+  
   ui = {
     icons = {
       python = "🐍",
@@ -196,6 +271,7 @@ require("pyworks").setup({
       warning = "⚠️",
     },
   },
+  
   auto_activate_venv = true,  -- Auto-activate in terminals
 })
 ```

@@ -24,6 +24,15 @@ M.defaults = {
 		level = vim.log.levels.INFO,
 		show_progress = true,
 	},
+	-- Molten output configuration
+	molten = {
+		virt_text_output = false,  -- false = show output in window below cell
+		output_virt_lines = false,  -- false = don't use virtual lines
+		virt_lines_off_by_1 = false,  -- false = output directly below
+		output_win_max_height = 30,
+		auto_open_output = true,
+		output_win_style = "minimal",
+	},
 }
 
 -- Current configuration (merged with defaults)

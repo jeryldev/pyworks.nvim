@@ -27,25 +27,6 @@ function M.setup(opts)
 		end
 	end
 
-	-- Configure Molten (if it's installed)
-	if vim.fn.exists(":MoltenInit") == 2 then
-		vim.g.molten_image_provider = "image.nvim"
-		vim.g.molten_output_win_max_height = 30
-		vim.g.molten_output_win_max_width = 200
-		vim.g.molten_auto_open_output = true
-		vim.g.molten_wrap_output = true
-		vim.g.molten_virt_text_output = true
-		vim.g.molten_virt_lines_off_by_1 = true
-		vim.g.molten_output_virt_lines = true
-		vim.g.molten_cover_empty_lines = true
-		vim.g.molten_enter_output_behavior = "open_and_enter"
-		vim.g.molten_output_show_more = true
-		vim.g.molten_use_border_highlights = true
-		vim.g.molten_virt_text_max_lines = 50
-		vim.g.molten_output_crop_border = true
-		vim.g.molten_output_win_cover_gutter = false
-	end
-
 	-- Validate and setup configuration
 	if opts then
 		local ok, errors = config.validate_config(opts)
