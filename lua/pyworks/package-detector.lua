@@ -319,10 +319,10 @@ function M.analyze_buffer()
 				if not has_venv then
 					utils.notify("💡 Run :PyworksSetup to create environment and install packages", vim.log.levels.INFO)
 				else
-					local install_cmd = ":PyworksInstallPackages " .. table.concat(missing, " ")
-					utils.notify("💡 Run: " .. install_cmd, vim.log.levels.INFO)
+					local install_cmd = "PyworksInstallPackages " .. table.concat(missing, " ")
+					utils.notify("💡 Run: :" .. install_cmd, vim.log.levels.INFO)
 					
-					-- Store command for easy access
+					-- Store command for easy access (without colon for vim.cmd)
 					vim.g.pyworks_suggested_install = install_cmd
 					utils.notify("   Or press <leader>pi to install suggested packages", vim.log.levels.INFO)
 				end
@@ -365,61 +365,43 @@ function M.install_suggested()
 		end
 	end
 	
-	-- First analyze the current buffer
-	local result = M.analyze_buffer()
-	
-	if not result or #result.missing == 0 then
-		utils.notify("✓ No missing packages to install", vim.log.levels.INFO)
+	-- Check if we have a stored install command from previous analysis
+	local stored_cmd = vim.g.pyworks_suggested_install
+	if stored_cmd and stored_cmd ~= "" then
+		-- Use the stored command directly
+		utils.notify("Installing missing packages...", vim.log.levels.INFO)
+		local ok, err = pcall(vim.cmd, stored_cmd)
+		if not ok then
+			utils.notify("Failed to execute installation: " .. tostring(err), vim.log.levels.ERROR)
+		end
+		-- Clear the stored command after use
+		vim.g.pyworks_suggested_install = nil
 		return
 	end
 	
-	-- Get Python version
-	local python_path = utils.get_python_path() or vim.fn.exepath("python3")
-	local python_version = vim.fn.system(python_path .. " -c 'import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")'"):gsub("\n", "")
+	-- If no stored command, do a quick silent check for missing packages
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	local imports = M.extract_imports(lines)
 	
-	-- Check for compatibility issues and handle them
-	local packages_to_install = {}
-	local skipped_packages = {}
-	
-	for _, package in ipairs(result.missing) do
-		local compat = compatibility_issues[package]
-		
-		if compat and compat.max_version and python_version > compat.max_version then
-			-- Package has compatibility issues
-			utils.notify(string.format("⚠️ %s: %s", package, compat.message), vim.log.levels.WARN)
-			
-			-- Skip this package - it's incompatible
-			table.insert(skipped_packages, package)
-			if compat.alternatives then
-				utils.notify("  Consider alternatives: " .. table.concat(compat.alternatives, ", "), vim.log.levels.INFO)
-				-- Check if any alternatives are in the missing list and add them
-				for _, alt in ipairs(compat.alternatives) do
-					-- Only add alternatives that were explicitly imported
-					for _, missing_pkg in ipairs(result.missing) do
-						if missing_pkg == alt then
-							table.insert(packages_to_install, alt)
-							utils.notify("  Will install alternative: " .. alt, vim.log.levels.INFO)
-						end
-					end
-				end
-			end
-		else
-			-- No compatibility issues, install normally
-			table.insert(packages_to_install, package)
-		end
+	if #imports == 0 then
+		utils.notify("No packages to install", vim.log.levels.INFO)
+		return
 	end
 	
-	-- Install the compatible packages
-	if #packages_to_install > 0 then
-		local install_cmd = ":PyworksInstallPackages " .. table.concat(packages_to_install, " ")
-		utils.notify("Installing compatible packages: " .. table.concat(packages_to_install, ", "), vim.log.levels.INFO)
-		vim.cmd(install_cmd)
+	-- Check for missing packages silently
+	local missing, installed = M.check_missing_packages(imports)
+	
+	if #missing == 0 then
+		utils.notify("✓ All packages are already installed", vim.log.levels.INFO)
+		return
 	end
 	
-	-- Report skipped packages
-	if #skipped_packages > 0 then
-		utils.notify("⚠️ Skipped incompatible packages: " .. table.concat(skipped_packages, ", "), vim.log.levels.WARN)
-		utils.notify("  These packages are not compatible with Python " .. python_version, vim.log.levels.INFO)
+	-- Just install the missing packages without re-showing all notifications
+	local install_cmd = "PyworksInstallPackages " .. table.concat(missing, " ")
+	utils.notify("Installing packages: " .. table.concat(missing, ", "), vim.log.levels.INFO)
+	local ok, err = pcall(vim.cmd, install_cmd)
+	if not ok then
+		utils.notify("Failed to execute installation: " .. tostring(err), vim.log.levels.ERROR)
 	end
 end
 
