@@ -99,6 +99,30 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## 📓 Jupyter Notebook Support
 
+### 🔄 Intelligent Workflow
+
+When you open a notebook (.ipynb) or Python file, pyworks automatically:
+
+1. **Detects file type** - Python, Julia, or R from notebook metadata
+2. **Checks kernel availability** - Ensures project-specific kernel exists
+3. **Auto-initializes kernel** - No need for manual `<leader>ji` in most cases
+4. **Scans for imports** - Identifies all imported packages
+5. **Checks installation status** - Compares against installed packages
+6. **Shows smart notifications**:
+   - Lists missing packages
+   - Warns about incompatible packages (e.g., TensorFlow on Python 3.12+)
+   - Suggests alternatives for incompatible packages
+   - Shows hint: "Press `<leader>pi` to install compatible packages"
+
+### 📦 Smart Package Management
+
+- **Auto-detects package manager** - Uses `uv` if available (10-100x faster), falls back to `pip`
+- **Handles compatibility gracefully**:
+  - Skips packages incompatible with your Python version
+  - Suggests alternatives (e.g., PyTorch instead of TensorFlow for Python 3.12+)
+  - Attempts compatible versions when available
+- **One-key installation** - Press `<leader>pi` to install all missing, compatible packages
+
 ### Output Display
 
 Pyworks uses Molten's popup window system for displaying cell outputs with enhanced sizing:
@@ -125,7 +149,8 @@ For image/plot display in notebooks, you need:
 ```vim
 :PyworksSetup    " Choose 'Data Science / Notebooks'
 :PyworksNewNotebook analysis.ipynb
-<leader>ji       " Initialize Jupyter kernel (auto-detects project kernel)
+" Kernel auto-initializes, packages checked automatically
+" If packages missing, press <leader>pi to install
 ```
 
 ### Web Development Project
@@ -199,25 +224,25 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ### Jupyter/Notebook Operations
 
-| Keybinding   | Description                                          |
-| ------------ | ---------------------------------------------------- |
-| `<leader>ji` | Initialize Jupyter kernel                           |
-| `<leader>jl` | Evaluate current line                               |
-| `<leader>jv` | Evaluate visual selection                           |
-| `<leader>jr` | Select current cell (visual selection)              |
-| `<leader>je` | Evaluate operator                                   |
-| `<leader>jo` | Open output window                                  |
-| `<leader>jh` | Hide output                                         |
-| `<leader>jd` | Delete cell output                                  |
-| `<leader>js` | Show kernel status/info                             |
-| `<leader>jc` | Clear images                                         |
+| Keybinding   | Description                                          | When Needed                    |
+| ------------ | ---------------------------------------------------- | ------------------------------ |
+| `<leader>ji` | Initialize Jupyter kernel manually                  | Rarely - auto-initializes      |
+| `<leader>jl` | Evaluate current line                               | Execute single line            |
+| `<leader>jv` | Evaluate visual selection                           | Execute selected code          |
+| `<leader>jr` | Select current cell (visual selection)              | Select notebook cell           |
+| `<leader>je` | Evaluate operator                                   | Execute with motion            |
+| `<leader>jo` | Open output window                                  | View hidden output             |
+| `<leader>jh` | Hide output                                         | Hide output window             |
+| `<leader>jd` | Delete cell output                                  | Clear cell results             |
+| `<leader>js` | Show kernel status/info                             | Check kernel state             |
+| `<leader>jc` | Clear images                                         | Remove displayed images        |
 
 ### Package Management
 
 | Keybinding   | Description                                          |
 | ------------ | ---------------------------------------------------- |
-| `<leader>pi` | Install suggested packages (from import detection)  |
-| `<leader>pa` | Analyze imports in current buffer                   |
+| `<leader>pi` | Install missing packages (auto-detected from imports) |
+| `<leader>pa` | Manually analyze imports in current buffer          |
 
 ## 🛠️ Project Types
 
@@ -395,8 +420,24 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 ### Packages Not Installing
 
 - Ensure you have a virtual environment: `:PyworksSetup`
-- Check if `uv` is installed for faster operations
+- Check if `uv` is installed for faster operations (10-100x faster than pip)
 - Use `:PyworksDebug` to see package manager details
+- Pyworks automatically detects and uses `uv` if available, otherwise falls back to `pip`
+
+### Package Compatibility Issues
+
+Pyworks intelligently handles incompatible packages:
+
+- **Python 3.12+ with TensorFlow**: Warns about compatibility, suggests PyTorch or JAX
+- **Automatic alternatives**: Suggests compatible alternatives for problematic packages
+- **Smart skipping**: Won't attempt to install packages that will fail
+- **Version detection**: Checks your Python version before installation
+
+Example: If you're on Python 3.12 and import TensorFlow:
+```
+⚠️ TensorFlow: Limited support for Python 3.12+
+  Consider alternatives: torch, jax
+```
 
 ### Notebook Support
 

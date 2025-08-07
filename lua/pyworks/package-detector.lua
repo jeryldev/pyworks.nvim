@@ -54,12 +54,19 @@ local package_mappings = {
 local compatibility_issues = {
 	tensorflow = {
 		max_version = "3.11",
-		message = "TensorFlow doesn't support Python 3.12+ yet. Consider using Python 3.11 or earlier.",
-		alternatives = { "torch", "jax" }
+		message = "TensorFlow has limited support for Python 3.12+. Installation may fail or be unstable.",
+		alternatives = { "torch", "jax" },
+		install_override = "tensorflow>=2.15.0"  -- Try latest version that might support 3.12
 	},
 	numba = {
 		max_version = "3.11",
 		message = "Numba may have issues with Python 3.12+. Consider Python 3.11 for stability.",
+	},
+	-- Add more known incompatibilities
+	pyqt5 = {
+		max_version = "3.11",
+		message = "PyQt5 may have build issues on Python 3.12+. Consider PyQt6 instead.",
+		alternatives = { "pyqt6", "pyside6" }
 	},
 }
 
@@ -271,14 +278,57 @@ end
 
 -- Install suggested packages (called by keybinding)
 function M.install_suggested()
-	local cmd = vim.g.pyworks_suggested_install
-	if cmd then
-		utils.notify("Running command: " .. cmd, vim.log.levels.INFO)
-		utils.notify("Current working directory: " .. vim.fn.getcwd(), vim.log.levels.INFO)
-		vim.cmd(cmd)
-		vim.g.pyworks_suggested_install = nil
-	else
-		utils.notify("No package suggestions available. Analyze the file first.", vim.log.levels.INFO)
+	-- First analyze the current buffer
+	local result = M.analyze_buffer()
+	
+	if not result or #result.missing == 0 then
+		utils.notify("✓ No missing packages to install", vim.log.levels.INFO)
+		return
+	end
+	
+	-- Get Python version
+	local python_path = utils.get_python_path() or vim.fn.exepath("python3")
+	local python_version = vim.fn.system(python_path .. " -c 'import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")'"):gsub("\n", "")
+	
+	-- Check for compatibility issues and handle them
+	local packages_to_install = {}
+	local skipped_packages = {}
+	
+	for _, package in ipairs(result.missing) do
+		local compat = compatibility_issues[package]
+		
+		if compat and compat.max_version and python_version > compat.max_version then
+			-- Package has compatibility issues
+			utils.notify(string.format("⚠️ %s: %s", package, compat.message), vim.log.levels.WARN)
+			
+			if compat.install_override then
+				-- Try to install a specific version that might work
+				utils.notify("  Attempting to install compatible version: " .. compat.install_override, vim.log.levels.INFO)
+				table.insert(packages_to_install, compat.install_override)
+			else
+				-- Skip this package
+				table.insert(skipped_packages, package)
+				if compat.alternatives then
+					utils.notify("  Consider alternatives: " .. table.concat(compat.alternatives, ", "), vim.log.levels.INFO)
+				end
+			end
+		else
+			-- No compatibility issues, install normally
+			table.insert(packages_to_install, package)
+		end
+	end
+	
+	-- Install the compatible packages
+	if #packages_to_install > 0 then
+		local install_cmd = ":PyworksInstallPackages " .. table.concat(packages_to_install, " ")
+		utils.notify("Installing compatible packages: " .. table.concat(packages_to_install, ", "), vim.log.levels.INFO)
+		vim.cmd(install_cmd)
+	end
+	
+	-- Report skipped packages
+	if #skipped_packages > 0 then
+		utils.notify("⚠️ Skipped incompatible packages: " .. table.concat(skipped_packages, ", "), vim.log.levels.WARN)
+		utils.notify("  These packages are not compatible with Python " .. python_version, vim.log.levels.INFO)
 	end
 end
 

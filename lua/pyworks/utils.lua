@@ -78,6 +78,30 @@ function M.ensure_venv_in_path()
 	return false
 end
 
+-- Detect package manager (uv vs pip)
+function M.detect_package_manager()
+	local _, venv_path = M.get_project_paths()
+	
+	-- Check for uv in venv first
+	local venv_uv = venv_path .. "/bin/uv"
+	if vim.fn.executable(venv_uv) == 1 then
+		return "uv", venv_uv
+	end
+	
+	-- Check for system uv
+	if vim.fn.executable("uv") == 1 then
+		return "uv", "uv"
+	end
+	
+	-- Fall back to pip
+	local venv_pip = venv_path .. "/bin/pip"
+	if vim.fn.executable(venv_pip) == 1 then
+		return "pip", venv_pip
+	end
+	
+	return "pip", "pip"
+end
+
 -- Better select implementation (single source of truth)
 function M.better_select(prompt, items, callback)
 	if vim.ui then

@@ -215,9 +215,64 @@ function M.setup(user_config)
 				-- Auto-initialize kernel silently
 				local molten = require("pyworks.molten")
 				molten.init_kernel(true) -- true for silent mode
+				
+				-- After kernel init, check for missing packages
+				vim.defer_fn(function()
+					-- Detect language from notebook
+					local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+					local content = table.concat(lines, "\n")
+					
+					-- Check if it's a Python notebook (most common)
+					if content:match("import%s+%w+") or content:match("from%s+%w+") then
+						local detector = require("pyworks.package-detector")
+						local result = detector.analyze_buffer()
+						
+						if result and #result.missing > 0 then
+							utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
+							utils.notify("Press <leader>pi to install them", vim.log.levels.INFO)
+						end
+					elseif content:match("using%s+%w+") then
+						-- Julia notebook
+						utils.notify("Julia notebook detected - package management coming soon", vim.log.levels.INFO)
+					elseif content:match("library%(") or content:match("require%(") then
+						-- R notebook
+						utils.notify("R notebook detected - package management coming soon", vim.log.levels.INFO)
+					end
+				end, 2000) -- Wait a bit after kernel init
 			end, 1000) -- Wait for jupytext to process
 		end,
 		desc = "Auto-initialize Jupyter kernel for notebooks",
+	})
+	
+	-- Check for missing packages in Python files
+	vim.api.nvim_create_autocmd("BufReadPost", {
+		group = pyworks_group,
+		pattern = "*.py",
+		callback = function()
+			-- Only check if we have a venv
+			if not utils.has_venv() then
+				return
+			end
+			
+			vim.defer_fn(function()
+				local detector = require("pyworks.package-detector")
+				local result = detector.analyze_buffer()
+				
+				if result and #result.missing > 0 then
+					utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
+					
+					-- Check for compatibility issues
+					if #result.compatibility > 0 then
+						for _, issue in ipairs(result.compatibility) do
+							utils.notify("⚠️ " .. issue.package .. ": " .. issue.message, vim.log.levels.WARN)
+						end
+					end
+					
+					utils.notify("Press <leader>pi to install compatible packages", vim.log.levels.INFO)
+				end
+			end, 500) -- Quick check after file opens
+		end,
+		desc = "Check for missing Python packages",
 	})
 	
 	-- Prevent notebook corruption on save
