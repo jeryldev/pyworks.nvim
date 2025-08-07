@@ -1,22 +1,24 @@
-# 🐍 pyworks.nvim
+# 🚀 pyworks.nvim v3.0
 
-**Python environments tailored for Neovim**
+**Zero-configuration multi-language support for Python, Julia, and R in Neovim**
 
-A comprehensive Python project management plugin for Neovim that handles virtual environments, package installation, and Jupyter notebook integration - all without leaving your editor.
+A revolutionary Neovim plugin that provides automatic environment setup, package detection, and Jupyter-like code execution for Python, Julia, and R - with absolutely zero configuration required.
 
 ## ✨ Features
 
-- 🚀 **Async Project Setup** - Non-blocking virtual environment creation and package installation
-- 📦 **Smart Package Detection** - Auto-detects missing packages and handles compatibility issues
-- 📓 **Seamless Jupyter Support** - Edit .ipynb files with automatic kernel initialization
-- 🔬 **Multi-language Support** - Python, Julia, and R kernel auto-detection and initialization
-- 🔍 **Real-time Diagnostics** - Environment health checks with automatic fixes
-- 🎯 **Project Templates** - Pre-configured setups for data science, web development, and more
-- ⚡ **Auto-activation** - Automatically activates virtual environments in terminals
-- 🔄 **Progress Indicators** - Visual feedback for all long-running operations
-- 🛡️ **Self-healing** - Automatically fixes common issues like missing pynvim
-- 📔 **Smart Notebook Handling** - Automatic metadata fixing and format conversion
-- 🎉 **Auto-install Essentials** - Automatically installs pynvim, ipykernel, jupyter_client when opening notebooks
+### Zero-Configuration Magic
+- 🎯 **Just Open and Code** - No setup, no configuration, just start coding
+- 🚀 **Auto-Everything** - Environment creation, package detection, kernel initialization
+- 🔬 **True Multi-language** - Python, Julia, and R with identical workflows
+
+### Core Capabilities
+- 📦 **Smart Package Detection** - Detects and installs missing packages automatically
+- 📓 **Native Notebook Support** - Edit .ipynb files as naturally as .py files
+- ⚡ **Molten Integration** - Execute code cells with Jupyter-like experience
+- 🖼️ **Inline Plots** - Display matplotlib/Plots.jl/ggplot2 output directly in Neovim
+- 🔄 **Dynamic Kernel Detection** - Finds available kernels automatically (no hardcoding)
+- 🛡️ **Project-Based Activation** - Only runs in actual project directories
+- 📔 **Automatic Metadata Fixing** - Handles notebook format issues seamlessly
 
 ## 📋 Requirements
 
@@ -32,66 +34,94 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## 🚀 Installation
 
-### Using [lazy.nvim](https://github.com/folke/lazy.nvim) (Recommended)
+### Complete Setup with [lazy.nvim](https://github.com/folke/lazy.nvim)
+
+Create `~/.config/nvim/lua/plugins/pyworks-setup.lua`:
 
 ```lua
-{
-  "jeryldev/pyworks.nvim",
-  dependencies = {
-    -- Jupyter notebook file support (automatically configured)
-    "GCBallesteros/jupytext.nvim",  -- For .ipynb file support
-    
-    -- Required for notebook execution
-    {
-      "benlubas/molten-nvim",
-      version = "^1.0.0",
-      build = ":UpdateRemotePlugins",
-      init = function()
-        -- Molten configuration for better image display
-        vim.g.molten_image_provider = "image.nvim"
-        vim.g.molten_output_win_max_height = 40  -- Increased for larger images
-        vim.g.molten_output_win_max_width = 150  -- Allow wider output
-        vim.g.molten_auto_open_output = true     -- Auto-show output
-        vim.g.molten_output_crop_border = true   -- Better screen fit
-      end,
-    },
-    {
-      "3rd/image.nvim",
-      opts = {
-        backend = "kitty",  -- Requires Kitty or Ghostty terminal
-        integrations = {},  -- Empty for Molten compatibility
-        max_width = 150,    -- Match Molten's width
-        max_height = 40,    -- Match Molten's height
-        max_height_window_percentage = math.huge,
-        max_width_window_percentage = math.huge,
-        window_overlap_clear_enabled = true,
-        window_overlap_clear_ft_ignore = { "cmp_menu", "cmp_docs", "" },
-      },
+return {
+  -- Pyworks core plugin
+  {
+    "jeryldev/pyworks.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    lazy = false,
+    priority = 100,
+    config = function()
+      -- Only runs in project directories (with .venv, Project.toml, etc.)
+      require("pyworks").setup({
+        -- All configuration is optional!
+        python = {
+          preferred_venv_name = ".venv",
+          use_uv = true,  -- 10-100x faster than pip
+        },
+        julia = { auto_install_ijulia = true },
+        r = { auto_install_irkernel = true },
+      })
+    end,
+  },
+
+  -- Notebook support (jupytext)
+  {
+    "GCBallesteros/jupytext.nvim",
+    config = true,  -- Automatic configuration
+    lazy = false,
+  },
+
+  -- Code execution (Molten)
+  {
+    "benlubas/molten-nvim",
+    version = "^1.0.0",
+    build = ":UpdateRemotePlugins",
+    dependencies = { "3rd/image.nvim" },
+    init = function()
+      vim.g.molten_image_provider = "image.nvim"
+      vim.g.molten_auto_open_output = true
+      vim.g.molten_output_win_max_height = 40
+      vim.g.molten_output_win_max_width = 150
+    end,
+  },
+
+  -- Image display for plots
+  {
+    "3rd/image.nvim",
+    opts = {
+      backend = "kitty",  -- or "ueberzug"
+      max_width = 150,
+      max_height = 40,
     },
   },
-  lazy = false,  -- Load immediately for autocmds
-  config = function()
-    require("pyworks").setup({
-      -- Configuration options (optional)
-      python = {
-        preferred_venv_name = ".venv",
-        use_uv = true,  -- Use uv when available
-      },
-      auto_activate_venv = true,
-    })
-  end,
 }
 ```
 
-## 🆕 What's New
+### Why This Configuration?
 
-### Latest Updates
+The configuration is comprehensive because pyworks.nvim integrates multiple complex systems:
 
-- **🚀 Zero-Config Installation**: Dependencies auto-install on first run - just add one line!
-- **🔧 Self-healing Python Host**: Automatically detects and fixes pynvim issues
-- **📦 Smarter Package Detection**: Normalizes package names, handles compatibility issues
-- **🚫 No More Spam**: Prevents duplicate notifications during installations
-- **🌍 Multi-language Support**: Python, Julia, and R kernels auto-initialize
+1. **Pyworks Core**: Handles environment management for 3 languages
+2. **Jupytext**: Enables notebook viewing/editing
+3. **Molten**: Provides Jupyter-like code execution
+4. **Image.nvim**: Displays plots and images inline
+
+Each component requires specific settings to work together seamlessly. While the configuration looks long, it's actually minimal - each setting serves a specific purpose for the zero-configuration experience.
+
+## 🎯 The Six Core Scenarios
+
+Pyworks provides identical zero-configuration workflows for:
+
+1. **Python Files (.py)** - Virtual environment, package detection, execution
+2. **Julia Files (.jl)** - Project activation, package detection, execution
+3. **R Files (.R)** - Environment setup, package detection, execution
+4. **Python Notebooks (.ipynb)** - Auto-detects Python, converts, executes
+5. **Julia Notebooks (.ipynb)** - Auto-detects Julia, converts, executes
+6. **R Notebooks (.ipynb)** - Auto-detects R, converts, executes
+
+## 🚀 What's New in v3.0
+
+- **True Zero-Config**: Just open files and start coding
+- **Dynamic Kernel Detection**: Finds julia-1.11, not hardcoded "julia"
+- **Project-Based Activation**: Only runs in actual project directories
+- **Clean Architecture**: Modular design with core/languages/notebook separation
+- **Better Notifications**: Silent when ready, informative when needed
 - **⚡ Async Everything**: Non-blocking operations with progress indicators
 - **🎯 Smart Caching**: Reduces system calls with intelligent 5-30 second TTL
 
@@ -372,84 +402,49 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ## 🔧 Configuration
 
-### Pyworks Configuration
+### Default Settings (All Optional)
 
 ```lua
 require("pyworks").setup({
-  -- Python environment settings
   python = {
-    preferred_venv_name = ".venv",  -- Virtual environment folder name
-    use_uv = true,                  -- Prefer uv over pip when available
+    preferred_venv_name = ".venv",
+    use_uv = true,  -- 10-100x faster than pip
+    auto_install_essentials = true,
+    essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
   },
-  
-  auto_activate_venv = true,  -- Auto-activate in terminals
-  
-  -- UI settings (optional)
-  ui = {
-    icons = {
-      python = "🐍",
-      success = "✓",
-      error = "✗",
-      warning = "⚠️",
-    },
+  julia = {
+    auto_install_ijulia = true,  -- Prompt once if missing
+  },
+  r = {
+    auto_install_irkernel = true,  -- Prompt once if missing
+  },
+  notifications = {
+    verbose_first_time = true,
+    silent_when_ready = true,
+    show_progress = true,
+    debug_mode = false,
   },
 })
 ```
 
-### Customizing Output Window Size
+## 🎮 How It Works
 
-If you need different output window dimensions (e.g., for ultra-wide monitors or specific workflows):
+### The Zero-Configuration Experience
 
-```lua
--- In your Molten plugin configuration:
-init = function()
-  vim.g.molten_output_win_max_height = 60  -- Even taller for huge plots
-  vim.g.molten_output_win_max_width = 200  -- Wider for large DataFrames
-end
+1. **Open any supported file** - pyworks detects file type
+2. **Automatic setup** - Creates environment, installs essentials
+3. **Package detection** - Scans imports, shows missing packages
+4. **Kernel initialization** - Auto-starts appropriate kernel
+5. **Ready to code** - Use keymaps to execute code immediately
 
--- And match in image.nvim:
-opts = {
-  max_width = 200,   -- Match Molten's width
-  max_height = 60,   -- Match Molten's height
-  -- ... other settings
-}
-```
+### Project Detection
 
-## 🎮 Usage Examples
-
-### Starting a New ML Project
-
-```bash
-mkdir my_ml_project
-cd my_ml_project
-nvim
-```
-
-```vim
-:PyworksSetup
-" Select: Data Science / Notebooks
-" Restart Neovim after setup
-:PyworksNewNotebook exploration.ipynb
-```
-
-### Installing Additional Packages
-
-```vim
-:PyworksInstallPackages scikit-learn xgboost lightgbm
-" Or browse available packages:
-:PyworksBrowsePackages
-```
-
-### Checking Your Environment
-
-```vim
-:PyworksCheckEnvironment
-" Shows:
-" - Python version and path
-" - Virtual environment status
-" - Installed packages
-" - Jupyter/Molten integration status
-```
+Pyworks only activates in directories containing:
+- `.venv` (Python virtual environment)
+- `Project.toml` (Julia project)
+- `renv.lock` (R project)
+- `requirements.txt`, `setup.py`, `pyproject.toml` (Python)
+- `.Rproj` (RStudio project)
 
 ## 🤝 Integration with Other Plugins
 
@@ -509,117 +504,32 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 ## 🐛 Troubleshooting
 
-### No Notifications When Opening Files
+### Common Issues
 
-If you don't see the workflow notifications:
+**Q: Pyworks runs in all directories**
+A: v3.0 only activates in project directories with markers (.venv, Project.toml, etc.)
 
-1. **Check Molten is properly installed**:
-   ```vim
-   :PyworksCheckEnvironment
-   " Look for Molten commands status
-   ```
+**Q: "No visual selection found" with Molten**
+A: Use `<leader>jr` to select cell, then `<leader>jv` while in visual mode
 
-2. **Ensure Python host is configured**:
-   ```vim
-   :PyworksDebug
-   " Should show Python3 host and pynvim status
-   ```
+**Q: Julia kernel not found**
+A: Julia kernels include version (julia-1.11). Install IJulia if missing.
 
-3. **Try manual kernel initialization**:
-   ```vim
-   :MoltenInit
-   " If this fails, Molten isn't loaded properly
-   ```
+**Q: Images open in external viewer**
+A: Fixed in v3.0 with molten_auto_image_popup = false
 
-4. **Run setup if needed**:
-   ```vim
-   :PyworksSetup
-   " Choose 'Data Science / Notebooks'
-   " Then restart Neovim
-   ```
+**Q: Jupytext command not found**
+A: Pyworks adds .venv/bin to PATH automatically. Install with pip if needed.
 
-5. **Check for Python host errors**:
-   ```vim
-   :checkhealth provider
-   " Look for python3 provider issues
-   ```
+### Debug Mode
 
-### Virtual Environment Not Detected
-
-```vim
-:PyworksDebug             " Debug configuration and fix issues
-:PyworksCheckEnvironment  " Check current status
-:PyworksShowEnvironment   " Detailed environment info
+```lua
+require("pyworks").setup({
+  notifications = { debug_mode = true }
+})
 ```
 
-### Packages Not Installing
-
-- Ensure you have a virtual environment: `:PyworksSetup`
-- Check if `uv` is installed for faster operations (10-100x faster than pip)
-- Use `:PyworksDebug` to see package manager details
-- Pyworks automatically detects and uses `uv` if available, otherwise falls back to `pip`
-
-### Package Compatibility Issues
-
-Pyworks intelligently handles incompatible packages:
-
-#### Automatic Detection
-When you open a Python file, pyworks:
-1. Scans all import statements
-2. Checks which packages are missing
-3. Verifies compatibility with your Python version
-4. Shows clear notifications for any issues
-
-#### Known Compatibility Issues
-- **Python 3.12+ with TensorFlow**: Warns about compatibility, suggests PyTorch or JAX
-- **numba on Python 3.12**: May have issues, warns but attempts install
-- **PyQt5 on newer Python**: Suggests PyQt6 as replacement
-
-#### Example Workflow
-```python
-# In your file:
-import tensorflow as tf  # On Python 3.12
-```
-
-You'll see:
-```
-📦 Missing packages: tensorflow
-⚠️ tensorflow: TensorFlow has limited support for Python 3.12+
-  Consider alternatives: torch, jax
->>> Press <leader>pi to install missing packages
-```
-
-### Notebook Support
-
-pyworks.nvim handles Jupyter notebooks seamlessly:
-
-- **Automatic conversion**: Notebooks are converted to Python percent format for editing
-- **Automatic metadata fixing**: Missing Python metadata is added automatically
-- **Save support**: Changes are saved back to the original .ipynb format
-
-If a notebook doesn't open correctly:
-
-```vim
-:PyworksFixNotebook       " Fix current notebook
-:PyworksFixNotebook path/to/notebook.ipynb  " Fix specific notebook
-```
-
-- Ensure your virtual environment is activated
-- Check if `uv` is installed for faster installs
-- Use `:messages` to see installation progress
-
-### Jupyter Notebooks Not Working
-
-- Run `:PyworksDebug` to check jupytext and Python host configuration
-- Run `:PyworksCheckEnvironment` to verify Molten is registered
-- Ensure you selected "Data Science" project type
-- Restart Neovim after initial setup
-
-### Python Host Configuration Issues
-
-- Run `:PyworksDebug` to see current configuration
-- The command will automatically fix PATH and Python host if needed
-- pyworks now loads immediately on startup to ensure proper configuration
+Or temporarily: `:lua vim.g.pyworks_debug = true`
 
 ## 📝 License
 

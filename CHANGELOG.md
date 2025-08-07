@@ -2,18 +2,39 @@
 
 All notable changes to pyworks.nvim will be documented in this file.
 
-## [Unreleased]
+## [3.0.0] - 2024-08-08
 
-### Added
-- **Automatic Python Host Recovery**: Detects and fixes pynvim installation issues automatically
-- **Package Name Normalization**: Handles common import mistakes like `matplotlib-pyplot` → `matplotlib`
-- **Installation Job Tracking**: Prevents duplicate notifications during package installation
-- **Enhanced Diagnostics**: Shows pynvim version and provides fix commands
+### Major Rewrite - Complete Architecture Overhaul
 
-### Fixed
-- Python host channel errors with automatic pynvim installation
-- Duplicate "missing packages" notifications during installation
-- Package detection for hyphenated package names
+#### Added
+- **Zero-Configuration Workflow**: Automatic environment setup for Python, Julia, and R without any manual steps
+- **Auto-Initialization**: Molten kernels initialize automatically when compatible kernel exists
+- **Dynamic Kernel Detection**: Queries available kernels instead of hardcoded names (fixes julia-1.11 issue)
+- **Project-Based Activation**: Only runs in directories with project markers (.venv, Project.toml, etc.)
+- **Hover-Based Output**: Molten outputs display on demand, not inline (cleaner workspace)
+- **Smart Package Detection**: Improved detection for all three languages with proper async handling
+- **Cell Navigation**: [j and ]j keymaps for navigating between cells (avoiding LazyVim conflicts)
+- **Visual Selection Fix**: Proper handling of visual mode for cell execution
+
+#### Changed
+- **Complete Restructure**: Modular architecture with separate core, languages, and notebook modules
+- **Improved Caching**: Aggressive caching with TTL for better performance
+- **Better Notifications**: Only shows notifications when action needed, silent when ready
+- **Jupytext Integration**: Automatic jupytext installation and PATH configuration
+- **Image Display**: Fixed to show only in Molten popup, not external applications
+
+#### Fixed
+- **Kernel Name Mismatch**: Julia kernels (julia-1.11) now detected dynamically
+- **Visual Selection Error**: "No visual selection found" error with proper `:<C-u>` handling
+- **Auto-Initialization**: Now works for all 6 scenarios including notebooks
+- **Package Installation**: Notifications only show after actual completion
+- **Global Activation**: Pyworks only activates in project directories
+- **Image Popup**: Disabled auto_image_popup to prevent external viewer launches
+
+#### Removed
+- **Legacy Code**: Removed all v2 code and migrated to clean v3 architecture
+- **Test Files**: Moved all tests and documentation to notes/ folder
+- **Redundant Features**: Removed duplicate functionality and streamlined workflows
 
 ## [2.0.0] - 2024-01-08
 

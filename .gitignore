@@ -1,3 +1,6 @@
+# Development notes and documentation
+notes/
+
 # Vim swap files
 *.swp
 *.swo
@@ -9,19 +12,48 @@
 # Python
 __pycache__/
 *.pyc
+*.py[cod]
 .venv/
 venv/
+.env
 
 # Test files
+test_*.py
+test_*.lua
+test_*.vim
 *.ipynb
 !examples/*.ipynb
 
 # IDE
 .idea/
 .vscode/
+*.code-workspace
 
 # Local config
 .nvim.lua
 
 # Demo videos (keep only GIFs)
 demos/*.mov
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_temp
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Julia
+Manifest.toml
+*.jl.*.cov
+*.jl.cov
+*.jl.mem

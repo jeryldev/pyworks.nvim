@@ -1,14 +1,44 @@
--- pyworks.nvim - Python environments tailored for Neovim
--- Version: 2.0.0
--- 
--- Multi-language Jupyter kernel support for Python, Julia, and R
--- Smart package detection with compatibility handling
--- Consistent workflow across all file types
+-- pyworks.nvim - Zero-config multi-language support for Python, Julia, and R
+-- Version: 3.0.0
 --
--- Main module
+-- Features:
+-- - Automatic environment setup for Python, Julia, and R
+-- - Smart package detection and installation
+-- - Jupyter notebook support with automatic kernel management
+-- - Zero configuration required - just open files and start working
 
 local M = {}
-local config = require("pyworks.config")
+
+-- Default configuration
+local default_config = {
+	python = {
+		use_uv = false,
+		preferred_venv_name = ".venv",
+		auto_install_essentials = true,
+		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
+	},
+	julia = {
+		auto_install_ijulia = true,
+	},
+	r = {
+		auto_install_irkernel = true,
+	},
+	cache = {
+		-- Cache TTL overrides (in seconds)
+		kernel_list = 60,
+		installed_packages = 300,
+	},
+	notifications = {
+		verbose_first_time = true,
+		silent_when_ready = true,
+		show_progress = true,
+		debug_mode = false,
+	},
+	auto_detect = true, -- Automatically detect and setup on file open
+}
+
+-- Plugin configuration
+local config = {}
 
 -- Setup function
 function M.setup(opts)
@@ -16,214 +46,208 @@ function M.setup(opts)
 	if vim.g.pyworks_setup_complete then
 		return
 	end
-	-- Setup jupytext metadata fixing
-	require("pyworks.jupytext").setup()
-
+	
+	-- Merge user configuration with defaults
+	config = vim.tbl_deep_extend("force", default_config, opts or {})
+	
+	-- Configure core modules
+	local cache = require("pyworks.core.cache")
+	cache.configure(config.cache)
+	
+	local notifications = require("pyworks.core.notifications")
+	notifications.configure(config.notifications)
+	
+	-- Configure language modules
+	local python = require("pyworks.languages.python")
+	python.configure(config.python)
+	
+	-- Initialize state
+	local state = require("pyworks.core.state")
+	state.start_session()
+	
 	-- Set Python host if not already set
 	if not vim.g.python3_host_prog then
-		-- Try to find the best Python executable
-		local python_candidates = {
-			vim.fn.getcwd() .. "/.venv/bin/python3",
-			vim.fn.getcwd() .. "/.venv/bin/python",
-			vim.fn.exepath("python3"),
-			vim.fn.exepath("python"),
-		}
-
-		for _, python_path in ipairs(python_candidates) do
-			if vim.fn.executable(python_path) == 1 then
-				vim.g.python3_host_prog = python_path
-				break
-			end
-		end
+		M.setup_python_host()
 	end
 	
-	-- Verify Python host and pynvim installation (only once per session)
-	if not vim.g.pyworks_python_host_checked then
-		vim.g.pyworks_python_host_checked = true
-		vim.defer_fn(function()
-			local python_host = vim.g.python3_host_prog
-			if python_host then
-				-- Check if pynvim is installed
-				local check_cmd = python_host .. " -c 'import pynvim' 2>&1"
-				local result = vim.fn.system(check_cmd)
-				if vim.v.shell_error ~= 0 then
-					-- Try to fix it automatically (only once)
-					if not vim.g.pyworks_python_host_fix_attempted then
-						vim.g.pyworks_python_host_fix_attempted = true
-						local utils = require("pyworks.utils")
-						utils.notify("Python host issue detected - attempting to fix...", vim.log.levels.WARN)
-						
-						-- Install pynvim in the virtual environment
-						local venv_pip = vim.fn.getcwd() .. "/.venv/bin/pip"
-						if vim.fn.executable(venv_pip) == 1 then
-							vim.fn.system(venv_pip .. " install --upgrade pynvim neovim 2>&1")
-							utils.notify("Installed pynvim - restart Neovim to complete setup", vim.log.levels.INFO)
-						end
-					end
-				end
-			end
-		end, 1000) -- Delay to let Neovim fully initialize
-	end
-
-	-- Validate and setup configuration
-	if opts then
-		local ok, errors = config.validate_config(opts)
-		if not ok then
-			vim.notify("pyworks.nvim: Invalid configuration:\n" .. table.concat(errors, "\n"), vim.log.levels.ERROR)
-			return
-		end
-	end
-
-	-- Setup configuration
-	M.config = config.setup(opts)
-
-	-- Load submodules
-	require("pyworks.commands").setup()
-	require("pyworks.autocmds").setup(M.config)
-	require("pyworks.cell-navigation").setup()
-
-	-- Create user commands
-	require("pyworks.commands").create_commands()
-
-	-- Set up Molten keymappings (always set them up, they'll check for Molten availability)
-	local molten = require("pyworks.molten")
-
-	-- Core Molten keymappings
-	vim.keymap.set("n", "<leader>ji", function()
-		molten.init_kernel()
-	end, { desc = "[J]upyter [I]nitialize kernel" })
-	vim.keymap.set("n", "<leader>jl", function()
-		if vim.fn.exists(":MoltenEvaluateLine") == 2 then
-			-- Check if kernel is running for this buffer
-			if vim.fn.exists("*MoltenRunningKernels") == 1 then
-				local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-				if #buffer_kernels == 0 then
-					-- No kernel running, auto-initialize based on file type
-					local ft = vim.bo.filetype
-					if ft == "python" or ft == "julia" or ft == "r" then
-						vim.notify("Auto-initializing kernel...", vim.log.levels.INFO)
-						molten.init_kernel(true) -- Silent mode
-						-- Wait a bit then run the line
-						vim.defer_fn(function()
-							molten.evaluate_line()
-						end, 500)
-						return
-					end
-				end
-			end
-			molten.evaluate_line()
-		else
-			vim.notify("Molten not available. Run :PyworksSetup and choose 'Data Science / Notebooks' to install", vim.log.levels.WARN)
-			vim.notify("Or add molten-nvim to your plugin config dependencies", vim.log.levels.INFO)
-		end
-	end, { desc = "[J]upyter evaluate [L]ine" })
-
-	-- Visual mode mapping for running selection (both v and x modes)
-	vim.keymap.set(
-		{ "v", "x" },
-		"<leader>jv",
-		":<C-u>MoltenEvaluateVisual<CR>",
-		{ desc = "[J]upyter evaluate [V]isual", silent = true }
-	)
-
-	-- Also add normal mode mapping that uses the last visual selection
-	vim.keymap.set("n", "<leader>jv", function()
-		if vim.fn.exists(":MoltenEvaluateVisual") == 2 then
-			-- Check if kernel is running for this buffer
-			if vim.fn.exists("*MoltenRunningKernels") == 1 then
-				local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-				if #buffer_kernels == 0 then
-					-- No kernel running, auto-initialize based on file type
-					local ft = vim.bo.filetype
-					if ft == "python" or ft == "julia" or ft == "r" then
-						vim.notify("Auto-initializing kernel...", vim.log.levels.INFO)
-						molten.init_kernel(true) -- Silent mode
-						-- Wait a bit then run the selection
-						vim.defer_fn(function()
-							vim.cmd("normal! gv")
-							vim.cmd("MoltenEvaluateVisual")
-						end, 500)
-						return
-					end
-				end
-			end
-			-- Re-select the last visual selection and run it
-			vim.cmd("normal! gv")
-			vim.cmd("MoltenEvaluateVisual")
-		else
-			vim.notify("Molten not available. Run :PyworksSetup and choose 'Data Science / Notebooks' to install", vim.log.levels.WARN)
-			vim.notify("Or add molten-nvim to your plugin config dependencies", vim.log.levels.INFO)
-		end
-	end, { desc = "[J]upyter evaluate last [V]isual selection" })
-
-	vim.keymap.set("n", "<leader>je", function()
-		if vim.fn.exists(":MoltenEvaluateOperator") == 2 then
-			vim.cmd("MoltenEvaluateOperator")
-		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [E]valuate operator" })
-
-	vim.keymap.set("n", "<leader>jo", function()
-		if vim.fn.exists(":MoltenEnterOutput") == 2 then
-			vim.cmd("noautocmd MoltenEnterOutput")
-		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [O]pen output" })
-
-	vim.keymap.set("n", "<leader>jh", function()
-		if vim.fn.exists(":MoltenHideOutput") == 2 then
-			vim.cmd("MoltenHideOutput")
-		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [H]ide output" })
-
-	vim.keymap.set("n", "<leader>jd", function()
-		if vim.fn.exists(":MoltenDelete") == 2 then
-			vim.cmd("MoltenDelete")
-		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [D]elete cell" })
-
-	vim.keymap.set("n", "<leader>js", function()
-		if vim.fn.exists(":MoltenInfo") == 2 then
-			vim.cmd("MoltenInfo")
-		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [S]tatus/info" })
-
-	-- Image clearing (if image.nvim is available)
-	vim.keymap.set("n", "<leader>jc", function()
-		local ok, image = pcall(require, "image")
-		if ok then
-			image.clear()
-		else
-			vim.notify("Image support not available", vim.log.levels.WARN)
-		end
-	end, { desc = "[J]upyter [C]lear images" })
-	
-	-- Package management keybindings
-	vim.keymap.set("n", "<leader>pi", function()
-		local detector = require("pyworks.package-detector")
-		detector.install_suggested()
-	end, { desc = "[P]yworks [I]nstall suggested packages" })
-	
-	vim.keymap.set("n", "<leader>pa", function()
-		vim.cmd("PyworksAnalyzeImports")
-	end, { desc = "[P]yworks [A]nalyze imports" })
-
 	-- Mark setup as complete
-	config.set_state("setup_completed", true)
 	vim.g.pyworks_setup_complete = true
 end
 
--- Expose config for backward compatibility
+-- Setup Python host
+function M.setup_python_host()
+	-- Try to find the best Python executable
+	local python_candidates = {
+		vim.fn.getcwd() .. "/.venv/bin/python3",
+		vim.fn.getcwd() .. "/.venv/bin/python",
+		vim.fn.exepath("python3"),
+		vim.fn.exepath("python"),
+	}
+	
+	for _, python_path in ipairs(python_candidates) do
+		if vim.fn.executable(python_path) == 1 then
+			vim.g.python3_host_prog = python_path
+			break
+		end
+	end
+end
+
+-- Manual commands (for power users)
+-- These are optional - the plugin works without them
+
+-- Command to manually trigger environment setup
+vim.api.nvim_create_user_command("PyworksSetup", function()
+	local detector = require("pyworks.core.detector")
+	local filepath = vim.api.nvim_buf_get_name(0)
+	detector.on_file_open(filepath)
+end, {
+	desc = "Manually trigger Pyworks environment setup for current file",
+})
+
+-- Command to install missing packages
+vim.api.nvim_create_user_command("PyworksInstall", function()
+	local ft = vim.bo.filetype
+	if ft == "python" then
+		local python = require("pyworks.languages.python")
+		python.install_missing_packages()
+	elseif ft == "julia" then
+		local julia = require("pyworks.languages.julia")
+		julia.install_missing_packages()
+	elseif ft == "r" then
+		local r = require("pyworks.languages.r")
+		r.install_missing_packages()
+	else
+		vim.notify("No missing packages detected for this file type", vim.log.levels.INFO)
+	end
+end, {
+	desc = "Install missing packages for current file",
+})
+
+-- Command to show package status
+vim.api.nvim_create_user_command("PyworksStatus", function()
+	local packages = require("pyworks.core.packages")
+	local ft = vim.bo.filetype
+	local language = nil
+	
+	if ft == "python" then
+		language = "python"
+	elseif ft == "julia" then
+		language = "julia"
+	elseif ft == "r" then
+		language = "r"
+	end
+	
+	if language then
+		local result = packages.analyze_buffer(language)
+		
+		vim.notify(string.format(
+			"[%s] Imports: %d | Installed: %d | Missing: %d",
+			language:gsub("^%l", string.upper),
+			#result.imports,
+			#result.installed,
+			#result.missing
+		), vim.log.levels.INFO)
+		
+		if #result.missing > 0 then
+			vim.notify(
+				"Missing packages: " .. table.concat(result.missing, ", "),
+				vim.log.levels.WARN
+			)
+		end
+	else
+		vim.notify("Pyworks: Not a supported file type", vim.log.levels.INFO)
+	end
+end, {
+	desc = "Show package status for current file",
+})
+
+-- Command to clear cache
+vim.api.nvim_create_user_command("PyworksClearCache", function()
+	local cache = require("pyworks.core.cache")
+	cache.clear()
+	vim.notify("Pyworks cache cleared", vim.log.levels.INFO)
+end, {
+	desc = "Clear Pyworks cache",
+})
+
+-- Command to show cache statistics
+vim.api.nvim_create_user_command("PyworksCacheStats", function()
+	local cache = require("pyworks.core.cache")
+	local stats = cache.stats()
+	vim.notify(string.format(
+		"Cache: %d total | %d active | %d expired",
+		stats.total,
+		stats.active,
+		stats.expired
+	), vim.log.levels.INFO)
+end, {
+	desc = "Show Pyworks cache statistics",
+})
+
+-- Export configuration for other modules
 function M.get_config()
-	return config.current
+	return config
+end
+
+-- Health check function
+function M.health()
+	local health = vim.health or require("health")
+	
+	health.start("Pyworks")
+	
+	-- Check Python
+	local python = require("pyworks.languages.python")
+	if python.has_venv() then
+		health.ok("Python virtual environment found")
+	else
+		health.warn("No Python virtual environment found", {
+			"Will be created automatically when you open a Python file"
+		})
+	end
+	
+	-- Check Julia
+	local julia = require("pyworks.languages.julia")
+	if julia.has_julia() then
+		health.ok("Julia installation found")
+		if julia.has_ijulia() then
+			health.ok("IJulia kernel installed")
+		else
+			health.warn("IJulia kernel not installed", {
+				"Will be prompted to install when you open a Julia notebook"
+			})
+		end
+	else
+		health.warn("Julia not found", {
+			"Install Julia from https://julialang.org"
+		})
+	end
+	
+	-- Check R
+	local r = require("pyworks.languages.r")
+	if r.has_r() then
+		health.ok("R installation found")
+		if r.has_irkernel() then
+			health.ok("IRkernel installed")
+		else
+			health.warn("IRkernel not installed", {
+				"Will be prompted to install when you open an R notebook"
+			})
+		end
+	else
+		health.warn("R not found", {
+			"Install R from https://www.r-project.org"
+		})
+	end
+	
+	-- Check jupytext
+	local jupytext = require("pyworks.notebook.jupytext")
+	if jupytext.is_jupytext_installed() then
+		health.ok("Jupytext installed")
+	else
+		health.warn("Jupytext not installed", {
+			"Will be prompted to install when you open a notebook"
+		})
+	end
 end
 
 return M
