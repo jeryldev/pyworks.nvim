@@ -12,6 +12,10 @@ local config = require("pyworks.config")
 
 -- Setup function
 function M.setup(opts)
+	-- Prevent multiple setup calls
+	if vim.g.pyworks_setup_complete then
+		return
+	end
 	-- Setup jupytext metadata fixing
 	require("pyworks.jupytext").setup()
 

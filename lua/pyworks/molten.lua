@@ -14,11 +14,12 @@ function M.init_kernel(silent_mode)
 	
 	-- Check if MoltenInit exists
 	if vim.fn.exists(":MoltenInit") ~= 2 then
-		-- Check if it's a Python host issue
+		-- Check if it's a Python host issue (but don't duplicate the fix from init.lua)
 		local python_host = vim.g.python3_host_prog
-		if python_host then
+		if python_host and not vim.g.pyworks_python_host_fix_attempted then
 			local check_result = vim.fn.system(python_host .. " -c 'import pynvim' 2>&1")
 			if vim.v.shell_error ~= 0 then
+				vim.g.pyworks_python_host_fix_attempted = true
 				utils.notify("Python host issue detected - fixing automatically...", vim.log.levels.WARN)
 				-- Try to install pynvim
 				local venv_pip = vim.fn.getcwd() .. "/.venv/bin/pip"
@@ -29,7 +30,9 @@ function M.init_kernel(silent_mode)
 				end
 			end
 		end
-		utils.notify("Jupyter not configured. Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.ERROR)
+		if not silent_mode then
+			utils.notify("Jupyter not configured. Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.ERROR)
+		end
 		return
 	end
 	
