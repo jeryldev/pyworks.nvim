@@ -32,6 +32,28 @@ function M.setup(opts)
 			end
 		end
 	end
+	
+	-- Verify Python host and pynvim installation
+	vim.defer_fn(function()
+		local python_host = vim.g.python3_host_prog
+		if python_host then
+			-- Check if pynvim is installed
+			local check_cmd = python_host .. " -c 'import pynvim' 2>&1"
+			local result = vim.fn.system(check_cmd)
+			if vim.v.shell_error ~= 0 then
+				-- Try to fix it automatically
+				local utils = require("pyworks.utils")
+				utils.notify("Python host issue detected - attempting to fix...", vim.log.levels.WARN)
+				
+				-- Install pynvim in the virtual environment
+				local venv_pip = vim.fn.getcwd() .. "/.venv/bin/pip"
+				if vim.fn.executable(venv_pip) == 1 then
+					vim.fn.system(venv_pip .. " install --upgrade pynvim neovim 2>&1")
+					utils.notify("Installed pynvim - restart Neovim to complete setup", vim.log.levels.INFO)
+				end
+			end
+		end
+	end, 1000) -- Delay to let Neovim fully initialize
 
 	-- Validate and setup configuration
 	if opts then

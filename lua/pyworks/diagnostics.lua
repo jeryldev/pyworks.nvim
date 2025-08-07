@@ -16,10 +16,22 @@ function M.check_environment()
 	local python_host = vim.g.python3_host_prog or "not set"
 	table.insert(diagnostics, "Python3 host: " .. python_host)
 
-	-- Check if Python exists
+	-- Check if Python exists and has pynvim
 	if python_host ~= "not set" then
 		local exists = vim.fn.executable(python_host) == 1
 		table.insert(diagnostics, "Python exists: " .. (exists and "✓" or "✗"))
+		
+		if exists then
+			-- Check if pynvim is installed
+			local pynvim_check = vim.fn.system(python_host .. " -c 'import pynvim; print(pynvim.__version__)' 2>&1")
+			if vim.v.shell_error == 0 then
+				local version = pynvim_check:gsub("\n", "")
+				table.insert(diagnostics, "pynvim installed: ✓ (version " .. version .. ")")
+			else
+				table.insert(diagnostics, "pynvim installed: ✗ (required for Molten)")
+				table.insert(diagnostics, "  Fix: " .. python_host .. " -m pip install pynvim")
+			end
+		end
 	end
 
 	-- Check virtual environment

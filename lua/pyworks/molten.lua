@@ -8,6 +8,21 @@ local utils = require("pyworks.utils")
 function M.init_kernel(silent_mode)
 	-- Check if MoltenInit exists
 	if vim.fn.exists(":MoltenInit") ~= 2 then
+		-- Check if it's a Python host issue
+		local python_host = vim.g.python3_host_prog
+		if python_host then
+			local check_result = vim.fn.system(python_host .. " -c 'import pynvim' 2>&1")
+			if vim.v.shell_error ~= 0 then
+				utils.notify("Python host issue detected - fixing automatically...", vim.log.levels.WARN)
+				-- Try to install pynvim
+				local venv_pip = vim.fn.getcwd() .. "/.venv/bin/pip"
+				if vim.fn.executable(venv_pip) == 1 then
+					vim.fn.system(venv_pip .. " install --upgrade pynvim 2>&1")
+					utils.notify("Fixed Python host - please restart Neovim", vim.log.levels.INFO)
+					return
+				end
+			end
+		end
 		utils.notify("Jupyter not configured. Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.ERROR)
 		return
 	end
