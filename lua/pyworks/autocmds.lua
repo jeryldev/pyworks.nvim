@@ -229,7 +229,12 @@ function M.setup(user_config)
 						
 						if result and #result.missing > 0 then
 							utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
-							utils.notify("Press <leader>pi to install them", vim.log.levels.INFO)
+							-- Make the install hint more prominent
+							vim.defer_fn(function()
+								utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+								utils.notify("👉 Press <leader>pi to install missing packages", vim.log.levels.WARN)
+								utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+							end, 100) -- Small delay to ensure it appears after other messages
 						end
 					elseif content:match("using%s+%w+") then
 						-- Julia notebook
@@ -268,7 +273,12 @@ function M.setup(user_config)
 						end
 					end
 					
-					utils.notify("Press <leader>pi to install compatible packages", vim.log.levels.INFO)
+					-- Make the install hint more prominent
+					vim.defer_fn(function()
+						utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+						utils.notify("👉 Press <leader>pi to install missing packages", vim.log.levels.WARN)
+						utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+					end, 100) -- Small delay to ensure it appears after other messages
 				end
 			end, 500) -- Quick check after file opens
 		end,
