@@ -101,18 +101,31 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ### 🔄 Intelligent Workflow
 
-When you open a notebook (.ipynb) or Python file, pyworks automatically:
+Pyworks automatically handles all file types with consistent, language-aware workflows:
 
-1. **Detects file type** - Python, Julia, or R from notebook metadata
-2. **Checks kernel availability** - Ensures project-specific kernel exists
-3. **Auto-initializes kernel** - No need for manual `<leader>ji` in most cases
-4. **Scans for imports** - Identifies all imported packages
-5. **Checks installation status** - Compares against installed packages
-6. **Shows smart notifications**:
-   - Lists missing packages
-   - Warns about incompatible packages (e.g., TensorFlow on Python 3.12+)
-   - Suggests alternatives for incompatible packages
-   - Shows hint: "Press `<leader>pi` to install compatible packages"
+#### For Any Supported File (.py, .jl, .R, .ipynb):
+
+1. **Detects file extension** - Python (.py), Julia (.jl), R (.R), or notebook (.ipynb)
+2. **Shows detection notification** - "Detected [language] file - checking for compatible kernel..."
+3. **Checks for compatible kernel** - Finds Python/Julia/R kernel as needed
+4. **Auto-initializes or prompts** - Either auto-starts matching kernel or shows selection dialog
+5. **Language-specific features**:
+   
+   **Python Files (.py, .ipynb)**:
+   - Scans for imports and detects missing packages
+   - Checks compatibility (e.g., TensorFlow on Python 3.12+)
+   - Shows "Press `<leader>pi` to install" for missing packages
+   - Full package management with pip/uv
+   
+   **Julia Files (.jl)**:
+   - Auto-initializes Julia kernel on file open
+   - Detects `using` and `import` statements
+   - Package management via Pkg.add() (integration coming soon)
+   
+   **R Files (.R)**:
+   - Auto-initializes R kernel (IRkernel) on file open
+   - Detects `library()` and `require()` calls
+   - Package management via install.packages() (integration coming soon)
 
 ### 📦 Smart Package Management
 
@@ -142,9 +155,31 @@ For image/plot display in notebooks, you need:
 - **Ghostty terminal** (alternative) - Supports Kitty graphics protocol
 - Other terminals will show text output only
 
+### Kernel Requirements
+
+For multi-language support, install the appropriate kernels:
+
+**Python** (installed automatically by pyworks):
+```bash
+python -m pip install ipykernel
+python -m ipykernel install --user --name myproject
+```
+
+**Julia**:
+```julia
+using Pkg
+Pkg.add("IJulia")
+```
+
+**R**:
+```r
+install.packages('IRkernel')
+IRkernel::installspec()
+```
+
 ## 🎯 Quick Start
 
-### Data Science Project
+### Python Data Science
 
 ```vim
 :PyworksSetup    " Choose 'Data Science / Notebooks'
@@ -153,11 +188,29 @@ For image/plot display in notebooks, you need:
 " If packages missing, press <leader>pi to install
 ```
 
-### Web Development Project
+### Julia Scientific Computing
+
+```vim
+" Just open any .jl file - no setup needed!
+nvim experiment.jl
+" Julia kernel auto-initializes in 1 second
+" Ready to run with <leader>jl or <leader>jv
+```
+
+### R Statistical Analysis
+
+```vim
+" Just open any .R file - no setup needed!
+nvim analysis.R
+" R kernel auto-initializes in 1 second
+" Ready to run with <leader>jl or <leader>jv
+```
+
+### Python Web Development
 
 ```vim
 :PyworksWeb      " Quick setup for FastAPI/Flask/Django
-" Start coding your API!
+" Virtual environment created with web frameworks
 ```
 
 ## 🎬 Demonstrations
