@@ -56,9 +56,26 @@ function M.setup(opts)
 	end, { desc = "[J]upyter [I]nitialize kernel" })
 	vim.keymap.set("n", "<leader>jl", function()
 		if vim.fn.exists(":MoltenEvaluateLine") == 2 then
+			-- Check if kernel is running for this buffer
+			if vim.fn.exists("*MoltenRunningKernels") == 1 then
+				local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+				if #buffer_kernels == 0 then
+					-- No kernel running, auto-initialize based on file type
+					local ft = vim.bo.filetype
+					if ft == "python" or ft == "julia" or ft == "r" then
+						vim.notify("Auto-initializing kernel...", vim.log.levels.INFO)
+						molten.init_kernel(true) -- Silent mode
+						-- Wait a bit then run the line
+						vim.defer_fn(function()
+							molten.evaluate_line()
+						end, 500)
+						return
+					end
+				end
+			end
 			molten.evaluate_line()
 		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
+			vim.notify("Molten not available. Ensure it's installed.", vim.log.levels.ERROR)
 		end
 	end, { desc = "[J]upyter evaluate [L]ine" })
 
@@ -73,11 +90,29 @@ function M.setup(opts)
 	-- Also add normal mode mapping that uses the last visual selection
 	vim.keymap.set("n", "<leader>jv", function()
 		if vim.fn.exists(":MoltenEvaluateVisual") == 2 then
+			-- Check if kernel is running for this buffer
+			if vim.fn.exists("*MoltenRunningKernels") == 1 then
+				local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+				if #buffer_kernels == 0 then
+					-- No kernel running, auto-initialize based on file type
+					local ft = vim.bo.filetype
+					if ft == "python" or ft == "julia" or ft == "r" then
+						vim.notify("Auto-initializing kernel...", vim.log.levels.INFO)
+						molten.init_kernel(true) -- Silent mode
+						-- Wait a bit then run the selection
+						vim.defer_fn(function()
+							vim.cmd("normal! gv")
+							vim.cmd("MoltenEvaluateVisual")
+						end, 500)
+						return
+					end
+				end
+			end
 			-- Re-select the last visual selection and run it
 			vim.cmd("normal! gv")
 			vim.cmd("MoltenEvaluateVisual")
 		else
-			vim.notify("Jupyter not initialized. Press <leader>ji first", vim.log.levels.WARN)
+			vim.notify("Molten not available. Ensure it's installed.", vim.log.levels.ERROR)
 		end
 	end, { desc = "[J]upyter evaluate last [V]isual selection" })
 
