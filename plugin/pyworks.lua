@@ -19,24 +19,23 @@ local augroup = vim.api.nvim_create_augroup("Pyworks", { clear = true })
 local function is_pyworks_project()
 	-- Check for common project markers
 	local markers = {
-		".venv",           -- Python virtual environment
-		"Project.toml",    -- Julia project
-		"renv.lock",       -- R project with renv
-		".Rproj",          -- RStudio project
+		".venv", -- Python virtual environment
+		"Project.toml", -- Julia project
+		"renv.lock", -- R project with renv
+		".Rproj", -- RStudio project
 		"requirements.txt", -- Python requirements
-		"setup.py",        -- Python package
-		"pyproject.toml",  -- Modern Python project
-		"Manifest.toml",   -- Julia manifest
+		"setup.py", -- Python package
+		"pyproject.toml", -- Modern Python project
+		"Manifest.toml", -- Julia manifest
 	}
-	
+
 	local cwd = vim.fn.getcwd()
 	for _, marker in ipairs(markers) do
-		if vim.fn.filereadable(cwd .. "/" .. marker) == 1 or 
-		   vim.fn.isdirectory(cwd .. "/" .. marker) == 1 then
+		if vim.fn.filereadable(cwd .. "/" .. marker) == 1 or vim.fn.isdirectory(cwd .. "/" .. marker) == 1 then
 			return true
 		end
 	end
-	
+
 	return false
 end
 
@@ -49,12 +48,12 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 		if not is_pyworks_project() then
 			return
 		end
-		
+
 		-- Debug: Show that autocmd fired
 		if vim.g.pyworks_debug then
 			vim.notify("[Pyworks] File opened: " .. ev.file, vim.log.levels.DEBUG)
 		end
-		
+
 		-- Use defer_fn for non-blocking operation
 		vim.defer_fn(function()
 			local detector = require("pyworks.core.detector")
@@ -73,7 +72,7 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 		if not is_pyworks_project() then
 			return
 		end
-		
+
 		vim.defer_fn(function()
 			local detector = require("pyworks.core.detector")
 			detector.rescan_imports(ev.file)
@@ -95,7 +94,7 @@ vim.api.nvim_create_autocmd("FileType", {
 			keymaps.setup_molten_keymaps()
 			return
 		end
-		
+
 		-- Package installation keymap
 		vim.keymap.set("n", "<leader>pi", function()
 			local ft = vim.bo.filetype
@@ -110,12 +109,12 @@ vim.api.nvim_create_autocmd("FileType", {
 				r.install_missing_packages()
 			end
 		end, { buffer = true, desc = "Pyworks: Install missing packages" })
-		
+
 		-- Set up cell execution keymaps for Molten
 		local keymaps = require("pyworks.keymaps")
 		keymaps.setup_buffer_keymaps()
 		keymaps.setup_molten_keymaps()
-		
+
 		-- For notebooks (.ipynb files converted by jupytext), trigger auto-initialization
 		-- This is needed because jupytext changes the filetype after conversion
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)

@@ -16,15 +16,15 @@ function M.get_cached(key, fetcher, ttl)
 	ttl = ttl or 5000 -- Default 5 second TTL
 	local now = vim.loop.hrtime() / 1e6
 	local entry = data_cache[key]
-	
+
 	if entry and entry.result and (now - entry.timestamp) < ttl then
 		return entry.result
 	end
-	
+
 	local result = fetcher()
 	data_cache[key] = {
 		result = result,
-		timestamp = now
+		timestamp = now,
 	}
 	return result
 end
@@ -48,7 +48,7 @@ end
 function M.get_python_path()
 	local _, venv_path = M.get_project_paths()
 	local python_path = venv_path .. "/bin/python3"
-	
+
 	-- Try python3 first, then python
 	if vim.fn.executable(python_path) ~= 1 then
 		python_path = venv_path .. "/bin/python"
@@ -56,7 +56,7 @@ function M.get_python_path()
 			return nil
 		end
 	end
-	
+
 	return python_path
 end
 
@@ -70,7 +70,7 @@ end
 function M.ensure_venv_in_path()
 	local _, venv_path = M.get_project_paths()
 	local venv_bin = venv_path .. "/bin"
-	
+
 	if not vim.env.PATH:match(vim.pesc(venv_bin)) then
 		vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
 		return true
@@ -81,24 +81,24 @@ end
 -- Detect package manager (uv vs pip)
 function M.detect_package_manager()
 	local _, venv_path = M.get_project_paths()
-	
+
 	-- Check for uv in venv first
 	local venv_uv = venv_path .. "/bin/uv"
 	if vim.fn.executable(venv_uv) == 1 then
 		return "uv", venv_uv
 	end
-	
+
 	-- Check for system uv
 	if vim.fn.executable("uv") == 1 then
 		return "uv", "uv"
 	end
-	
+
 	-- Fall back to pip
 	local venv_pip = venv_path .. "/bin/pip"
 	if vim.fn.executable(venv_pip) == 1 then
 		return "pip", venv_pip
 	end
-	
+
 	return "pip", "pip"
 end
 

@@ -7,6 +7,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 ### Major Rewrite - Complete Architecture Overhaul
 
 #### Added
+
 - **Zero-Configuration Workflow**: Automatic environment setup for Python, Julia, and R without any manual steps
 - **Auto-Initialization**: Molten kernels initialize automatically when compatible kernel exists
 - **Dynamic Kernel Detection**: Queries available kernels instead of hardcoded names (fixes julia-1.11 issue)
@@ -17,6 +18,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Visual Selection Fix**: Proper handling of visual mode for cell execution
 
 #### Changed
+
 - **Complete Restructure**: Modular architecture with separate core, languages, and notebook modules
 - **Improved Caching**: Aggressive caching with TTL for better performance
 - **Better Notifications**: Only shows notifications when action needed, silent when ready
@@ -24,6 +26,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Image Display**: Fixed to show only in Molten popup, not external applications
 
 #### Fixed
+
 - **Kernel Name Mismatch**: Julia kernels (julia-1.11) now detected dynamically
 - **Visual Selection Error**: "No visual selection found" error with proper `:<C-u>` handling
 - **Auto-Initialization**: Now works for all 6 scenarios including notebooks
@@ -32,6 +35,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Image Popup**: Disabled auto_image_popup to prevent external viewer launches
 
 #### Removed
+
 - **Legacy Code**: Removed all v2 code and migrated to clean v3 architecture
 - **Test Files**: Moved all tests and documentation to notes/ folder
 - **Redundant Features**: Removed duplicate functionality and streamlined workflows
@@ -39,6 +43,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 ## [2.0.0] - 2024-01-08
 
 ### Added
+
 - **Multi-language Kernel Support**: Automatic detection and initialization for Python, Julia, and R
 - **Smart Package Detection**: Auto-detects missing Python packages with compatibility checks
 - **Package Compatibility Handling**: Detects and warns about Python 3.12+ incompatibilities
@@ -47,12 +52,14 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Consistent Workflow**: All file types trigger same detection and initialization flow
 
 ### Changed
+
 - **Unified Experience**: Same workflow for .py, .jl, .R, and .ipynb files
 - **Better Package Detection**: Handles complex import patterns and package name mappings
 - **Improved Kernel Matching**: Smart detection based on file type and notebook metadata
 - **Optimized Autocmds**: Immediate notifications with deferred initialization
 
 ### Fixed
+
 - Unicode separator corruption in notifications
 - Package installation command format issues
 - Silent mode inconsistencies between file types
@@ -65,12 +72,14 @@ All notable changes to pyworks.nvim will be documented in this file.
 ### Performance Improvements
 
 ### 1. Implemented Caching Layer ✅
+
 - Added `utils.get_cached()` function for expensive operations
 - Cache Jupyter availability checks (30 second TTL)
 - Cache kernel list fetching (10 second TTL)
 - Reduces repeated file system calls
 
 ### 2. Extracted Common venv Logic ✅
+
 - New utility functions in `utils.lua`:
   - `has_venv()` - Check if virtual environment exists
   - `get_python_path()` - Get Python executable from venv
@@ -79,6 +88,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 - Eliminated code duplication across modules
 
 ### 3. Converted Critical Blocking Calls to Async ✅
+
 - `complete_setup()` now uses async for:
   - Remote plugin updates
   - Jupyter kernel creation
@@ -86,6 +96,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 - UI no longer freezes during setup operations
 
 ### 4. Documentation Updates ✅
+
 - Removed outdated `docs/` folder
 - Updated README configuration section
 - Removed misleading Molten configuration options
@@ -93,11 +104,13 @@ All notable changes to pyworks.nvim will be documented in this file.
 ## Performance Impact
 
 ### Before
+
 - Setup operations blocked UI for 5-30 seconds
 - Repeated kernel checks every time Molten initialized
 - Multiple redundant filesystem checks
 
 ### After
+
 - Setup runs in background with progress indicators
 - Kernel list cached for 10 seconds
 - Jupyter availability cached for 30 seconds
@@ -106,10 +119,12 @@ All notable changes to pyworks.nvim will be documented in this file.
 ## Still To Do
 
 1. **Break down complex functions in setup.lua**
+
    - Split large functions into smaller, testable units
    - Improve readability and maintainability
 
 2. **Additional async conversions**
+
    - Package availability checks
    - Environment diagnostics
 
@@ -123,3 +138,4 @@ All notable changes to pyworks.nvim will be documented in this file.
 2. Verify kernel list caching works correctly
 3. Ensure async operations complete properly
 4. Check that cache invalidation works as expected
+

@@ -7,11 +7,13 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 ## ✨ Features
 
 ### Zero-Configuration Magic
+
 - 🎯 **Just Open and Code** - No setup, no configuration, just start coding
 - 🚀 **Auto-Everything** - Environment creation, package detection, kernel initialization
 - 🔬 **True Multi-language** - Python, Julia, and R with identical workflows
 
 ### Core Capabilities
+
 - 📦 **Smart Package Detection** - Detects and installs missing packages automatically
 - 📓 **Native Notebook Support** - Edit .ipynb files as naturally as .py files
 - ⚡ **Molten Integration** - Execute code cells with Jupyter-like experience
@@ -26,83 +28,77 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 - Python 3.8+
 
 ### For Notebook Support
+
 - `jupytext` CLI - Required to open/edit .ipynb files
 - **Automatically installed** by pyworks during any project setup
 
 ### Optional
+
 - [`uv`](https://github.com/astral-sh/uv) - Faster package management (10-100x faster than pip)
 
 ## 🚀 Installation
 
 ### Complete Setup with [lazy.nvim](https://github.com/folke/lazy.nvim)
 
-Create `~/.config/nvim/lua/plugins/pyworks-setup.lua`:
+Create `~/.config/nvim/lua/plugins/pyworks.lua` with this **simplified configuration**:
 
 ```lua
 return {
-  -- Pyworks core plugin
   {
     "jeryldev/pyworks.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    lazy = false,
-    priority = 100,
+    dependencies = {
+      "nvim-lua/plenary.nvim",      -- Required: Core utilities
+      "benlubas/molten-nvim",       -- Required: Code execution
+      "GCBallesteros/jupytext.nvim", -- Required: Notebook support
+      "3rd/image.nvim",             -- Required: Image display
+    },
     config = function()
-      -- Only runs in project directories (with .venv, Project.toml, etc.)
       require("pyworks").setup({
-        -- All configuration is optional!
+        -- Pyworks auto-configures everything with proven settings!
         python = {
-          preferred_venv_name = ".venv",
-          use_uv = true,  -- 10-100x faster than pip
+          use_uv = true,  -- Use uv for faster package installation
         },
-        julia = { auto_install_ijulia = true },
-        r = { auto_install_irkernel = true },
+        image_backend = "kitty",  -- or "ueberzug" for other terminals
+
+        -- Optional: Skip auto-configuration if needed
+        -- skip_molten = false,
+        -- skip_jupytext = false,
+        -- skip_image = false,
+        -- skip_keymaps = false,
       })
     end,
-  },
-
-  -- Notebook support (jupytext)
-  {
-    "GCBallesteros/jupytext.nvim",
-    config = true,  -- Automatic configuration
-    lazy = false,
-  },
-
-  -- Code execution (Molten)
-  {
-    "benlubas/molten-nvim",
-    version = "^1.0.0",
-    build = ":UpdateRemotePlugins",
-    dependencies = { "3rd/image.nvim" },
-    init = function()
-      vim.g.molten_image_provider = "image.nvim"
-      vim.g.molten_auto_open_output = true
-      vim.g.molten_output_win_max_height = 40
-      vim.g.molten_output_win_max_width = 150
-    end,
-  },
-
-  -- Image display for plots
-  {
-    "3rd/image.nvim",
-    opts = {
-      backend = "kitty",  -- or "ueberzug"
-      max_width = 150,
-      max_height = 40,
-    },
-  },
+    lazy = false,    -- Load immediately for file detection
+    priority = 100,  -- Load early
+  }
 }
 ```
 
-### Why This Configuration?
+### Why This Simple Configuration Works
 
-The configuration is comprehensive because pyworks.nvim integrates multiple complex systems:
+**🎯 Auto-Configuration Magic**: Pyworks now handles ALL the complex setup automatically:
 
-1. **Pyworks Core**: Handles environment management for 3 languages
-2. **Jupytext**: Enables notebook viewing/editing
-3. **Molten**: Provides Jupyter-like code execution
-4. **Image.nvim**: Displays plots and images inline
+- **Project Detection**: Only activates in directories with `.venv`, `Project.toml`, etc.
+- **Molten Setup**: Configures hover-based output with optimal window sizes
+- **Jupytext Integration**: Handles PATH management and notebook conversion
+- **Image Display**: Sets up plot rendering with terminal compatibility
+- **Helper Keymaps**: Adds `<leader>ps` (status) and `<leader>pc` (clear cache)
 
-Each component requires specific settings to work together seamlessly. While the configuration looks long, it's actually minimal - each setting serves a specific purpose for the zero-configuration experience.
+**🔧 Four Complex Systems, One Simple Config**: Behind the scenes, pyworks coordinates:
+
+1. **Pyworks Core**: Environment management for Python, Julia, and R
+2. **Jupytext**: Notebook viewing/editing with intelligent PATH handling
+3. **Molten**: Jupyter-like code execution with battle-tested output settings
+4. **Image.nvim**: Plot and image display optimized for data science
+
+**✅ Production-Tested Settings**: All auto-configuration uses proven settings refined through real-world usage - the same optimal configuration that powers seamless multi-language data science workflows.
+
+**🚀 True Zero-Config**:
+
+- Copy this 25-line config once
+- Open any `.py`, `.jl`, `.R`, or `.ipynb` file
+- Everything works automatically from the first file
+
+The complex 240+ line configuration is now built into pyworks itself!
 
 ## 🎯 The Six Core Scenarios
 
@@ -142,7 +138,7 @@ This means you can clone any project with notebooks and start working immediatel
 
 Pyworks provides automatic kernel initialization and package detection for all supported file types:
 
-#### How It Works:
+#### How It Works
 
 When you open any supported file (.py, .jl, .R, .ipynb), pyworks:
 
@@ -152,32 +148,37 @@ When you open any supported file (.py, .jl, .R, .ipynb), pyworks:
 4. **Scans for missing packages** (Python only currently)
 5. **Offers one-click installation** with `<leader>pi`
 
-#### Language-Specific Features:
-   
-   **Python Files (.py, .ipynb)**:
-   - Scans for imports and detects missing packages
-   - Checks compatibility (e.g., TensorFlow on Python 3.12+)
-   - Shows "Press `<leader>pi` to install" for missing packages
-   - Full package management with pip/uv
-   
-   **Julia Files (.jl)**:
-   - Auto-initializes Julia kernel on file open
-   - Detects `using` and `import` statements
-   - Package management via Pkg.add() (integration coming soon)
-   
-   **R Files (.R)**:
-   - Auto-initializes R kernel (IRkernel) on file open
-   - Detects `library()` and `require()` calls
-   - Package management via install.packages() (integration coming soon)
+#### Language-Specific Features
+
+**Python Files (.py, .ipynb)**:
+
+- Scans for imports and detects missing packages
+- Checks compatibility (e.g., TensorFlow on Python 3.12+)
+- Shows "Press `<leader>pi` to install" for missing packages
+- Full package management with pip/uv
+
+**Julia Files (.jl)**:
+
+- Auto-initializes Julia kernel on file open
+- Detects `using` and `import` statements
+- Package management via Pkg.add() (integration coming soon)
+
+**R Files (.R)**:
+
+- Auto-initializes R kernel (IRkernel) on file open
+- Detects `library()` and `require()` calls
+- Package management via install.packages() (integration coming soon)
 
 ### 📦 Smart Package Management
 
 #### Automatic Detection
+
 - **Scans imports on file open** - Detects missing packages from `import` statements
 - **Shows missing packages** - "📦 Missing packages: numpy, pandas, matplotlib"
 - **Installation prompt** - ">>> Press <leader>pi to install missing packages"
 
 #### Intelligent Installation
+
 - **Auto-detects package manager** - Uses `uv` if available (10-100x faster), falls back to `pip`
 - **Handles compatibility gracefully**:
   - Skips packages incompatible with your Python version
@@ -186,7 +187,9 @@ When you open any supported file (.py, .jl, .R, .ipynb), pyworks:
 - **One-key installation** - Press `<leader>pi` to install all missing, compatible packages
 
 #### Compatibility Handling
+
 Pyworks knows about package compatibility issues:
+
 - **TensorFlow** - Not compatible with Python 3.12+, suggests PyTorch or JAX
 - **numba** - Limited Python 3.12 support, warns about potential issues
 - **PyQt5** - Replaced by PyQt6 for newer Python versions
@@ -196,12 +199,14 @@ Pyworks knows about package compatibility issues:
 Pyworks uses Molten's enhanced popup window system for displaying cell outputs:
 
 #### Window Configuration
+
 - **Large floating windows** (40 lines tall, 150 chars wide) for plots and DataFrames
 - **Auto-opens after execution** - Output appears automatically when you run cells
 - **Smart border cropping** - Windows adjust to fit screen edges
 - **Image support** - Full color plots and images (requires Kitty/Ghostty terminal)
 
 #### Output Controls
+
 - `<leader>jo` - Open/show output window
 - `<leader>jh` - Hide output window
 - `<leader>jd` - Delete/clear cell output
@@ -212,6 +217,7 @@ Pyworks uses Molten's enhanced popup window system for displaying cell outputs:
 ### Terminal Requirements for Images
 
 For image/plot display in notebooks, you need:
+
 - **Kitty terminal** (recommended) - `brew install --cask kitty`
 - **Ghostty terminal** (alternative) - Supports Kitty graphics protocol
 - Other terminals will show text output only
@@ -221,18 +227,21 @@ For image/plot display in notebooks, you need:
 For multi-language support, install the appropriate kernels:
 
 **Python** (installed automatically by pyworks):
+
 ```bash
 python -m pip install ipykernel
 python -m ipykernel install --user --name myproject
 ```
 
 **Julia**:
+
 ```julia
 using Pkg
 Pkg.add("IJulia")
 ```
 
 **R**:
+
 ```r
 install.packages('IRkernel')
 IRkernel::installspec()
@@ -331,8 +340,8 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `:PyworksInstallEssentials`                 | Install essential notebook packages (auto-runs) |
 | `:PyworksCreateKernel`                      | Create Jupyter kernel from current project venv |
 | `:PyworksFixKernel [name]`                  | Fix kernel by installing missing packages       |
-| `:PyworksListKernels`                       | List and verify all Jupyter kernels            |
-| `:PyworksRemoveKernel [name]`               | Remove a Jupyter kernel                        |
+| `:PyworksListKernels`                       | List and verify all Jupyter kernels             |
+| `:PyworksRemoveKernel [name]`               | Remove a Jupyter kernel                         |
 
 ### Quick Setup Commands
 
@@ -354,25 +363,25 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ### Jupyter/Notebook Operations
 
-| Keybinding   | Description                                          | When Needed                    |
-| ------------ | ---------------------------------------------------- | ------------------------------ |
-| `<leader>ji` | Initialize Jupyter kernel manually                  | Rarely - auto-initializes      |
-| `<leader>jl` | Evaluate current line                               | Execute single line            |
-| `<leader>jv` | Evaluate visual selection                           | Execute selected code          |
-| `<leader>jr` | Select current cell (visual selection)              | Select notebook cell           |
-| `<leader>je` | Evaluate operator                                   | Execute with motion            |
-| `<leader>jo` | Open output window                                  | View hidden output             |
-| `<leader>jh` | Hide output                                         | Hide output window             |
-| `<leader>jd` | Delete cell output                                  | Clear cell results             |
-| `<leader>js` | Show kernel status/info                             | Check kernel state             |
-| `<leader>jc` | Clear images                                         | Remove displayed images        |
+| Keybinding   | Description                            | When Needed               |
+| ------------ | -------------------------------------- | ------------------------- |
+| `<leader>ji` | Initialize Jupyter kernel manually     | Rarely - auto-initializes |
+| `<leader>jl` | Evaluate current line                  | Execute single line       |
+| `<leader>jv` | Evaluate visual selection              | Execute selected code     |
+| `<leader>jr` | Select current cell (visual selection) | Select notebook cell      |
+| `<leader>je` | Evaluate operator                      | Execute with motion       |
+| `<leader>jo` | Open output window                     | View hidden output        |
+| `<leader>jh` | Hide output                            | Hide output window        |
+| `<leader>jd` | Delete cell output                     | Clear cell results        |
+| `<leader>js` | Show kernel status/info                | Check kernel state        |
+| `<leader>jc` | Clear images                           | Remove displayed images   |
 
 ### Package Management
 
-| Keybinding   | Description                                          |
-| ------------ | ---------------------------------------------------- |
+| Keybinding   | Description                                           |
+| ------------ | ----------------------------------------------------- |
 | `<leader>pi` | Install missing packages (auto-detected from imports) |
-| `<leader>pa` | Manually analyze imports in current buffer          |
+| `<leader>pa` | Manually analyze imports in current buffer            |
 
 ## 🛠️ Project Types
 
@@ -440,6 +449,7 @@ require("pyworks").setup({
 ### Project Detection
 
 Pyworks only activates in directories containing:
+
 - `.venv` (Python virtual environment)
 - `Project.toml` (Julia project)
 - `renv.lock` (R project)

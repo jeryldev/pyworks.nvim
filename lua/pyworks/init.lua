@@ -40,36 +40,161 @@ local default_config = {
 -- Plugin configuration
 local config = {}
 
+-- Auto-configure external dependencies with proven settings
+function M.configure_dependencies(opts)
+	opts = opts or {}
+
+	-- Configure Molten with optimal settings (only if molten is available)
+	if not opts.skip_molten and vim.fn.exists(":MoltenInit") == 2 then
+		vim.g.molten_image_provider = "image.nvim"
+		vim.g.molten_auto_open_output = true
+		vim.g.molten_virt_text_output = false -- Don't show inline virtual text
+		vim.g.molten_virt_lines_off_by_1 = false
+		vim.g.molten_output_win_max_height = 40
+		vim.g.molten_output_win_max_width = 150
+		vim.g.molten_output_crop_border = true
+		vim.g.molten_wrap_output = true
+		vim.g.molten_output_show_more = true
+		vim.g.molten_output_win_border = "rounded"
+		vim.g.molten_auto_open_html_in_browser = false
+		vim.g.molten_auto_image_popup = false
+		vim.g.molten_tick_rate = 100
+	end
+
+	-- Configure jupytext with PATH management and optimal settings
+	if not opts.skip_jupytext then
+		-- Add venv/bin to PATH for jupytext command
+		local cwd = vim.fn.getcwd()
+		local paths_to_add = {}
+
+		-- Check current directory venv
+		local venv_bin = cwd .. "/.venv/bin"
+		if vim.fn.isdirectory(venv_bin) == 1 then
+			table.insert(paths_to_add, venv_bin)
+		end
+
+		-- Check parent directory venv
+		local parent_venv = vim.fn.fnamemodify(cwd, ":h") .. "/.venv/bin"
+		if vim.fn.isdirectory(parent_venv) == 1 then
+			table.insert(paths_to_add, parent_venv)
+		end
+
+		-- Check conda environment
+		local conda_prefix = vim.env.CONDA_PREFIX
+		if conda_prefix then
+			local conda_bin = conda_prefix .. "/bin"
+			if vim.fn.isdirectory(conda_bin) == 1 then
+				table.insert(paths_to_add, conda_bin)
+			end
+		end
+
+		-- Update PATH
+		if #paths_to_add > 0 then
+			vim.env.PATH = table.concat(paths_to_add, ":") .. ":" .. vim.env.PATH
+		end
+
+		-- Auto-configure jupytext if available
+		local ok, jupytext = pcall(require, "jupytext")
+		if ok then
+			-- Find jupytext command
+			local jupytext_cmd = "jupytext"
+			local venv_jupytext = cwd .. "/.venv/bin/jupytext"
+			if vim.fn.executable(venv_jupytext) == 1 then
+				jupytext_cmd = venv_jupytext
+			else
+				local parent_jupytext = vim.fn.fnamemodify(cwd, ":h") .. "/.venv/bin/jupytext"
+				if vim.fn.executable(parent_jupytext) == 1 then
+					jupytext_cmd = parent_jupytext
+				end
+			end
+
+			jupytext.setup({
+				style = "percent",
+				output_extension = "auto",
+				force_ft = nil,
+				jupytext_command = jupytext_cmd,
+				custom_language_formatting = {
+					python = { extension = "py", style = "percent", comment = "#" },
+					julia = { extension = "jl", style = "percent", comment = "#" },
+					r = { extension = "R", style = "percent", comment = "#" },
+				},
+			})
+		end
+	end
+
+	-- Configure image.nvim with optimal settings
+	if not opts.skip_image then
+		local ok, image = pcall(require, "image")
+		if ok then
+			local backend = opts.image_backend or "kitty" -- Default to kitty
+			image.setup({
+				backend = backend,
+				integrations = {
+					markdown = {
+						enabled = true,
+						clear_in_insert_mode = false,
+						download_remote_images = true,
+						only_render_image_at_cursor = false,
+						filetypes = { "markdown", "vimwiki" },
+					},
+					html = { enabled = false },
+					css = { enabled = false },
+				},
+				max_width = 150,
+				max_height = 40,
+				max_height_window_percentage = math.huge,
+				max_width_window_percentage = math.huge,
+				window_overlap_clear_enabled = true,
+				window_overlap_clear_ft_ignore = { "cmp_menu", "cmp_docs", "" },
+				editor_only_render_when_focused = false,
+				tmux_show_only_in_active_window = false,
+			})
+		end
+	end
+end
+
 -- Setup function
 function M.setup(opts)
 	-- Prevent multiple setup calls
 	if vim.g.pyworks_setup_complete then
 		return
 	end
-	
+
+	-- Auto-configure dependencies with proven settings
+	-- Use defer_fn to ensure plugins are loaded
+	vim.defer_fn(function()
+		M.configure_dependencies(opts)
+	end, 100)
+
+	-- Add helpful keymaps
+	if not opts.skip_keymaps then
+		vim.keymap.set("n", "<leader>ps", "<cmd>PyworksStatus<cr>", { desc = "Pyworks: Show package status" })
+		vim.keymap.set("n", "<leader>pc", "<cmd>PyworksClearCache<cr>", { desc = "Pyworks: Clear cache" })
+	end
+
 	-- Merge user configuration with defaults
 	config = vim.tbl_deep_extend("force", default_config, opts or {})
-	
+
 	-- Configure core modules
 	local cache = require("pyworks.core.cache")
 	cache.configure(config.cache)
-	
+
 	local notifications = require("pyworks.core.notifications")
 	notifications.configure(config.notifications)
-	
+
 	-- Configure language modules
 	local python = require("pyworks.languages.python")
 	python.configure(config.python)
-	
+
 	-- Initialize state
 	local state = require("pyworks.core.state")
 	state.start_session()
-	
+
 	-- Set Python host if not already set
 	if not vim.g.python3_host_prog then
 		M.setup_python_host()
 	end
-	
+
 	-- Mark setup as complete
 	vim.g.pyworks_setup_complete = true
 end
@@ -83,7 +208,7 @@ function M.setup_python_host()
 		vim.fn.exepath("python3"),
 		vim.fn.exepath("python"),
 	}
-	
+
 	for _, python_path in ipairs(python_candidates) do
 		if vim.fn.executable(python_path) == 1 then
 			vim.g.python3_host_prog = python_path
@@ -128,7 +253,7 @@ vim.api.nvim_create_user_command("PyworksStatus", function()
 	local packages = require("pyworks.core.packages")
 	local ft = vim.bo.filetype
 	local language = nil
-	
+
 	if ft == "python" then
 		language = "python"
 	elseif ft == "julia" then
@@ -136,23 +261,23 @@ vim.api.nvim_create_user_command("PyworksStatus", function()
 	elseif ft == "r" then
 		language = "r"
 	end
-	
+
 	if language then
 		local result = packages.analyze_buffer(language)
-		
-		vim.notify(string.format(
-			"[%s] Imports: %d | Installed: %d | Missing: %d",
-			language:gsub("^%l", string.upper),
-			#result.imports,
-			#result.installed,
-			#result.missing
-		), vim.log.levels.INFO)
-		
+
+		vim.notify(
+			string.format(
+				"[%s] Imports: %d | Installed: %d | Missing: %d",
+				language:gsub("^%l", string.upper),
+				#result.imports,
+				#result.installed,
+				#result.missing
+			),
+			vim.log.levels.INFO
+		)
+
 		if #result.missing > 0 then
-			vim.notify(
-				"Missing packages: " .. table.concat(result.missing, ", "),
-				vim.log.levels.WARN
-			)
+			vim.notify("Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
 		end
 	else
 		vim.notify("Pyworks: Not a supported file type", vim.log.levels.INFO)
@@ -174,12 +299,10 @@ end, {
 vim.api.nvim_create_user_command("PyworksCacheStats", function()
 	local cache = require("pyworks.core.cache")
 	local stats = cache.stats()
-	vim.notify(string.format(
-		"Cache: %d total | %d active | %d expired",
-		stats.total,
-		stats.active,
-		stats.expired
-	), vim.log.levels.INFO)
+	vim.notify(
+		string.format("Cache: %d total | %d active | %d expired", stats.total, stats.active, stats.expired),
+		vim.log.levels.INFO
+	)
 end, {
 	desc = "Show Pyworks cache statistics",
 })
@@ -192,19 +315,19 @@ end
 -- Health check function
 function M.health()
 	local health = vim.health or require("health")
-	
+
 	health.start("Pyworks")
-	
+
 	-- Check Python
 	local python = require("pyworks.languages.python")
 	if python.has_venv() then
 		health.ok("Python virtual environment found")
 	else
 		health.warn("No Python virtual environment found", {
-			"Will be created automatically when you open a Python file"
+			"Will be created automatically when you open a Python file",
 		})
 	end
-	
+
 	-- Check Julia
 	local julia = require("pyworks.languages.julia")
 	if julia.has_julia() then
@@ -213,15 +336,15 @@ function M.health()
 			health.ok("IJulia kernel installed")
 		else
 			health.warn("IJulia kernel not installed", {
-				"Will be prompted to install when you open a Julia notebook"
+				"Will be prompted to install when you open a Julia notebook",
 			})
 		end
 	else
 		health.warn("Julia not found", {
-			"Install Julia from https://julialang.org"
+			"Install Julia from https://julialang.org",
 		})
 	end
-	
+
 	-- Check R
 	local r = require("pyworks.languages.r")
 	if r.has_r() then
@@ -230,24 +353,25 @@ function M.health()
 			health.ok("IRkernel installed")
 		else
 			health.warn("IRkernel not installed", {
-				"Will be prompted to install when you open an R notebook"
+				"Will be prompted to install when you open an R notebook",
 			})
 		end
 	else
 		health.warn("R not found", {
-			"Install R from https://www.r-project.org"
+			"Install R from https://www.r-project.org",
 		})
 	end
-	
+
 	-- Check jupytext
 	local jupytext = require("pyworks.notebook.jupytext")
 	if jupytext.is_jupytext_installed() then
 		health.ok("Jupytext installed")
 	else
 		health.warn("Jupytext not installed", {
-			"Will be prompted to install when you open a notebook"
+			"Will be prompted to install when you open a notebook",
 		})
 	end
 end
 
 return M
+
