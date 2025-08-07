@@ -2,7 +2,18 @@
 
 ## Current Implementation Status
 
-### 🎯 What Actually Happens When You Open Files
+### 📦 Dependencies
+
+Pyworks has optional dependencies for full functionality:
+
+- **Core functionality** (package detection, virtual env management): Works without any dependencies
+- **Jupyter kernel support**: Requires `molten-nvim` 
+- **Notebook file support**: Requires `jupytext.nvim`
+- **Image display**: Requires `image.nvim` and Kitty/Ghostty terminal
+
+Run `:PyworksCheckDependencies` to see what's installed.
+
+## 🎯 What Actually Happens When You Open Files
 
 #### Python Files (.py)
 1. **Immediate notification**: "Detected Python file - checking for Jupyter support..."

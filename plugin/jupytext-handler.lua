@@ -92,9 +92,12 @@ vim.api.nvim_create_autocmd("BufReadCmd", {
 				else
 					-- Smart kernel detection and auto-initialization
 					vim.defer_fn(function()
-						-- Check if MoltenInit command exists
+						-- Check if MoltenInit command exists (only warn once per session)
 						if vim.fn.exists(":MoltenInit") ~= 2 then
-							vim.notify("⚠️ Molten not loaded. Restart Neovim after :PyworksSetup", vim.log.levels.WARN)
+							if not vim.g.pyworks_molten_warning_shown then
+								vim.g.pyworks_molten_warning_shown = true
+								vim.notify("⚠️ Molten not loaded. Restart Neovim after :PyworksSetup", vim.log.levels.WARN)
+							end
 							return
 						end
 						

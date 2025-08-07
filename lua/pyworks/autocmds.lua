@@ -196,28 +196,62 @@ function M.setup(user_config)
 		group = pyworks_group,
 		pattern = "*.ipynb",
 		callback = function()
-			-- Wait for buffer to be fully loaded and jupytext to process it
-			vim.defer_fn(function()
-				-- Check if Molten is available
-				if vim.fn.exists(":MoltenInit") ~= 2 then
-					return
-				end
-				
-				-- Check if kernel is already initialized for this buffer
-				if vim.fn.exists("*MoltenRunningKernels") == 1 then
-					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-					if #buffer_kernels > 0 then
-						-- Kernel already running for this buffer
+			-- First, ensure essential packages are installed
+			local essentials = require("pyworks.notebook-essentials")
+			local success, msg = essentials.ensure_essentials()
+			
+			-- If packages are being installed, delay kernel init
+			if msg == "Installing packages..." then
+				utils.notify("Installing essential notebook packages first...", vim.log.levels.INFO)
+				-- Wait longer for packages to install
+				vim.defer_fn(function()
+					-- Now try kernel initialization
+					if vim.g.molten_error_detected or vim.env.PYWORKS_NO_MOLTEN then
+						utils.notify("Kernel support disabled - package detection only", vim.log.levels.INFO)
 						return
 					end
+					
+					-- Re-check and initialize kernel
+					utils.notify("Packages installed, initializing kernel...", vim.log.levels.INFO)
+					local molten = require("pyworks.molten")
+					molten.init_kernel()
+				end, 5000) -- Wait 5 seconds for package installation
+				return
+			end
+			
+			-- Wait for buffer to be fully loaded and jupytext to process it
+			vim.defer_fn(function()
+				-- Skip Molten entirely if there's an error or disable flag
+				if vim.g.molten_error_detected or vim.env.PYWORKS_NO_MOLTEN then
+					utils.notify("Kernel support disabled - package detection only", vim.log.levels.INFO)
+				else
+					-- Show detection immediately
+					utils.notify("Detected notebook - checking for compatible kernel...", vim.log.levels.INFO)
 				end
 				
-				-- Auto-initialize kernel with notifications
-				utils.notify("Detected notebook - checking for compatible kernel...", vim.log.levels.INFO)
-				local molten = require("pyworks.molten")
-				molten.init_kernel() -- Show full notifications
+				-- Check if Molten is available and properly setup
+				if vim.fn.exists(":MoltenInit") == 2 and not vim.g.pyworks_needs_restart and not vim.g.molten_error_detected then
+					-- Check if kernel is already initialized for this buffer
+					if vim.fn.exists("*MoltenRunningKernels") == 1 then
+						local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+						if #buffer_kernels == 0 then
+							-- Auto-initialize kernel
+							local molten = require("pyworks.molten")
+							molten.init_kernel() -- Show full notifications
+						else
+							utils.notify("Kernel already running for this notebook", vim.log.levels.INFO)
+						end
+					else
+						-- Try to init anyway
+						local molten = require("pyworks.molten")
+						molten.init_kernel() -- Show full notifications
+					end
+				else
+					-- Molten not available, but still continue with package detection
+					utils.notify("Jupyter kernel support not available - install Molten for notebook features", vim.log.levels.INFO)
+				end
 				
-				-- After kernel init, check for missing packages
+				-- ALWAYS check for missing packages (regardless of Molten)
 				vim.defer_fn(function()
 					-- Detect language from notebook
 					local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
@@ -225,26 +259,50 @@ function M.setup(user_config)
 					
 					-- Check if it's a Python notebook (most common)
 					if content:match("import%s+%w+") or content:match("from%s+%w+") then
-						local detector = require("pyworks.package-detector")
-						local result = detector.analyze_buffer()
-						
-						if result and #result.missing > 0 then
-							utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
-							-- Make the install hint more prominent
-							vim.defer_fn(function()
-								utils.notify("=====================================", vim.log.levels.INFO)
-								utils.notify(">>> Press <leader>pi to install missing packages", vim.log.levels.WARN)
-								utils.notify("=====================================", vim.log.levels.INFO)
-							end, 100) -- Small delay to ensure it appears after other messages
+						if utils.has_venv() then
+							local detector = require("pyworks.package-detector")
+							local result = detector.analyze_buffer()
+							
+							if result and #result.missing > 0 then
+								utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
+								-- Make the install hint more prominent
+								vim.defer_fn(function()
+									utils.notify("=====================================", vim.log.levels.INFO)
+									utils.notify(">>> Press <leader>pi to install missing packages", vim.log.levels.WARN)
+									utils.notify("=====================================", vim.log.levels.INFO)
+								end, 100) -- Small delay to ensure it appears after other messages
+							end
+						else
+							utils.notify("No virtual environment found - run :PyworksSetup to create one", vim.log.levels.INFO)
 						end
 					elseif content:match("using%s+%w+") then
 						-- Julia notebook
-						utils.notify("Julia notebook detected - package management coming soon", vim.log.levels.INFO)
+						local julia_packages = {}
+						for package in content:gmatch("using%s+([%w%.]+)") do
+							table.insert(julia_packages, package)
+						end
+						for package in content:gmatch("import%s+([%w%.]+)") do
+							table.insert(julia_packages, package)
+						end
+						if #julia_packages > 0 then
+							utils.notify("📦 Detected Julia packages: " .. table.concat(julia_packages, ", "), vim.log.levels.INFO)
+							utils.notify("Julia package installation coming soon - use Pkg.add() for now", vim.log.levels.INFO)
+						end
 					elseif content:match("library%(") or content:match("require%(") then
 						-- R notebook
-						utils.notify("R notebook detected - package management coming soon", vim.log.levels.INFO)
+						local r_packages = {}
+						for package in content:gmatch("library%s*%([\"\']?([%w%.]+)") do
+							table.insert(r_packages, package)
+						end
+						for package in content:gmatch("require%s*%([\"\']?([%w%.]+)") do
+							table.insert(r_packages, package)
+						end
+						if #r_packages > 0 then
+							utils.notify("📦 Detected R packages: " .. table.concat(r_packages, ", "), vim.log.levels.INFO)
+							utils.notify("R package installation coming soon - use install.packages() for now", vim.log.levels.INFO)
+						end
 					end
-				end, 2000) -- Wait a bit after kernel init
+				end, 1500) -- Wait a bit
 			end, 1000) -- Wait for jupytext to process
 		end,
 		desc = "Auto-initialize Jupyter kernel for notebooks",
@@ -255,35 +313,69 @@ function M.setup(user_config)
 		group = pyworks_group,
 		pattern = "*.py",
 		callback = function()
+			-- Check if this Python file has Jupyter cells
+			local has_cells = false
+			local lines = vim.api.nvim_buf_get_lines(0, 0, math.min(50, vim.api.nvim_buf_line_count(0)), false)
+			for _, line in ipairs(lines) do
+				if line:match("^# %%") or line:match("^#%%") then
+					has_cells = true
+					break
+				end
+			end
+			
+			-- If it has cells, ensure essentials are installed
+			if has_cells then
+				local essentials = require("pyworks.notebook-essentials")
+				essentials.ensure_essentials()
+			end
+			
+			-- Skip entirely if Molten is disabled
+			if vim.g.molten_error_detected or vim.env.PYWORKS_NO_MOLTEN then
+				-- Just do package detection
+				if utils.has_venv() then
+					vim.defer_fn(function()
+						local detector = require("pyworks.package-detector")
+						local result = detector.analyze_buffer()
+						
+						if result and #result.missing > 0 then
+							utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
+							utils.notify(">>> Press <leader>pi to install missing packages", vim.log.levels.WARN)
+						end
+					end, 1000)
+				end
+				return  -- Exit early, skip all Molten stuff
+			end
+			
 			-- Show detection immediately
 			utils.notify("Detected Python file - checking for Jupyter support...", vim.log.levels.INFO)
 			
 			vim.defer_fn(function()
-				-- Check if Molten is available
-				if vim.fn.exists(":MoltenInit") ~= 2 then
-					utils.notify("Molten not available - install with :PyworksSetup for notebook support", vim.log.levels.WARN)
-					return
-				end
-				
-				-- Check if kernel is already initialized
-				if vim.fn.exists("*MoltenRunningKernels") == 1 then
-					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-					if #buffer_kernels == 0 then
-						-- Auto-initialize Python kernel with notifications
-						utils.notify("Checking for compatible Python kernel...", vim.log.levels.INFO)
+				-- Check if Molten is available and properly setup
+				if vim.fn.exists(":MoltenInit") == 2 and not vim.g.pyworks_needs_restart and not vim.g.molten_error_detected then
+					-- Molten is available, try to initialize kernel
+					-- Check if kernel is already initialized
+					if vim.fn.exists("*MoltenRunningKernels") == 1 then
+						local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+						if #buffer_kernels == 0 then
+							-- Auto-initialize Python kernel with notifications
+							utils.notify("Checking for compatible Python kernel...", vim.log.levels.INFO)
+							local molten = require("pyworks.molten")
+							molten.init_kernel() -- Show full notifications
+						else
+							utils.notify("Python kernel already running", vim.log.levels.INFO)
+						end
+					else
+						-- Molten exists but MoltenRunningKernels doesn't - try to init anyway
+						utils.notify("Initializing Python kernel...", vim.log.levels.INFO)
 						local molten = require("pyworks.molten")
 						molten.init_kernel() -- Show full notifications
-					else
-						utils.notify("Python kernel already running", vim.log.levels.INFO)
 					end
 				else
-					-- Molten exists but MoltenRunningKernels doesn't - try to init anyway
-					utils.notify("Initializing Python kernel...", vim.log.levels.INFO)
-					local molten = require("pyworks.molten")
-					molten.init_kernel() -- Show full notifications
+					-- Molten not available, but still continue with package detection
+					utils.notify("Jupyter kernel support not available - install Molten for notebook features", vim.log.levels.INFO)
 				end
 				
-				-- Check for missing packages if we have a venv
+				-- ALWAYS check for missing packages if we have a venv (regardless of Molten)
 				if utils.has_venv() then
 					vim.defer_fn(function()
 						local detector = require("pyworks.package-detector")
@@ -306,7 +398,10 @@ function M.setup(user_config)
 								utils.notify("=====================================", vim.log.levels.INFO)
 							end, 100) -- Small delay to ensure it appears after other messages
 						end
-					end, 1000) -- Wait for kernel to initialize
+					end, 1000) -- Wait a bit before checking packages
+				else
+					-- No venv found, suggest creating one
+					utils.notify("No virtual environment found - run :PyworksSetup to create one", vim.log.levels.INFO)
 				end
 			end, 500) -- Initial delay
 		end,
@@ -318,37 +413,58 @@ function M.setup(user_config)
 		group = pyworks_group,
 		pattern = "*.jl",
 		callback = function()
+			-- Skip entirely if Molten is disabled
+			if vim.g.molten_error_detected or vim.env.PYWORKS_NO_MOLTEN then
+				utils.notify("Kernel support disabled - Julia file detected", vim.log.levels.INFO)
+				return
+			end
+			
 			-- Show detection immediately
 			utils.notify("Detected Julia file - checking for Jupyter support...", vim.log.levels.INFO)
 			
 			vim.defer_fn(function()
-				-- Check if Molten is available
-				if vim.fn.exists(":MoltenInit") ~= 2 then
-					utils.notify("Molten not available - install with :PyworksSetup for notebook support", vim.log.levels.WARN)
-					return
-				end
-				
-				-- Check if kernel is already initialized
-				if vim.fn.exists("*MoltenRunningKernels") == 1 then
-					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-					if #buffer_kernels > 0 then
-						utils.notify("Julia kernel already running", vim.log.levels.INFO)
-						return -- Already initialized
+				-- Check if Molten is available and properly setup
+				if vim.fn.exists(":MoltenInit") == 2 and not vim.g.pyworks_needs_restart then
+					-- Check if kernel is already initialized
+					if vim.fn.exists("*MoltenRunningKernels") == 1 then
+						local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+						if #buffer_kernels > 0 then
+							utils.notify("Julia kernel already running", vim.log.levels.INFO)
+						else
+							-- Initialize Julia kernel with notifications
+							utils.notify("Checking for compatible Julia kernel...", vim.log.levels.INFO)
+							local molten = require("pyworks.molten")
+							molten.init_kernel() -- Show full notifications
+						end
+					else
+						-- Try to init anyway
+						utils.notify("Initializing Julia kernel...", vim.log.levels.INFO)
+						local molten = require("pyworks.molten")
+						molten.init_kernel() -- Show full notifications
 					end
+				else
+					-- Molten not available, but still show package info
+					utils.notify("Jupyter kernel support not available - install Molten for notebook features", vim.log.levels.INFO)
 				end
 				
-				-- Initialize Julia kernel with notifications
-				utils.notify("Checking for compatible Julia kernel...", vim.log.levels.INFO)
-				local molten = require("pyworks.molten")
-				molten.init_kernel() -- Show full notifications
-				
-				-- Julia package detection (future enhancement)
+				-- Julia package detection
 				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 				local content = table.concat(lines, "\n")
-				if content:match("using%s+%w+") or content:match("import%s+%w+") then
+				local julia_packages = {}
+				
+				-- Find using statements
+				for package in content:gmatch("using%s+([%w%.]+)") do
+					table.insert(julia_packages, package)
+				end
+				-- Find import statements  
+				for package in content:gmatch("import%s+([%w%.]+)") do
+					table.insert(julia_packages, package)
+				end
+				
+				if #julia_packages > 0 then
 					vim.defer_fn(function()
-						utils.notify("Julia package management coming soon!", vim.log.levels.INFO)
-						utils.notify("Use Pkg.add() in Julia REPL for now", vim.log.levels.INFO)
+						utils.notify("📦 Detected Julia packages: " .. table.concat(julia_packages, ", "), vim.log.levels.INFO)
+						utils.notify("Julia package installation coming soon - use Pkg.add() for now", vim.log.levels.INFO)
 					end, 1000)
 				end
 			end, 1000)
@@ -361,37 +477,58 @@ function M.setup(user_config)
 		group = pyworks_group,
 		pattern = "*.R",
 		callback = function()
+			-- Skip entirely if Molten is disabled
+			if vim.g.molten_error_detected or vim.env.PYWORKS_NO_MOLTEN then
+				utils.notify("Kernel support disabled - R file detected", vim.log.levels.INFO)
+				return
+			end
+			
 			-- Show detection immediately
 			utils.notify("Detected R file - checking for Jupyter support...", vim.log.levels.INFO)
 			
 			vim.defer_fn(function()
-				-- Check if Molten is available
-				if vim.fn.exists(":MoltenInit") ~= 2 then
-					utils.notify("Molten not available - install with :PyworksSetup for notebook support", vim.log.levels.WARN)
-					return
-				end
-				
-				-- Check if kernel is already initialized
-				if vim.fn.exists("*MoltenRunningKernels") == 1 then
-					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
-					if #buffer_kernels > 0 then
-						utils.notify("R kernel already running", vim.log.levels.INFO)
-						return -- Already initialized
+				-- Check if Molten is available and properly setup
+				if vim.fn.exists(":MoltenInit") == 2 and not vim.g.pyworks_needs_restart then
+					-- Check if kernel is already initialized
+					if vim.fn.exists("*MoltenRunningKernels") == 1 then
+						local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+						if #buffer_kernels > 0 then
+							utils.notify("R kernel already running", vim.log.levels.INFO)
+						else
+							-- Initialize R kernel with notifications
+							utils.notify("Checking for compatible R kernel...", vim.log.levels.INFO)
+							local molten = require("pyworks.molten")
+							molten.init_kernel() -- Show full notifications
+						end
+					else
+						-- Try to init anyway
+						utils.notify("Initializing R kernel...", vim.log.levels.INFO)
+						local molten = require("pyworks.molten")
+						molten.init_kernel() -- Show full notifications
 					end
+				else
+					-- Molten not available, but still show package info
+					utils.notify("Jupyter kernel support not available - install Molten for notebook features", vim.log.levels.INFO)
 				end
 				
-				-- Initialize R kernel with notifications
-				utils.notify("Checking for compatible R kernel...", vim.log.levels.INFO)
-				local molten = require("pyworks.molten")
-				molten.init_kernel() -- Show full notifications
-				
-				-- R package detection (future enhancement)
+				-- R package detection
 				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 				local content = table.concat(lines, "\n")
-				if content:match("library%(") or content:match("require%(") then
+				local r_packages = {}
+				
+				-- Find library() calls
+				for package in content:gmatch("library%s*%([\"\']?([%w%.]+)") do
+					table.insert(r_packages, package)
+				end
+				-- Find require() calls
+				for package in content:gmatch("require%s*%([\"\']?([%w%.]+)") do
+					table.insert(r_packages, package)
+				end
+				
+				if #r_packages > 0 then
 					vim.defer_fn(function()
-						utils.notify("R package management coming soon!", vim.log.levels.INFO)
-						utils.notify("Use install.packages() in R console for now", vim.log.levels.INFO)
+						utils.notify("📦 Detected R packages: " .. table.concat(r_packages, ", "), vim.log.levels.INFO)
+						utils.notify("R package installation coming soon - use install.packages() for now", vim.log.levels.INFO)
 					end, 1000)
 				end
 			end, 1000)

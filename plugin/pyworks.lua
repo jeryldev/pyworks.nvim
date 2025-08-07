@@ -6,14 +6,8 @@ if vim.g.loaded_pyworks then
 end
 vim.g.loaded_pyworks = 1
 
--- Defer actual loading to allow lazy.nvim to handle dependencies
-vim.api.nvim_create_autocmd("VimEnter", {
-	callback = function()
-		-- Only create commands if setup hasn't been called
-		-- This prevents duplicate commands when using plugin managers
-		if not vim.g.pyworks_setup_complete then
-			require("pyworks.commands").create_commands()
-		end
-	end,
-	once = true,
-})
+-- Emergency Molten disable via environment variable
+if vim.env.PYWORKS_NO_MOLTEN then
+	vim.g.molten_error_detected = true
+	vim.notify("Molten disabled via PYWORKS_NO_MOLTEN environment variable", vim.log.levels.WARN)
+end

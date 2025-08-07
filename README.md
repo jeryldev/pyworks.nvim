@@ -16,6 +16,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 - 🔄 **Progress Indicators** - Visual feedback for all long-running operations
 - 🛡️ **Self-healing** - Automatically fixes common issues like missing pynvim
 - 📔 **Smart Notebook Handling** - Automatic metadata fixing and format conversion
+- 🎉 **Auto-install Essentials** - Automatically installs pynvim, ipykernel, jupyter_client when opening notebooks
 
 ## 📋 Requirements
 
@@ -31,7 +32,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## 🚀 Installation
 
-### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+### Using [lazy.nvim](https://github.com/folke/lazy.nvim) (Recommended)
 
 ```lua
 {
@@ -86,6 +87,7 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ### Latest Updates
 
+- **🚀 Zero-Config Installation**: Dependencies auto-install on first run - just add one line!
 - **🔧 Self-healing Python Host**: Automatically detects and fixes pynvim issues
 - **📦 Smarter Package Detection**: Normalizes package names, handles compatibility issues
 - **🚫 No More Spam**: Prevents duplicate notifications during installations
@@ -94,6 +96,17 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 - **🎯 Smart Caching**: Reduces system calls with intelligent 5-30 second TTL
 
 ## 📓 Jupyter Notebook Support
+
+### 🎉 Automatic Essential Package Installation
+
+When you open a `.ipynb` file or a Python file with Jupyter cells (`# %%`), pyworks automatically:
+
+1. **Detects missing essential packages** - pynvim, ipykernel, jupyter_client, jupytext, ipython, notebook
+2. **Auto-installs them without prompting** - These are non-negotiable requirements for notebook functionality
+3. **Creates/fixes the project kernel** - Ensures your project has a working Jupyter kernel
+4. **No manual intervention needed** - Just open the file and pyworks handles the rest!
+
+This means you can clone any project with notebooks and start working immediately - pyworks ensures all the infrastructure is ready.
 
 ### 🔄 Intelligent Workflow
 
@@ -283,6 +296,13 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `:PyworksDebug`                             | Debug configuration and fix common issues       |
 | `:PyworksShowEnvironment`                   | Display current Python environment status       |
 | `:PyworksBrowsePackages`                    | Interactive package browser with categories     |
+| `:PyworksCheckDependencies`                 | Check status of optional dependencies           |
+| `:PyworksInstallDependencies`               | Auto-install missing dependencies               |
+| `:PyworksInstallEssentials`                 | Install essential notebook packages (auto-runs) |
+| `:PyworksCreateKernel`                      | Create Jupyter kernel from current project venv |
+| `:PyworksFixKernel [name]`                  | Fix kernel by installing missing packages       |
+| `:PyworksListKernels`                       | List and verify all Jupyter kernels            |
+| `:PyworksRemoveKernel [name]`               | Remove a Jupyter kernel                        |
 
 ### Quick Setup Commands
 

@@ -6,6 +6,12 @@ local utils = require("pyworks.utils")
 
 -- Initialize Molten with better UX
 function M.init_kernel(silent_mode)
+	-- Check if we need a restart first
+	if vim.g.pyworks_needs_restart then
+		utils.notify("Please restart Neovim to complete Molten setup", vim.log.levels.WARN)
+		return
+	end
+	
 	-- Check if MoltenInit exists
 	if vim.fn.exists(":MoltenInit") ~= 2 then
 		-- Check if it's a Python host issue
@@ -104,29 +110,15 @@ function M.init_kernel(silent_mode)
 	
 	-- Determine the appropriate kernel based on file type or language
 	if filetype == "python" or notebook_language == "python" then
-		-- First, try to find a project-specific kernel
-		local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+		-- Use the kernel manager to get the best kernel
+		local kernel_mgr = require("pyworks.kernel-manager")
+		matching_kernel = kernel_mgr.get_best_kernel()
 		
-		-- Debug output
-		if not silent_mode then
-			utils.notify("Looking for kernel matching project: " .. project_name, vim.log.levels.DEBUG)
-		end
-		
-		for _, k in ipairs(available_kernels) do
-			-- Prefer project-specific kernels (exact match or contains project name)
-			if k.name == project_name or k.name:lower() == project_name:lower() then
-				matching_kernel = k.name
-				break
-			end
-		end
-		
-		-- If no project kernel, fall back to python3
 		if not matching_kernel then
-			for _, k in ipairs(available_kernels) do
-				if k.name == "python3" or k.name:match("^python") then
-					matching_kernel = k.name
-					break
-				end
+			-- No suitable kernel found
+			if not silent_mode then
+				utils.notify("No suitable Python kernel found", vim.log.levels.WARN)
+				utils.notify("Run :PyworksCreateKernel to create one", vim.log.levels.INFO)
 			end
 		end
 	elseif filetype == "julia" or notebook_language == "julia" then
@@ -147,10 +139,25 @@ function M.init_kernel(silent_mode)
 	
 	-- If we found a matching kernel, auto-initialize it
 	if matching_kernel then
-		-- Just initialize directly without any fancy stuff
-		vim.cmd("MoltenInit " .. matching_kernel)
-		if not silent_mode then
+		-- Use safe wrapper to prevent hangs
+		local safety = require("pyworks.molten-safety")
+		local ok = safety.safe_molten_init(matching_kernel)
+		if ok and not silent_mode then
 			utils.notify("✓ Initialized kernel: " .. matching_kernel, vim.log.levels.INFO)
+		elseif not ok then
+			-- Kernel failed, try fallback to python3
+			utils.notify("Failed to initialize " .. matching_kernel .. " kernel", vim.log.levels.WARN)
+			if matching_kernel ~= "python3" then
+				utils.notify("Trying fallback to python3 kernel...", vim.log.levels.INFO)
+				local fallback_ok = safety.safe_molten_init("python3")
+				if fallback_ok then
+					utils.notify("✓ Initialized fallback kernel: python3", vim.log.levels.INFO)
+				else
+					safety.disable_molten()
+				end
+			else
+				safety.disable_molten()
+			end
 		end
 	else
 		-- No matching kernel, show selection dialog

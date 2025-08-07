@@ -407,6 +407,144 @@ function M.create_commands()
 	end, {
 		desc = "Check if terminal supports inline images",
 	})
+	
+	-- Fix Molten issues
+	vim.api.nvim_create_user_command("PyworksFixMolten", function()
+		utils.notify("Attempting to fix Molten...", vim.log.levels.INFO)
+		
+		-- Clear error flag
+		vim.g.molten_error_detected = nil
+		vim.g.pyworks_needs_restart = nil
+		
+		-- Try to update remote plugins
+		local ok = pcall(vim.cmd, "UpdateRemotePlugins")
+		if ok then
+			utils.notify("Remote plugins updated successfully", vim.log.levels.INFO)
+			utils.notify("Please restart Neovim to complete the fix", vim.log.levels.WARN)
+		else
+			utils.notify("Failed to update remote plugins", vim.log.levels.ERROR)
+			utils.notify("Try running manually:", vim.log.levels.INFO)
+			utils.notify("1. :!python3 -m pip install pynvim", vim.log.levels.INFO)
+			utils.notify("2. :UpdateRemotePlugins", vim.log.levels.INFO)
+			utils.notify("3. Restart Neovim", vim.log.levels.INFO)
+		end
+	end, {
+		desc = "Attempt to fix Molten remote plugin issues",
+	})
+	
+	-- Check dependencies
+	vim.api.nvim_create_user_command("PyworksCheckDependencies", function()
+		local checker = require("pyworks.check-dependencies")
+		checker.check_all()
+	end, {
+		desc = "Check status of pyworks dependencies (Molten, jupytext, image.nvim)",
+	})
+	
+	-- Install dependencies
+	vim.api.nvim_create_user_command("PyworksInstallDependencies", function()
+		local installer = require("pyworks.auto-install")
+		installer.auto_install_all()
+	end, {
+		desc = "Auto-install missing dependencies (Molten, jupytext, image.nvim)",
+	})
+	
+	-- Install essential notebook packages
+	vim.api.nvim_create_user_command("PyworksInstallEssentials", function()
+		local essentials = require("pyworks.notebook-essentials")
+		local success, msg = essentials.ensure_essentials(true) -- force=true
+		if success then
+			utils.notify(msg, vim.log.levels.INFO)
+		else
+			utils.notify("Failed: " .. msg, vim.log.levels.ERROR)
+		end
+	end, {
+		desc = "Install essential packages for Jupyter notebook support (pynvim, ipykernel, etc)",
+	})
+	
+	-- Kernel management commands
+	vim.api.nvim_create_user_command("PyworksCreateKernel", function(opts)
+		local kernel_mgr = require("pyworks.kernel-manager")
+		local kernel_name = opts.args ~= "" and opts.args or nil
+		
+		if not kernel_name then
+			kernel_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+		end
+		
+		utils.notify("Creating kernel '" .. kernel_name .. "' from current project...", vim.log.levels.INFO)
+		local success, msg = kernel_mgr.ensure_project_kernel()
+		
+		if success then
+			utils.notify("✓ Created kernel: " .. msg, vim.log.levels.INFO)
+			utils.notify("You can now use this kernel with Jupyter/Molten", vim.log.levels.INFO)
+		else
+			utils.notify("Failed to create kernel: " .. msg, vim.log.levels.ERROR)
+		end
+	end, {
+		nargs = "?",
+		desc = "Create a Jupyter kernel from current project's virtual environment",
+	})
+	
+	vim.api.nvim_create_user_command("PyworksFixKernel", function(opts)
+		local kernel_mgr = require("pyworks.kernel-manager")
+		local kernel_name = opts.args ~= "" and opts.args or nil
+		
+		kernel_mgr.fix_kernel(kernel_name)
+	end, {
+		nargs = "?",
+		desc = "Fix a kernel by installing missing packages (pynvim, ipykernel, etc)",
+	})
+	
+	vim.api.nvim_create_user_command("PyworksListKernels", function()
+		local kernel_mgr = require("pyworks.kernel-manager")
+		local kernels = kernel_mgr.list_kernels()
+		
+		if #kernels == 0 then
+			utils.notify("No Jupyter kernels found", vim.log.levels.WARN)
+			utils.notify("Run :PyworksCreateKernel to create one", vim.log.levels.INFO)
+			return
+		end
+		
+		utils.notify("Available Jupyter kernels:", vim.log.levels.INFO)
+		for _, kernel in ipairs(kernels) do
+			local current = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+			local marker = kernel.name == current and " ← (current project)" or ""
+			utils.notify(string.format("  • %s (%s)%s", kernel.name, kernel.display, marker), vim.log.levels.INFO)
+		end
+		
+		-- Also verify them
+		utils.notify("", vim.log.levels.INFO)
+		utils.notify("Verifying kernels...", vim.log.levels.INFO)
+		for _, kernel in ipairs(kernels) do
+			local ok, msg = kernel_mgr.verify_kernel(kernel.name)
+			if ok then
+				utils.notify("  ✓ " .. kernel.name .. " - ready", vim.log.levels.INFO)
+			else
+				utils.notify("  ✗ " .. kernel.name .. " - " .. msg, vim.log.levels.WARN)
+			end
+		end
+	end, {
+		desc = "List all available Jupyter kernels and their status",
+	})
+	
+	vim.api.nvim_create_user_command("PyworksRemoveKernel", function(opts)
+		local kernel_mgr = require("pyworks.kernel-manager")
+		
+		if opts.args == "" then
+			-- Remove current project's kernel
+			kernel_mgr.remove_project_kernel()
+		else
+			-- Remove specified kernel
+			vim.fn.system("jupyter kernelspec remove -f " .. opts.args .. " 2>/dev/null")
+			if vim.v.shell_error == 0 then
+				utils.notify("Removed kernel: " .. opts.args, vim.log.levels.INFO)
+			else
+				utils.notify("Failed to remove kernel: " .. opts.args, vim.log.levels.ERROR)
+			end
+		end
+	end, {
+		nargs = "?",
+		desc = "Remove a Jupyter kernel (current project's if no name given)",
+	})
 end
 
 return M
