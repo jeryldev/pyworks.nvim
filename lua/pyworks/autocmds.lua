@@ -285,6 +285,84 @@ function M.setup(user_config)
 		desc = "Check for missing Python packages",
 	})
 	
+	-- Auto-initialize kernel for Julia files
+	vim.api.nvim_create_autocmd("BufReadPost", {
+		group = pyworks_group,
+		pattern = "*.jl",
+		callback = function()
+			-- Check if Molten is available
+			if vim.fn.exists(":MoltenInit") ~= 2 then
+				return
+			end
+			
+			-- Auto-initialize Julia kernel after a delay
+			vim.defer_fn(function()
+				-- Check if kernel is already initialized
+				if vim.fn.exists("*MoltenRunningKernels") == 1 then
+					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+					if #buffer_kernels > 0 then
+						return -- Already initialized
+					end
+				end
+				
+				-- Initialize Julia kernel
+				utils.notify("Detected Julia file - auto-initializing kernel...", vim.log.levels.INFO)
+				local molten = require("pyworks.molten")
+				molten.init_kernel(true) -- Silent mode
+				
+				-- Julia package detection (future enhancement)
+				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+				local content = table.concat(lines, "\n")
+				if content:match("using%s+%w+") or content:match("import%s+%w+") then
+					vim.defer_fn(function()
+						utils.notify("Julia package management coming soon!", vim.log.levels.INFO)
+						utils.notify("Use Pkg.add() in Julia REPL for now", vim.log.levels.INFO)
+					end, 1000)
+				end
+			end, 1000)
+		end,
+		desc = "Auto-initialize Julia kernel",
+	})
+	
+	-- Auto-initialize kernel for R files
+	vim.api.nvim_create_autocmd("BufReadPost", {
+		group = pyworks_group,
+		pattern = "*.R",
+		callback = function()
+			-- Check if Molten is available
+			if vim.fn.exists(":MoltenInit") ~= 2 then
+				return
+			end
+			
+			-- Auto-initialize R kernel after a delay
+			vim.defer_fn(function()
+				-- Check if kernel is already initialized
+				if vim.fn.exists("*MoltenRunningKernels") == 1 then
+					local buffer_kernels = vim.fn.MoltenRunningKernels(true) or {}
+					if #buffer_kernels > 0 then
+						return -- Already initialized
+					end
+				end
+				
+				-- Initialize R kernel
+				utils.notify("Detected R file - auto-initializing kernel...", vim.log.levels.INFO)
+				local molten = require("pyworks.molten")
+				molten.init_kernel(true) -- Silent mode
+				
+				-- R package detection (future enhancement)
+				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+				local content = table.concat(lines, "\n")
+				if content:match("library%(") or content:match("require%(") then
+					vim.defer_fn(function()
+						utils.notify("R package management coming soon!", vim.log.levels.INFO)
+						utils.notify("Use install.packages() in R console for now", vim.log.levels.INFO)
+					end, 1000)
+				end
+			end, 1000)
+		end,
+		desc = "Auto-initialize R kernel",
+	})
+	
 	-- Prevent notebook corruption on save
 	vim.api.nvim_create_autocmd("BufWritePre", {
 		pattern = "*.ipynb",

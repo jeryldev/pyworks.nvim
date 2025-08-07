@@ -87,7 +87,7 @@ function M.init_kernel(silent_mode)
 		notebook_language = notebook_language or "python"
 	end
 	
-	-- Check if it's a notebook or Python file
+	-- Determine the appropriate kernel based on file type or language
 	if filetype == "python" or notebook_language == "python" then
 		-- First, try to find a project-specific kernel
 		local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
