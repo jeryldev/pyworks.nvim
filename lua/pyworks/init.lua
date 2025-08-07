@@ -1,4 +1,10 @@
 -- pyworks.nvim - Python environments tailored for Neovim
+-- Version: 2.0.0
+-- 
+-- Multi-language Jupyter kernel support for Python, Julia, and R
+-- Smart package detection with compatibility handling
+-- Consistent workflow across all file types
+--
 -- Main module
 
 local M = {}

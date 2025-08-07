@@ -7,14 +7,23 @@ local package_mappings = {
 	-- Scientific computing
 	numpy = "numpy",
 	np = "numpy",
+	["numpy.random"] = "numpy",
+	["numpy-random"] = "numpy",
 	pandas = "pandas",
 	pd = "pandas",
+	["pandas.plotting"] = "pandas",
+	["pandas-plotting"] = "pandas",
 	scipy = "scipy",
+	["scipy.stats"] = "scipy",
 	sklearn = "scikit-learn",
+	["sklearn.preprocessing"] = "scikit-learn",
+	["sklearn-preprocessing"] = "scikit-learn",
 	
 	-- Visualization
 	matplotlib = "matplotlib",
 	plt = "matplotlib",
+	["matplotlib.pyplot"] = "matplotlib",  -- Handle submodule imports
+	["matplotlib-pyplot"] = "matplotlib",  -- Common mistake
 	seaborn = "seaborn",
 	sns = "seaborn",
 	plotly = "plotly",
@@ -24,8 +33,12 @@ local package_mappings = {
 	-- Machine Learning
 	tensorflow = "tensorflow",
 	tf = "tensorflow",
+	["tensorflow.keras"] = "tensorflow",
+	["tensorflow-keras"] = "tensorflow",
 	torch = "torch",
 	pytorch = "torch",
+	["torch.nn"] = "torch",
+	["torch-nn"] = "torch",
 	keras = "keras",
 	xgboost = "xgboost",
 	lightgbm = "lightgbm",
@@ -75,6 +88,46 @@ local compatibility_issues = {
 	},
 }
 
+-- Clean and normalize package names
+function M.clean_package_name(name)
+	-- First check if we have a mapping for this exact name
+	if package_mappings[name] then
+		return package_mappings[name]
+	end
+	
+	-- Handle common mistakes with hyphens that should be dots
+	-- e.g., "matplotlib-pyplot" -> "matplotlib"
+	if name:match("%-") then
+		-- Check if this hyphenated version has a mapping
+		if package_mappings[name] then
+			return package_mappings[name]
+		end
+		-- Try to extract the base package name before the hyphen
+		local base = name:match("^([^%-]+)")
+		if base and package_mappings[base] then
+			return package_mappings[base]
+		end
+		return base or name
+	end
+	
+	-- Handle dot notation correctly
+	-- e.g., "matplotlib.pyplot" -> "matplotlib"
+	if name:match("%.") then
+		local base = name:match("^([^%.]+)")
+		-- Check if the full dotted name has a mapping
+		if package_mappings[name] then
+			return package_mappings[name]
+		end
+		-- Check if the base package has a mapping
+		if base and package_mappings[base] then
+			return package_mappings[base]
+		end
+		return base or name
+	end
+	
+	return name
+end
+
 -- Extract imports from Python code
 function M.extract_imports(lines)
 	local imports = {}
@@ -85,13 +138,8 @@ function M.extract_imports(lines)
 		-- Updated pattern to handle hyphens in package names
 		local import_match = line:match("^import%s+([%w_%.%-]+)")
 		if import_match then
-			-- Handle "import scikit-learn as sklearn" case
-			local package_name = import_match:match("^([^%.]+)")
-			-- Check if this is an alias import
-			local as_match = line:match("^import%s+([%w_%.%-]+)%s+as%s+([%w_]+)")
-			if as_match then
-				package_name = as_match
-			end
+			-- Clean the package name
+			local package_name = M.clean_package_name(import_match)
 			table.insert(imports, package_name)
 			found_packages[package_name] = true
 		end
@@ -99,9 +147,10 @@ function M.extract_imports(lines)
 		-- Match "from package import ..."
 		local from_match = line:match("^from%s+([%w_%.%-]+)%s+import")
 		if from_match then
-			local base_package = from_match:match("^([^%.]+)")
-			table.insert(imports, base_package)
-			found_packages[base_package] = true
+			-- Clean the package name
+			local package_name = M.clean_package_name(from_match)
+			table.insert(imports, package_name)
+			found_packages[package_name] = true
 		end
 		
 		-- Match common aliases in comments like "# np for numpy"

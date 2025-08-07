@@ -9,12 +9,14 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 - 🚀 **Async Project Setup** - Non-blocking virtual environment creation and package installation
 - 📦 **Smart Package Browser** - Interactive package browser with categories and descriptions
 - 📓 **Seamless Jupyter Support** - Edit .ipynb files as Python code with automatic conversion
+- 🔬 **Multi-language Support** - Auto-detects and initializes Python, Julia, and R kernels
 - 🔍 **Real-time Diagnostics** - Environment health checks with actionable feedback
 - 🎯 **Project Templates** - Pre-configured setups for data science, web development, and more
 - ⚡ **Auto-activation** - Automatically activates virtual environments in Neovim terminals
 - 🔄 **Progress Indicators** - Visual feedback for all long-running operations
 - 🛡️ **Robust Error Handling** - Clear error messages with recovery suggestions
 - 📔 **Smart Notebook Handling** - Automatic metadata fixing and format conversion
+- 🎨 **Consistent UX** - Same workflow notifications for .py, .jl, .R, and .ipynb files
 
 ## 📋 Requirements
 
@@ -83,32 +85,44 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## 🆕 What's New
 
+### v2.0 - Multi-language & Consistency Update
+
+- **🌍 Multi-language Kernel Support**: Automatic detection and initialization for Python, Julia, and R
+- **🔔 Consistent Notifications**: All file types now show the same detailed workflow notifications
+- **📦 Smart Package Detection**: Automatically detects missing packages with compatibility checks
+- **🚀 Performance Optimizations**: Caching, async operations, and reduced system calls
+- **🎯 Intelligent Kernel Matching**: Auto-selects appropriate kernel based on file type and language
+
 ### Performance & UX Improvements
 
 - **Async Everything**: Virtual environment creation and package installation no longer freeze Neovim
 - **Smart Package Browser**: Browse packages by category with descriptions, search, or install entire categories
-- **Better Notifications**: Progress indicators show exactly what's happening with timing information
-- **Auto Kernel Init**: Creating a Python notebook automatically initializes the Jupyter kernel
+- **Better Notifications**: Step-by-step progress for file detection, kernel check, and initialization
+- **Auto Kernel Init**: Opening any supported file automatically initializes the appropriate kernel
+- **Kernel Memory**: Once you select a kernel for a file type, it remembers for next time
 
 ### Code Quality
 
 - **Centralized Configuration**: Better state management and configuration validation
 - **Robust Error Handling**: No more crashes - clear error messages with recovery suggestions
-- **Performance Caching**: Reduced filesystem calls with intelligent caching
+- **Performance Caching**: Reduced filesystem calls with intelligent caching (5-30 second TTL)
 - **Code Deduplication**: Shared utilities module for consistent behavior
 
 ## 📓 Jupyter Notebook Support
 
 ### 🔄 Intelligent Workflow
 
-Pyworks automatically handles all file types with consistent, language-aware workflows:
+Pyworks provides a consistent, intelligent workflow across all supported file types:
 
-#### For Any Supported File (.py, .jl, .R, .ipynb):
+#### Universal Workflow for All Files (.py, .jl, .R, .ipynb):
 
-1. **Detects file extension** - Python (.py), Julia (.jl), R (.R), or notebook (.ipynb)
-2. **Shows detection notification** - "Detected [language] file - checking for compatible kernel..."
-3. **Checks for compatible kernel** - Finds Python/Julia/R kernel as needed
-4. **Auto-initializes or prompts** - Either auto-starts matching kernel or shows selection dialog
+1. **File Detection** - Shows "Detected [language] file - checking for Jupyter support..."
+2. **Molten Check** - Verifies Jupyter integration is available
+3. **Kernel Discovery** - Shows "Checking for compatible [language] kernel..."
+4. **Smart Initialization**:
+   - **Matching kernel found** → Auto-initializes with "✓ Initialized kernel: [name]"
+   - **No match found** → Shows kernel selection dialog
+   - **Previously selected** → Auto-initializes with remembered choice
 5. **Language-specific features**:
    
    **Python Files (.py, .ipynb)**:
@@ -129,24 +143,42 @@ Pyworks automatically handles all file types with consistent, language-aware wor
 
 ### 📦 Smart Package Management
 
+#### Automatic Detection
+- **Scans imports on file open** - Detects missing packages from `import` statements
+- **Shows missing packages** - "📦 Missing packages: numpy, pandas, matplotlib"
+- **Installation prompt** - ">>> Press <leader>pi to install missing packages"
+
+#### Intelligent Installation
 - **Auto-detects package manager** - Uses `uv` if available (10-100x faster), falls back to `pip`
 - **Handles compatibility gracefully**:
   - Skips packages incompatible with your Python version
   - Suggests alternatives (e.g., PyTorch instead of TensorFlow for Python 3.12+)
-  - Attempts compatible versions when available
+  - Removes problematic version specifiers automatically
 - **One-key installation** - Press `<leader>pi` to install all missing, compatible packages
+
+#### Compatibility Handling
+Pyworks knows about package compatibility issues:
+- **TensorFlow** - Not compatible with Python 3.12+, suggests PyTorch or JAX
+- **numba** - Limited Python 3.12 support, warns about potential issues
+- **PyQt5** - Replaced by PyQt6 for newer Python versions
 
 ### Output Display
 
-Pyworks uses Molten's popup window system for displaying cell outputs with enhanced sizing:
+Pyworks uses Molten's enhanced popup window system for displaying cell outputs:
 
-- **Large floating windows** (40 lines tall, 150 chars wide) accommodate big plots and tables
+#### Window Configuration
+- **Large floating windows** (40 lines tall, 150 chars wide) for plots and DataFrames
 - **Auto-opens after execution** - Output appears automatically when you run cells
-- **Images and plots display clearly** in the enlarged popup (requires Kitty or Ghostty terminal)
-- **Smart border cropping** - Windows fit nicely at screen edges
-- Use `<leader>jo` to manually open output, `<leader>jh` to hide
+- **Smart border cropping** - Windows adjust to fit screen edges
+- **Image support** - Full color plots and images (requires Kitty/Ghostty terminal)
 
-> **Note**: The default configuration is optimized for data visualization. You can adjust window sizes in the Molten init function.
+#### Output Controls
+- `<leader>jo` - Open/show output window
+- `<leader>jh` - Hide output window
+- `<leader>jd` - Delete/clear cell output
+- `<leader>jc` - Clear all images
+
+> **Tip**: Adjust window sizes in your config if needed for ultra-wide monitors or specific workflows.
 
 ### Terminal Requirements for Images
 
@@ -184,25 +216,32 @@ IRkernel::installspec()
 ```vim
 :PyworksSetup    " Choose 'Data Science / Notebooks'
 :PyworksNewNotebook analysis.ipynb
-" Kernel auto-initializes, packages checked automatically
-" If packages missing, press <leader>pi to install
+" → Detected notebook - checking for Jupyter support...
+" → Checking for compatible Python kernel...
+" → ✓ Initialized kernel: python3
+" → 📦 Missing packages: numpy, pandas
+" → >>> Press <leader>pi to install missing packages
 ```
 
 ### Julia Scientific Computing
 
 ```vim
-" Just open any .jl file - no setup needed!
+" Just open any .jl file - automatic setup!
 nvim experiment.jl
-" Julia kernel auto-initializes in 1 second
+" → Detected Julia file - checking for Jupyter support...
+" → Checking for compatible Julia kernel...
+" → ✓ Initialized kernel: julia-1.9
 " Ready to run with <leader>jl or <leader>jv
 ```
 
 ### R Statistical Analysis
 
 ```vim
-" Just open any .R file - no setup needed!
+" Just open any .R file - automatic setup!
 nvim analysis.R
-" R kernel auto-initializes in 1 second
+" → Detected R file - checking for Jupyter support...
+" → Checking for compatible R kernel...
+" → ✓ Initialized kernel: ir
 " Ready to run with <leader>jl or <leader>jv
 ```
 
@@ -210,7 +249,9 @@ nvim analysis.R
 
 ```vim
 :PyworksWeb      " Quick setup for FastAPI/Flask/Django
-" Virtual environment created with web frameworks
+" → Creating virtual environment...
+" → Installing web frameworks...
+" → ✓ Environment ready!
 ```
 
 ## 🎬 Demonstrations
@@ -462,6 +503,22 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 ## 🐛 Troubleshooting
 
+### No Notifications When Opening Files
+
+1. **Check Molten is installed**:
+   ```vim
+   :PyworksSetup
+   " Choose 'Data Science / Notebooks' to install Molten
+   ```
+
+2. **Restart Neovim** after setup - plugins need to load
+
+3. **Verify with**:
+   ```vim
+   :PyworksCheckEnvironment
+   " Should show Molten status
+   ```
+
 ### Virtual Environment Not Detected
 
 ```vim
@@ -481,15 +538,30 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 Pyworks intelligently handles incompatible packages:
 
-- **Python 3.12+ with TensorFlow**: Warns about compatibility, suggests PyTorch or JAX
-- **Automatic alternatives**: Suggests compatible alternatives for problematic packages
-- **Smart skipping**: Won't attempt to install packages that will fail
-- **Version detection**: Checks your Python version before installation
+#### Automatic Detection
+When you open a Python file, pyworks:
+1. Scans all import statements
+2. Checks which packages are missing
+3. Verifies compatibility with your Python version
+4. Shows clear notifications for any issues
 
-Example: If you're on Python 3.12 and import TensorFlow:
+#### Known Compatibility Issues
+- **Python 3.12+ with TensorFlow**: Warns about compatibility, suggests PyTorch or JAX
+- **numba on Python 3.12**: May have issues, warns but attempts install
+- **PyQt5 on newer Python**: Suggests PyQt6 as replacement
+
+#### Example Workflow
+```python
+# In your file:
+import tensorflow as tf  # On Python 3.12
 ```
-⚠️ TensorFlow: Limited support for Python 3.12+
+
+You'll see:
+```
+📦 Missing packages: tensorflow
+⚠️ tensorflow: TensorFlow has limited support for Python 3.12+
   Consider alternatives: torch, jax
+>>> Press <leader>pi to install missing packages
 ```
 
 ### Notebook Support
