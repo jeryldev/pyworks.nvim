@@ -56,7 +56,7 @@ local compatibility_issues = {
 		max_version = "3.11",
 		message = "TensorFlow has limited support for Python 3.12+. Installation may fail or be unstable.",
 		alternatives = { "torch", "jax" },
-		install_override = "tensorflow>=2.15.0"  -- Try latest version that might support 3.12
+		-- Don't try to install at all - too problematic
 	},
 	numba = {
 		max_version = "3.11",
@@ -64,6 +64,11 @@ local compatibility_issues = {
 	},
 	-- Add more known incompatibilities
 	pyqt5 = {
+		max_version = "3.11",
+		message = "PyQt5 may have build issues on Python 3.12+. Consider PyQt6 instead.",
+		alternatives = { "pyqt6", "pyside6" }
+	},
+	PyQt5 = {  -- Also handle capitalized version
 		max_version = "3.11",
 		message = "PyQt5 may have build issues on Python 3.12+. Consider PyQt6 instead.",
 		alternatives = { "pyqt6", "pyside6" }
@@ -301,15 +306,19 @@ function M.install_suggested()
 			-- Package has compatibility issues
 			utils.notify(string.format("⚠️ %s: %s", package, compat.message), vim.log.levels.WARN)
 			
-			if compat.install_override then
-				-- Try to install a specific version that might work
-				utils.notify("  Attempting to install compatible version: " .. compat.install_override, vim.log.levels.INFO)
-				table.insert(packages_to_install, compat.install_override)
-			else
-				-- Skip this package
-				table.insert(skipped_packages, package)
-				if compat.alternatives then
-					utils.notify("  Consider alternatives: " .. table.concat(compat.alternatives, ", "), vim.log.levels.INFO)
+			-- Skip this package - it's incompatible
+			table.insert(skipped_packages, package)
+			if compat.alternatives then
+				utils.notify("  Consider alternatives: " .. table.concat(compat.alternatives, ", "), vim.log.levels.INFO)
+				-- Check if any alternatives are in the missing list and add them
+				for _, alt in ipairs(compat.alternatives) do
+					-- Only add alternatives that were explicitly imported
+					for _, missing_pkg in ipairs(result.missing) do
+						if missing_pkg == alt then
+							table.insert(packages_to_install, alt)
+							utils.notify("  Will install alternative: " .. alt, vim.log.levels.INFO)
+						end
+					end
 				end
 			end
 		else
