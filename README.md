@@ -7,16 +7,15 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 ## ✨ Features
 
 - 🚀 **Async Project Setup** - Non-blocking virtual environment creation and package installation
-- 📦 **Smart Package Browser** - Interactive package browser with categories and descriptions
-- 📓 **Seamless Jupyter Support** - Edit .ipynb files as Python code with automatic conversion
-- 🔬 **Multi-language Support** - Auto-detects and initializes Python, Julia, and R kernels
-- 🔍 **Real-time Diagnostics** - Environment health checks with actionable feedback
+- 📦 **Smart Package Detection** - Auto-detects missing packages and handles compatibility issues
+- 📓 **Seamless Jupyter Support** - Edit .ipynb files with automatic kernel initialization
+- 🔬 **Multi-language Support** - Python, Julia, and R kernel auto-detection and initialization
+- 🔍 **Real-time Diagnostics** - Environment health checks with automatic fixes
 - 🎯 **Project Templates** - Pre-configured setups for data science, web development, and more
-- ⚡ **Auto-activation** - Automatically activates virtual environments in Neovim terminals
+- ⚡ **Auto-activation** - Automatically activates virtual environments in terminals
 - 🔄 **Progress Indicators** - Visual feedback for all long-running operations
-- 🛡️ **Robust Error Handling** - Clear error messages with recovery suggestions
+- 🛡️ **Self-healing** - Automatically fixes common issues like missing pynvim
 - 📔 **Smart Notebook Handling** - Automatic metadata fixing and format conversion
-- 🎨 **Consistent UX** - Same workflow notifications for .py, .jl, .R, and .ipynb files
 
 ## 📋 Requirements
 
@@ -85,45 +84,32 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ## 🆕 What's New
 
-### v2.0 - Multi-language & Consistency Update
+### Latest Updates
 
-- **🌍 Multi-language Kernel Support**: Automatic detection and initialization for Python, Julia, and R
-- **🔔 Consistent Notifications**: All file types now show the same detailed workflow notifications
-- **📦 Smart Package Detection**: Automatically detects missing packages with compatibility checks
-- **🚀 Performance Optimizations**: Caching, async operations, and reduced system calls
-- **🎯 Intelligent Kernel Matching**: Auto-selects appropriate kernel based on file type and language
-
-### Performance & UX Improvements
-
-- **Async Everything**: Virtual environment creation and package installation no longer freeze Neovim
-- **Smart Package Browser**: Browse packages by category with descriptions, search, or install entire categories
-- **Better Notifications**: Step-by-step progress for file detection, kernel check, and initialization
-- **Auto Kernel Init**: Opening any supported file automatically initializes the appropriate kernel
-- **Kernel Memory**: Once you select a kernel for a file type, it remembers for next time
-
-### Code Quality
-
-- **Centralized Configuration**: Better state management and configuration validation
-- **Robust Error Handling**: No more crashes - clear error messages with recovery suggestions
-- **Performance Caching**: Reduced filesystem calls with intelligent caching (5-30 second TTL)
-- **Code Deduplication**: Shared utilities module for consistent behavior
+- **🔧 Self-healing Python Host**: Automatically detects and fixes pynvim issues
+- **📦 Smarter Package Detection**: Normalizes package names, handles compatibility issues
+- **🚫 No More Spam**: Prevents duplicate notifications during installations
+- **🌍 Multi-language Support**: Python, Julia, and R kernels auto-initialize
+- **⚡ Async Everything**: Non-blocking operations with progress indicators
+- **🎯 Smart Caching**: Reduces system calls with intelligent 5-30 second TTL
 
 ## 📓 Jupyter Notebook Support
 
 ### 🔄 Intelligent Workflow
 
-Pyworks provides a consistent, intelligent workflow across all supported file types:
+Pyworks provides automatic kernel initialization and package detection for all supported file types:
 
-#### Universal Workflow for All Files (.py, .jl, .R, .ipynb):
+#### How It Works:
 
-1. **File Detection** - Shows "Detected [language] file - checking for Jupyter support..."
-2. **Molten Check** - Verifies Jupyter integration is available
-3. **Kernel Discovery** - Shows "Checking for compatible [language] kernel..."
-4. **Smart Initialization**:
-   - **Matching kernel found** → Auto-initializes with "✓ Initialized kernel: [name]"
-   - **No match found** → Shows kernel selection dialog
-   - **Previously selected** → Auto-initializes with remembered choice
-5. **Language-specific features**:
+When you open any supported file (.py, .jl, .R, .ipynb), pyworks:
+
+1. **Detects the file type** and shows notifications (if Molten is available)
+2. **Checks for a compatible kernel** in your Jupyter installation
+3. **Auto-initializes the kernel** if found, or prompts for selection
+4. **Scans for missing packages** (Python only currently)
+5. **Offers one-click installation** with `<leader>pi`
+
+#### Language-Specific Features:
    
    **Python Files (.py, .ipynb)**:
    - Scans for imports and detects missing packages
@@ -505,18 +491,37 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 
 ### No Notifications When Opening Files
 
-1. **Check Molten is installed**:
-   ```vim
-   :PyworksSetup
-   " Choose 'Data Science / Notebooks' to install Molten
-   ```
+If you don't see the workflow notifications:
 
-2. **Restart Neovim** after setup - plugins need to load
-
-3. **Verify with**:
+1. **Check Molten is properly installed**:
    ```vim
    :PyworksCheckEnvironment
-   " Should show Molten status
+   " Look for Molten commands status
+   ```
+
+2. **Ensure Python host is configured**:
+   ```vim
+   :PyworksDebug
+   " Should show Python3 host and pynvim status
+   ```
+
+3. **Try manual kernel initialization**:
+   ```vim
+   :MoltenInit
+   " If this fails, Molten isn't loaded properly
+   ```
+
+4. **Run setup if needed**:
+   ```vim
+   :PyworksSetup
+   " Choose 'Data Science / Notebooks'
+   " Then restart Neovim
+   ```
+
+5. **Check for Python host errors**:
+   ```vim
+   :checkhealth provider
+   " Look for python3 provider issues
    ```
 
 ### Virtual Environment Not Detected
