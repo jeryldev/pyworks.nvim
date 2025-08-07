@@ -82,15 +82,22 @@ function M.extract_imports(lines)
 	
 	for _, line in ipairs(lines) do
 		-- Match "import package" or "import package as alias"
-		local import_match = line:match("^import%s+([%w_%.]+)")
+		-- Updated pattern to handle hyphens in package names
+		local import_match = line:match("^import%s+([%w_%.%-]+)")
 		if import_match then
-			local base_package = import_match:match("^([^%.]+)")
-			table.insert(imports, base_package)
-			found_packages[base_package] = true
+			-- Handle "import scikit-learn as sklearn" case
+			local package_name = import_match:match("^([^%.]+)")
+			-- Check if this is an alias import
+			local as_match = line:match("^import%s+([%w_%.%-]+)%s+as%s+([%w_]+)")
+			if as_match then
+				package_name = as_match
+			end
+			table.insert(imports, package_name)
+			found_packages[package_name] = true
 		end
 		
 		-- Match "from package import ..."
-		local from_match = line:match("^from%s+([%w_%.]+)%s+import")
+		local from_match = line:match("^from%s+([%w_%.%-]+)%s+import")
 		if from_match then
 			local base_package = from_match:match("^([^%.]+)")
 			table.insert(imports, base_package)

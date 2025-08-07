@@ -231,9 +231,9 @@ function M.setup(user_config)
 							utils.notify("📦 Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
 							-- Make the install hint more prominent
 							vim.defer_fn(function()
-								utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
-								utils.notify("👉 Press <leader>pi to install missing packages", vim.log.levels.WARN)
-								utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+								utils.notify("=====================================", vim.log.levels.INFO)
+								utils.notify(">>> Press <leader>pi to install missing packages", vim.log.levels.WARN)
+								utils.notify("=====================================", vim.log.levels.INFO)
 							end, 100) -- Small delay to ensure it appears after other messages
 						end
 					elseif content:match("using%s+%w+") then
@@ -275,9 +275,9 @@ function M.setup(user_config)
 					
 					-- Make the install hint more prominent
 					vim.defer_fn(function()
-						utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
-						utils.notify("👉 Press <leader>pi to install missing packages", vim.log.levels.WARN)
-						utils.notify("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", vim.log.levels.INFO)
+						utils.notify("=====================================", vim.log.levels.INFO)
+						utils.notify(">>> Press <leader>pi to install missing packages", vim.log.levels.WARN)
+						utils.notify("=====================================", vim.log.levels.INFO)
 					end, 100) -- Small delay to ensure it appears after other messages
 				end
 			end, 500) -- Quick check after file opens
