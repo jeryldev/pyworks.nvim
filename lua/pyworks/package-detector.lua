@@ -285,6 +285,22 @@ function M.analyze_buffer()
 		return
 	end
 	
+	-- Check if package installation is already in progress
+	local config = require("pyworks.config")
+	local active_jobs = config.get_active_jobs()
+	for id, job in pairs(active_jobs) do
+		if job.type == "package_install" then
+			-- Installation already in progress, don't spam notifications
+			return {
+				imports = imports,
+				missing = {},
+				installed = {},
+				compatibility = {},
+				installing = true
+			}
+		end
+	end
+	
 	-- Check for missing packages
 	local missing, installed = M.check_missing_packages(imports)
 	
@@ -339,6 +355,16 @@ end
 
 -- Install suggested packages (called by keybinding)
 function M.install_suggested()
+	-- Check if installation is already in progress
+	local config = require("pyworks.config")
+	local active_jobs = config.get_active_jobs()
+	for id, job in pairs(active_jobs) do
+		if job.type == "package_install" then
+			utils.notify("Package installation already in progress...", vim.log.levels.INFO)
+			return
+		end
+	end
+	
 	-- First analyze the current buffer
 	local result = M.analyze_buffer()
 	

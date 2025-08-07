@@ -395,6 +395,15 @@ end
 
 -- Install packages (asynchronous)
 function M.install_packages_async(packages, cwd, python_path, has_uv, callback)
+	-- Track installation in config to prevent duplicate notifications
+	local config = require("pyworks.config")
+	local job_id = "pkg_install_" .. vim.loop.hrtime()
+	config.add_job(job_id, {
+		type = "package_install",
+		packages = packages,
+		description = "Installing " .. table.concat(packages, ", ")
+	})
+	
 	utils.notify("Installing packages in background...", vim.log.levels.INFO)
 	utils.notify("You can continue working. Check :messages for progress.", vim.log.levels.INFO)
 
@@ -421,7 +430,10 @@ function M.install_packages_async(packages, cwd, python_path, has_uv, callback)
 	local progress_id = utils.progress_start("Installing " .. #packages .. " packages")
 
 	-- Run installation asynchronously
-	local job_id = utils.async_system_call(cmd, function(success, stdout, stderr, exit_code)
+	local async_job_id = utils.async_system_call(cmd, function(success, stdout, stderr, exit_code)
+		-- Remove job from tracking
+		config.remove_job(job_id)
+		
 		if success then
 			utils.progress_end(progress_id, true, "Packages installed successfully!")
 			-- Show what was installed
@@ -452,7 +464,7 @@ function M.install_packages_async(packages, cwd, python_path, has_uv, callback)
 		end
 	end, { cwd = cwd })
 
-	return job_id
+	return async_job_id
 end
 
 return M
