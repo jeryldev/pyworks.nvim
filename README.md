@@ -45,9 +45,12 @@ A comprehensive Python project management plugin for Neovim that handles virtual
       version = "^1.0.0",
       build = ":UpdateRemotePlugins",
       init = function()
-        -- Minimal Molten configuration for image support
+        -- Molten configuration for better image display
         vim.g.molten_image_provider = "image.nvim"
-        vim.g.molten_output_win_max_height = 20
+        vim.g.molten_output_win_max_height = 40  -- Increased for larger images
+        vim.g.molten_output_win_max_width = 150  -- Allow wider output
+        vim.g.molten_auto_open_output = true     -- Auto-show output
+        vim.g.molten_output_crop_border = true   -- Better screen fit
       end,
     },
     {
@@ -55,8 +58,8 @@ A comprehensive Python project management plugin for Neovim that handles virtual
       opts = {
         backend = "kitty",  -- Requires Kitty or Ghostty terminal
         integrations = {},  -- Empty for Molten compatibility
-        max_width = 100,
-        max_height = 12,
+        max_width = 150,    -- Match Molten's width
+        max_height = 40,    -- Match Molten's height
         max_height_window_percentage = math.huge,
         max_width_window_percentage = math.huge,
         window_overlap_clear_enabled = true,
@@ -98,14 +101,15 @@ A comprehensive Python project management plugin for Neovim that handles virtual
 
 ### Output Display
 
-Pyworks uses Molten's default popup window behavior for displaying cell outputs:
+Pyworks uses Molten's popup window system for displaying cell outputs with enhanced sizing:
 
-- **Cell outputs appear in floating windows** when you hover over executed cells
-- **Images and plots display in the popup** (requires Kitty or Ghostty terminal)
-- **Tables and text output** show in the floating window
+- **Large floating windows** (40 lines tall, 150 chars wide) accommodate big plots and tables
+- **Auto-opens after execution** - Output appears automatically when you run cells
+- **Images and plots display clearly** in the enlarged popup (requires Kitty or Ghostty terminal)
+- **Smart border cropping** - Windows fit nicely at screen edges
 - Use `<leader>jo` to manually open output, `<leader>jh` to hide
 
-> **Note**: Inline virtual text display for outputs is currently not supported due to Molten limitations with image rendering.
+> **Note**: The default configuration is optimized for data visualization. You can adjust window sizes in the Molten init function.
 
 ### Terminal Requirements for Images
 
@@ -243,7 +247,7 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 
 ## 🔧 Configuration
 
-### Full Configuration Options
+### Pyworks Configuration
 
 ```lua
 require("pyworks").setup({
@@ -253,16 +257,9 @@ require("pyworks").setup({
     use_uv = true,                  -- Prefer uv over pip when available
   },
   
-  -- Molten/Jupyter output configuration (NEW!)
-  molten = {
-    virt_text_output = false,      -- false = show output in window below cell
-    output_virt_lines = false,      -- false = don't use virtual lines
-    virt_lines_off_by_1 = false,    -- false = output directly below cell
-    output_win_max_height = 30,     -- Maximum height of output window
-    auto_open_output = true,        -- Automatically show output after execution
-    output_win_style = "minimal",   -- Window style: "minimal" or "none"
-  },
+  auto_activate_venv = true,  -- Auto-activate in terminals
   
+  -- UI settings (optional)
   ui = {
     icons = {
       python = "🐍",
@@ -271,9 +268,26 @@ require("pyworks").setup({
       warning = "⚠️",
     },
   },
-  
-  auto_activate_venv = true,  -- Auto-activate in terminals
 })
+```
+
+### Customizing Output Window Size
+
+If you need different output window dimensions (e.g., for ultra-wide monitors or specific workflows):
+
+```lua
+-- In your Molten plugin configuration:
+init = function()
+  vim.g.molten_output_win_max_height = 60  -- Even taller for huge plots
+  vim.g.molten_output_win_max_width = 200  -- Wider for large DataFrames
+end
+
+-- And match in image.nvim:
+opts = {
+  max_width = 200,   -- Match Molten's width
+  max_height = 60,   -- Match Molten's height
+  -- ... other settings
+}
 ```
 
 ## 🎮 Usage Examples
@@ -323,7 +337,6 @@ pyworks.nvim automatically configures Molten when you choose a data science proj
 - `<leader>jr` - Select current cell
 - `<leader>jv` - Run visual selection
 - `[j` / `]j` - Navigate between cells
-- See all keybindings in `docs/molten_quick_reference.md`
 
 ### Dependencies Explained
 

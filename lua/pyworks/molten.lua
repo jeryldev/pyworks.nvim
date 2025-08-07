@@ -20,23 +20,29 @@ function M.init_kernel(silent_mode)
 		return
 	end
 	
-	-- Check if Jupyter is installed
-	local has_jupyter = vim.fn.system("cd " .. vim.fn.getcwd() .. " && .venv/bin/python -c 'import jupyter_client' 2>/dev/null")
-	if vim.v.shell_error ~= 0 then
+	-- Check if Jupyter is installed (cached)
+	local has_jupyter = utils.get_cached("jupyter_check_" .. vim.fn.getcwd(), function()
+		local result = vim.fn.system("cd " .. vim.fn.getcwd() .. " && .venv/bin/python -c 'import jupyter_client' 2>/dev/null")
+		return vim.v.shell_error == 0
+	end, 30000) -- Cache for 30 seconds
+	
+	if not has_jupyter then
 		utils.notify("Jupyter not installed in this environment!", vim.log.levels.ERROR)
 		utils.notify("Run :PyworksSetup and choose 'Data Science / Notebooks'", vim.log.levels.INFO)
 		return
 	end
 	
-	-- Get list of available kernels
-	local kernels_list = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
-	if vim.v.shell_error ~= 0 or not kernels_list then
-		utils.notify("No Jupyter kernels found!", vim.log.levels.ERROR)
-		utils.notify("Install with: python -m ipykernel install --user", vim.log.levels.INFO)
-		return
-	end
+	-- Get list of available kernels (cached)
+	local kernels_data = utils.get_cached("kernel_list", function()
+		local kernels_list = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
+		if vim.v.shell_error ~= 0 or not kernels_list then
+			return nil
+		end
+		local ok, data = pcall(vim.json.decode, kernels_list)
+		return ok and data or nil
+	end, 10000) -- Cache for 10 seconds
 	
-	local ok, kernels_data = pcall(vim.json.decode, kernels_list)
+	local ok = kernels_data ~= nil
 	if not ok or not kernels_data or not kernels_data.kernelspecs then
 		-- Fall back to Molten's built-in selection
 		vim.cmd("MoltenInit")

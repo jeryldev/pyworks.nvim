@@ -315,35 +315,49 @@ end
 
 -- Complete the setup process
 function M.complete_setup(python_path)
-	-- Update remote plugins
+	-- Update remote plugins (async)
 	vim.notify("Updating remote plugins...")
 	local update_cmd = string.format("NVIM_PYTHON3_HOST_PROG=%s nvim --headless +UpdateRemotePlugins +qa", python_path)
-	vim.fn.system(update_cmd)
-
-	-- Create project-specific Jupyter kernel if ipykernel is available
-	local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
-	local has_ipykernel = vim.fn.system(python_path .. " -c 'import ipykernel' 2>/dev/null")
-	if vim.v.shell_error == 0 then
-		vim.notify("Creating project-specific Jupyter kernel...")
-		local kernel_cmd = string.format(
-			"%s -m ipykernel install --user --name %s --display-name 'Python (%s)'",
-			python_path, project_name, project_name
-		)
-		vim.fn.system(kernel_cmd)
-		if vim.v.shell_error == 0 then
-			utils.notify("✓ Created kernel: " .. project_name, vim.log.levels.INFO)
+	utils.async_system_call(update_cmd, function(success, stdout, stderr, exit_code)
+		if not success then
+			utils.notify("Warning: Failed to update remote plugins", vim.log.levels.WARN)
 		end
-	end
-
-	-- Python host is automatically configured by pyworks autocmds
-
-	utils.notify("Setup complete!", vim.log.levels.INFO, "Success", "success")
-	utils.notify(
-		"Everything is configured! Please restart Neovim once to activate Molten.",
-		vim.log.levels.INFO,
-		"Ready",
-		"success"
-	)
+		
+		-- Create project-specific Jupyter kernel if ipykernel is available (async)
+		local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+		utils.async_system_call(python_path .. " -c 'import ipykernel'", function(has_ipykernel)
+			if has_ipykernel then
+				vim.notify("Creating project-specific Jupyter kernel...")
+				local kernel_cmd = string.format(
+					"%s -m ipykernel install --user --name %s --display-name 'Python (%s)'",
+					python_path, project_name, project_name
+				)
+				utils.async_system_call(kernel_cmd, function(kernel_success)
+					if kernel_success then
+						utils.notify("✓ Created kernel: " .. project_name, vim.log.levels.INFO)
+					end
+					
+					-- Python host is automatically configured by pyworks autocmds
+					utils.notify("Setup complete!", vim.log.levels.INFO, "Success", "success")
+					utils.notify(
+						"Everything is configured! Please restart Neovim once to activate Molten.",
+						vim.log.levels.INFO,
+						"Ready",
+						"success"
+					)
+				end)
+			else
+				-- No ipykernel, still complete setup
+				utils.notify("Setup complete!", vim.log.levels.INFO, "Success", "success")
+				utils.notify(
+					"Everything is configured! Please restart Neovim to continue.",
+					vim.log.levels.INFO,
+					"Ready",
+					"success"
+				)
+			end
+		end)
+	end)
 end
 
 -- Check for missing packages

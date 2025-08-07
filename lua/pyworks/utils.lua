@@ -8,6 +8,76 @@ local cache = {
 	last_cwd_check = nil,
 }
 
+-- Generic data cache for expensive operations
+local data_cache = {}
+
+-- Get cached data or fetch it
+function M.get_cached(key, fetcher, ttl)
+	ttl = ttl or 5000 -- Default 5 second TTL
+	local now = vim.loop.hrtime() / 1e6
+	local entry = data_cache[key]
+	
+	if entry and entry.result and (now - entry.timestamp) < ttl then
+		return entry.result
+	end
+	
+	local result = fetcher()
+	data_cache[key] = {
+		result = result,
+		timestamp = now
+	}
+	return result
+end
+
+-- Clear cache entry
+function M.clear_cache(key)
+	if key then
+		data_cache[key] = nil
+	else
+		data_cache = {}
+	end
+end
+
+-- Check if virtual environment exists
+function M.has_venv()
+	local _, venv_path = M.get_project_paths()
+	return vim.fn.isdirectory(venv_path) == 1
+end
+
+-- Get Python executable path from venv
+function M.get_python_path()
+	local _, venv_path = M.get_project_paths()
+	local python_path = venv_path .. "/bin/python3"
+	
+	-- Try python3 first, then python
+	if vim.fn.executable(python_path) ~= 1 then
+		python_path = venv_path .. "/bin/python"
+		if vim.fn.executable(python_path) ~= 1 then
+			return nil
+		end
+	end
+	
+	return python_path
+end
+
+-- Check if venv is properly configured
+function M.is_venv_configured()
+	local python_path = M.get_python_path()
+	return python_path and vim.g.python3_host_prog == python_path
+end
+
+-- Ensure venv is in PATH
+function M.ensure_venv_in_path()
+	local _, venv_path = M.get_project_paths()
+	local venv_bin = venv_path .. "/bin"
+	
+	if not vim.env.PATH:match(vim.pesc(venv_bin)) then
+		vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+		return true
+	end
+	return false
+end
+
 -- Better select implementation (single source of truth)
 function M.better_select(prompt, items, callback)
 	if vim.ui then

@@ -15,17 +15,13 @@ function M.setup(user_config)
 		callback = function()
 			-- Ensure this runs after plugins are loaded
 			vim.schedule(function()
-				local cwd, venv_path = utils.get_project_paths()
-
-				if vim.fn.isdirectory(venv_path) == 1 then
-					local venv_bin = venv_path .. "/bin"
-					local python_path = venv_path .. "/bin/python3"
+				if utils.has_venv() then
+					local _, venv_path = utils.get_project_paths()
+					local python_path = utils.get_python_path()
 					local current_python = vim.fn.exepath("python3")
 
 					-- Add venv/bin to PATH if not already there
-					if not vim.env.PATH:match(vim.pesc(venv_bin)) then
-						vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
-					end
+					utils.ensure_venv_in_path()
 
 					-- Always set Python host
 					vim.g.python3_host_prog = python_path
@@ -52,15 +48,12 @@ function M.setup(user_config)
 	vim.api.nvim_create_autocmd("DirChanged", {
 		pattern = "*",
 		callback = function()
-			local cwd, venv_path = utils.get_project_paths()
-			if vim.fn.isdirectory(venv_path) == 1 then
-				local venv_bin = venv_path .. "/bin"
-				local python_path = venv_path .. "/bin/python3"
+			if utils.has_venv() then
+				local _, venv_path = utils.get_project_paths()
+				local python_path = utils.get_python_path()
 
 				-- Add venv/bin to PATH if not already there
-				if not vim.env.PATH:match(vim.pesc(venv_bin)) then
-					vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
-				end
+				utils.ensure_venv_in_path()
 
 				-- Update Python host to match current directory's venv
 				vim.g.python3_host_prog = python_path
