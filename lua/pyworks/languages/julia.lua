@@ -123,7 +123,9 @@ function M.activate_project()
 end
 
 -- Get list of installed packages
-function M.get_installed_packages()
+function M.get_installed_packages(filepath)
+	-- Julia packages are typically global or project-specific based on Project.toml
+	-- For now, we'll check the global environment (filepath param kept for consistency)
 	local julia_path = M.get_julia_path()
 	if not julia_path then
 		return {}

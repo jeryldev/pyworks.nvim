@@ -167,4 +167,3 @@ function M.stop_periodic_cleanup()
 end
 
 return M
-

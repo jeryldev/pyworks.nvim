@@ -27,8 +27,10 @@ function M.setup_buffer_keymaps()
 			if not vim.b[bufnr].molten_initialized then
 				-- Auto-initialize based on file type
 				local ft = vim.bo.filetype
+				local filepath = vim.api.nvim_buf_get_name(bufnr)
 				local detector = require("pyworks.core.detector")
-				local kernel = detector.get_kernel_for_language(ft)
+				-- Pass filepath for project-aware kernel selection
+				local kernel = detector.get_kernel_for_language(ft, filepath)
 
 				if kernel then
 					vim.notify("Initializing " .. kernel .. " kernel...", vim.log.levels.INFO)
@@ -85,8 +87,10 @@ function M.setup_buffer_keymaps()
 			if not vim.b[bufnr].molten_initialized then
 				-- Auto-initialize based on file type
 				local ft = vim.bo.filetype
+				local filepath = vim.api.nvim_buf_get_name(bufnr)
 				local detector = require("pyworks.core.detector")
-				local kernel = detector.get_kernel_for_language(ft)
+				-- Pass filepath for project-aware kernel selection
+				local kernel = detector.get_kernel_for_language(ft, filepath)
 
 				if kernel then
 					vim.notify("Initializing " .. kernel .. " kernel...", vim.log.levels.INFO)

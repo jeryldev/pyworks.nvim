@@ -143,7 +143,7 @@ function M.scan_imports(filepath, language)
 	if filepath and not filepath:match("^/") then
 		filepath = vim.fn.fnamemodify(filepath, ":p")
 	end
-	
+
 	-- Try cache first
 	local cache_key = "imports_" .. filepath .. "_" .. language
 	local cached = cache.get(cache_key)
@@ -151,14 +151,38 @@ function M.scan_imports(filepath, language)
 		return cached
 	end
 
-	-- Read file content
-	local file = io.open(filepath, "r")
-	if not file then
-		return {}
-	end
+	-- Read content (from buffer for notebooks, from file for others)
+	local content
 
-	local content = file:read("*all")
-	file:close()
+	-- For notebooks (.ipynb), read from buffer instead of file
+	-- because jupytext has already converted it to code
+	if filepath:match("%.ipynb$") then
+		-- Find buffer with this file
+		local bufnr = vim.fn.bufnr(filepath)
+		if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+			-- Read from buffer (converted content)
+			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+			content = table.concat(lines, "\n")
+		else
+			-- Fallback: try to read current buffer if it's the notebook
+			local current_file = vim.api.nvim_buf_get_name(0)
+			if current_file == filepath then
+				local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+				content = table.concat(lines, "\n")
+			else
+				-- Can't read notebook content
+				return {}
+			end
+		end
+	else
+		-- Regular files: read from disk
+		local file = io.open(filepath, "r")
+		if not file then
+			return {}
+		end
+		content = file:read("*all")
+		file:close()
+	end
 
 	-- Extract imports based on language
 	local imports = {}
@@ -177,9 +201,9 @@ function M.scan_imports(filepath, language)
 end
 
 -- Get installed packages for a language
-function M.get_installed_packages(language)
-	-- Try cache first
-	local cache_key = "installed_packages_" .. language
+function M.get_installed_packages(language, filepath)
+	-- Include filepath in cache key to ensure we check the right project
+	local cache_key = "installed_packages_" .. language .. "_" .. (filepath or "global")
 	local cached = cache.get(cache_key)
 	if cached then
 		return cached
@@ -189,13 +213,13 @@ function M.get_installed_packages(language)
 
 	if language == "python" then
 		local python = require("pyworks.languages.python")
-		installed = python.get_installed_packages()
+		installed = python.get_installed_packages(filepath) -- Pass filepath!
 	elseif language == "julia" then
 		local julia = require("pyworks.languages.julia")
-		installed = julia.get_installed_packages()
+		installed = julia.get_installed_packages(filepath) -- Pass filepath!
 	elseif language == "r" then
 		local r = require("pyworks.languages.r")
-		installed = r.get_installed_packages()
+		installed = r.get_installed_packages(filepath) -- Pass filepath!
 	end
 
 	-- Cache the result
@@ -207,7 +231,7 @@ end
 -- Detect missing packages
 function M.detect_missing_packages(filepath, language)
 	local imports = M.scan_imports(filepath, language)
-	local installed = M.get_installed_packages(language)
+	local installed = M.get_installed_packages(language, filepath) -- Pass filepath!
 
 	-- Convert installed list to a set for faster lookup
 	local installed_set = {}
@@ -237,12 +261,14 @@ function M.is_custom_package(module_name, language)
 	if language == "python" then
 		-- Patterns that suggest custom/local packages
 		-- Custom packages often have company/project prefixes
-		if module_name:match("^seell_") or    -- SEELL specific
-		   module_name:match("^my_") or        -- Common custom prefix
-		   module_name:match("^custom_") or    -- Common custom prefix
-		   module_name:match("^local_") or     -- Common local prefix  
-		   module_name:match("^internal_") or  -- Internal packages
-		   module_name:match("^private_") then -- Private packages
+		if
+			module_name:match("^seell_") -- SEELL specific
+			or module_name:match("^my_") -- Common custom prefix
+			or module_name:match("^custom_") -- Common custom prefix
+			or module_name:match("^local_") -- Common local prefix
+			or module_name:match("^internal_") -- Internal packages
+			or module_name:match("^private_")
+		then -- Private packages
 			return true
 		end
 	end
@@ -415,7 +441,7 @@ function M.analyze_buffer(language)
 	if filepath == "" then
 		return { imports = {}, missing = {}, installed = {} }
 	end
-	
+
 	-- Ensure absolute path
 	if not filepath:match("^/") then
 		filepath = vim.fn.fnamemodify(filepath, ":p")
@@ -433,4 +459,3 @@ function M.analyze_buffer(language)
 end
 
 return M
-

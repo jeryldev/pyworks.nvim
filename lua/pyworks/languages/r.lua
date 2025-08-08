@@ -153,7 +153,9 @@ function M.activate_renv()
 end
 
 -- Get list of installed packages
-function M.get_installed_packages()
+function M.get_installed_packages(filepath)
+	-- R packages can be in different libraries based on renv
+	-- For now, we'll check the default library (filepath param kept for consistency)
 	local r_path = M.get_r_path()
 	if not r_path then
 		return {}

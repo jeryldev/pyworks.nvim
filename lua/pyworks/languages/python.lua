@@ -215,19 +215,29 @@ function M.install_essentials()
 		end
 	end
 
+	-- Get project directory for this file (first return value)
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+
 	-- Upgrade pip if using pip (not needed for uv)
 	if not is_uv then
 		vim.fn.system(package_manager .. " install --upgrade pip 2>/dev/null")
 	end
 
 	local packages_str = table.concat(missing_essentials, " ")
-	local cmd = string.format("%s install %s", package_manager, packages_str)
+
+	-- Build the install command with proper syntax for UV
+	local cmd
+	if is_uv then
+		-- For UV, use --python flag to specify the venv's Python
+		local python_path = venv_path .. "/bin/python"
+		cmd = string.format("uv pip install --python %s %s", vim.fn.shellescape(python_path), packages_str)
+	else
+		-- Regular pip command
+		cmd = string.format("%s install %s", package_manager, packages_str)
+	end
 
 	-- Log the command for debugging
 	vim.notify("[Pyworks Debug] Running: " .. cmd, vim.log.levels.DEBUG)
-
-	-- Get project directory for this file (first return value)
-	local project_dir, _ = utils.get_project_paths(filepath)
 
 	-- Ensure project_dir is valid
 	if not project_dir or vim.fn.isdirectory(project_dir) ~= 1 then
@@ -324,12 +334,29 @@ function M.get_installed_packages(filepath)
 		return {}
 	end
 
-	local pip_path = M.get_pip_path(filepath)
-	if not pip_path then
-		return {}
+	local cmd
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+	local python_path = venv_path .. "/bin/python"
+
+	-- Check if this is a UV venv
+	if M.venv_uses_uv(filepath) then
+		-- For UV venvs, use 'uv pip list' with the specific Python interpreter
+		if vim.fn.executable("uv") == 1 then
+			-- Use --python to specify the venv's Python interpreter
+			cmd = string.format("uv pip list --python %s --format=freeze 2>/dev/null", vim.fn.shellescape(python_path))
+		else
+			-- UV venv but no UV available - can't list packages
+			return {}
+		end
+	else
+		-- Regular pip venv
+		local pip_path = M.get_pip_path(filepath)
+		if not pip_path then
+			return {}
+		end
+		cmd = string.format("%s list --format=freeze 2>/dev/null", pip_path)
 	end
 
-	local cmd = string.format("%s list --format=freeze 2>/dev/null", pip_path)
 	local output = vim.fn.system(cmd)
 
 	if vim.v.shell_error ~= 0 then
@@ -386,10 +413,19 @@ function M.install_packages(package_list, filepath)
 		string.format("Installing %d packages...", #package_list)
 	)
 
-	local cmd = string.format("%s install %s", package_manager, packages_str)
-
 	-- Get project directory for this file (first return value)
 	local project_dir, venv_path = utils.get_project_paths(filepath)
+
+	-- Build the install command with proper syntax for UV
+	local cmd
+	if is_uv then
+		-- For UV, use --python flag to specify the venv's Python
+		local python_path = venv_path .. "/bin/python"
+		cmd = string.format("uv pip install --python %s %s", vim.fn.shellescape(python_path), packages_str)
+	else
+		-- Regular pip command
+		cmd = string.format("%s install %s", package_manager, packages_str)
+	end
 
 	-- Debug: Show what we got
 	-- notifications.notify(string.format("Debug: filepath=%s, project_dir=%s", filepath or "nil", project_dir or "nil"), vim.log.levels.WARN)
@@ -720,11 +756,20 @@ function M.uninstall_python_packages(packages_str)
 
 	-- Get package manager
 	local package_manager = M.get_package_manager(filepath)
-	local project_dir, _ = utils.get_project_paths(filepath)
+	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- Build uninstall command
 	local packages_str_clean = table.concat(packages, " ")
-	local cmd = string.format("%s uninstall -y %s", package_manager, packages_str_clean)
+	local cmd
+	local is_uv = package_manager:match("^uv")
+	if is_uv then
+		-- For UV, use --python flag to specify the venv's Python
+		local python_path = venv_path .. "/bin/python"
+		cmd = string.format("uv pip uninstall --python %s %s", vim.fn.shellescape(python_path), packages_str_clean)
+	else
+		-- Regular pip command
+		cmd = string.format("%s uninstall -y %s", package_manager, packages_str_clean)
+	end
 
 	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
 
