@@ -95,8 +95,20 @@ function M.on_file_open(filepath)
 	end
 
 	-- Route to appropriate handler
-	if ext == "ipynb" then
-		M.handle_notebook(filepath)
+	-- Check if it's a notebook that's been converted by jupytext
+	-- (filepath still ends with .ipynb but filetype is now python/julia/r)
+	if ext == "ipynb" or filepath:match("%.ipynb$") then
+		-- It's a notebook, but may have been converted already
+		if ft == "python" then
+			M.handle_python_notebook(filepath)
+		elseif ft == "julia" then
+			M.handle_julia_notebook(filepath)
+		elseif ft == "r" then
+			M.handle_r_notebook(filepath)
+		else
+			-- Not converted yet, handle as generic notebook
+			M.handle_notebook(filepath)
+		end
 	elseif ext == "py" or ft == "python" then
 		M.handle_python(filepath)
 	elseif ext == "jl" or ft == "julia" then
