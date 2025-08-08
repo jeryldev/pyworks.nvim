@@ -113,26 +113,59 @@ notebook support, code execution, and image display) that work together.
 ==============================================================================
 4. USAGE                                                       *pyworks-usage*
 
-ZERO-CONFIGURATION WORKFLOW~
+QUICK START~
 
-1. Open any supported file (.py, .jl, .R, .ipynb)
-2. Pyworks automatically:
-   - Creates virtual environment (Python)
-   - Installs essential packages
-   - Detects missing packages
-   - Initializes Molten kernel
-3. Start coding immediately!
+Create and run a notebook in 30 seconds:
+>vim
+    :PyworksNewPython analysis     " Create analysis.py
+    " Write some code, select it (visual mode)
+    <leader>jv                     " Run selected code
+<
+
+TYPICAL WORKFLOW~
+
+1. Create a new notebook:
+>vim
+    :PyworksNewPython ml_model       " Python with cells
+    :PyworksNewJulia simulation      " Julia with cells  
+    :PyworksNewPythonNotebook report " Jupyter notebook
+<
+
+2. Code structure (cells marked with # %%):
+>python
+    # %%
+    import numpy as np
+    import pandas as pd
+    
+    # %%
+    data = pd.read_csv('data.csv')
+    print(data.head())
+<
+
+3. Execute code:
+   - |<leader>jv| - Run visual selection
+   - |<leader>jl| - Run current line
+   - |<leader>jr| - Select cell, then |<leader>jv| to run
+
+4. Navigate cells:
+   - |]j| - Next cell
+   - |[j| - Previous cell
+
+5. Manage packages:
+   - Auto-detected from imports
+   - |<leader>pi| - Install missing
+   - |:PyworksInstallPython| numpy pandas
 
 SIX CORE SCENARIOS~
 
-1. Python file (.py)
-2. Julia file (.jl)
-3. R file (.R)
+All work identically with zero configuration:
+
+1. Python file (.py) with cells
+2. Julia file (.jl) with cells
+3. R file (.R) with cells
 4. Python notebook (.ipynb)
 5. Julia notebook (.ipynb)
 6. R notebook (.ipynb)
-
-All scenarios work identically with zero configuration.
 
 ==============================================================================
 5. COMMANDS                                                *pyworks-commands*

@@ -6,25 +6,28 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Added
 
-- **Notebook Creation Commands**: Six new commands for creating notebooks
-  - `:PyworksNewPython [name]` - Create Python file with cell markers
-  - `:PyworksNewJulia [name]` - Create Julia file with cell markers
-  - `:PyworksNewR [name]` - Create R file with cell markers
-  - `:PyworksNewPythonNotebook [name]` - Create Python .ipynb notebook
-  - `:PyworksNewJuliaNotebook [name]` - Create Julia .ipynb notebook
-  - `:PyworksNewRNotebook [name]` - Create R .ipynb notebook
-- **LazyVim Configuration Example**: Added `examples/lazyvim-setup.lua` with complete LazyVim-specific setup
-- **Molten Virtual Text Output**: Enabled `molten_virt_text_output` to show both images and text output persistently
+- **Notebook Creation Commands**: Six new commands for creating notebooks with templates
+  - `:PyworksNewPython [name]` - Create Python file with cell markers and common imports
+  - `:PyworksNewJulia [name]` - Create Julia file with Plots, DataFrames imports
+  - `:PyworksNewR [name]` - Create R file with ggplot2, dplyr libraries
+  - `:PyworksNewPythonNotebook [name]` - Create proper .ipynb with Python kernel
+  - `:PyworksNewJuliaNotebook [name]` - Create .ipynb with Julia kernel metadata
+  - `:PyworksNewRNotebook [name]` - Create .ipynb with R kernel metadata
+- **LazyVim Configuration Example**: Added `examples/lazyvim-setup.lua` with exact working configuration
+- **Molten Virtual Text Output**: Enabled `molten_virt_text_output=true` for persistent cell output with images
 
 ### Fixed
 
+- **Configuration Order**: Fixed jupytext.nvim to use `config = true` for proper setup
 - **Molten Cell Persistence**: Cells now properly show output when cursor returns to them
 - **Image Display**: Images now display correctly in Molten output windows alongside text
 
 ### Documentation
 
-- Updated README with LazyVim-specific installation instructions
-- Added example configuration files for different Neovim distributions
+- Added complete workflow guide in README
+- Updated help file with practical examples and quick start guide
+- Cleaned up outdated commands and non-existent features
+- Added comprehensive command and keymap reference tables
 
 ## [3.0.1] - 2025-01-08
 

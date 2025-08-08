@@ -14,6 +14,7 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 
 ### Core Capabilities
 
+- 📝 **Notebook Creation Commands** - Create Python/Julia/R notebooks with templates instantly
 - 📦 **Smart Package Detection** - Detects and installs missing packages automatically
 - 📓 **Native Notebook Support** - Edit .ipynb files as naturally as .py files
 - ⚡ **Molten Integration** - Execute code cells with Jupyter-like experience
@@ -35,6 +36,36 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 ### Optional
 
 - [`uv`](https://github.com/astral-sh/uv) - Faster package management (10-100x faster than pip)
+
+## 📝 Typical Workflow
+
+1. **Create a new notebook:**
+   ```vim
+   :PyworksNewPython analysis     " Creates analysis.py with cells
+   " or
+   :PyworksNewPythonNotebook data " Creates data.ipynb
+   ```
+
+2. **Write your code:**
+   - Cells are marked with `# %%`
+   - Add imports in first cell
+   - Write analysis code in subsequent cells
+
+3. **Execute code:**
+   - `<leader>jv` - Run selected lines (visual mode)
+   - `<leader>jl` - Run current line
+   - `<leader>jr` - Select current cell
+   - `<leader>jc` - Re-run current cell
+
+4. **Navigate:**
+   - `]j` - Next cell
+   - `[j` - Previous cell
+   - `<leader>jo` - Show output
+
+5. **Package management:**
+   - Missing packages detected automatically
+   - `<leader>pi` - Install missing packages
+   - `:PyworksInstallPython numpy pandas` - Install specific packages
 
 ## 🚀 Installation
 
@@ -337,24 +368,41 @@ IRkernel::installspec()
 
 ## 🎯 Quick Start
 
+### Creating New Notebooks
+
+```vim
+" Create Python notebook with cells
+:PyworksNewPython analysis
+" → Created Python notebook: analysis.py
+
+" Create Jupyter notebook
+:PyworksNewPythonNotebook report
+" → Created Python notebook: report.ipynb
+
+" Create Julia/R files
+:PyworksNewJulia experiment     " → experiment.jl
+:PyworksNewR stats              " → stats.R
+```
+
 ### Python Data Science
 
 ```vim
-" Just open a Python file or notebook
-nvim analysis.py
+" Create and start coding immediately
+:PyworksNewPython analysis
+" → Created Python notebook: analysis.py
 " → 🔍 Processing: analysis.py
 " → 🐍 Python (analysis): Using .venv
 " → ✅ Molten ready with python3 kernel
-" → 📦 Missing packages: numpy, pandas
-" → Press <leader>pi to install
+
+" Select code and run with <leader>jv
+" Navigate cells with ]j and [j
 ```
 
 ### Julia Scientific Computing
 
 ```vim
-" Just open any .jl file - automatic setup!
-nvim experiment.jl
-" → 🔍 Processing: experiment.jl
+:PyworksNewJulia experiment
+" → Created Julia notebook: experiment.jl
 " → 🔶 Julia (experiment): Using Project.toml
 " → ✅ Molten ready with julia kernel
 ```
@@ -362,9 +410,8 @@ nvim experiment.jl
 ### R Statistical Analysis
 
 ```vim
-" Just open any .R file - automatic setup!
-nvim analysis.R
-" → 🔍 Processing: analysis.R
+:PyworksNewR analysis
+" → Created R notebook: analysis.R
 " → 📦 R (analysis): Using renv
 " → ✅ Molten ready with ir kernel
 ```
