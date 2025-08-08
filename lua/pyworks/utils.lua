@@ -4,6 +4,7 @@ local config = require("pyworks.config")
 -- Cache for expensive operations
 local cache = {
 	cwd = nil,
+	project_dir = nil, -- The actual project directory
 	venv_path = nil,
 	last_cwd_check = nil,
 }
@@ -121,20 +122,86 @@ function M.better_select(prompt, items, callback)
 end
 
 -- Get cached project paths
-function M.get_project_paths()
-	local current_cwd = vim.fn.getcwd()
+-- Now accepts optional filepath to detect project from file location
+function M.get_project_paths(filepath)
+	local project_dir
+
+	if filepath and filepath ~= "" then
+		-- Ensure we have an absolute path
+		local abs_filepath = filepath
+
+		-- Check if it's already absolute
+		if not filepath:match("^/") and not filepath:match("^~") then
+			-- It's relative, make it absolute
+			abs_filepath = vim.fn.fnamemodify(filepath, ":p")
+		end
+
+		-- Validate the path exists
+		if vim.fn.filereadable(abs_filepath) ~= 1 then
+			-- If file doesn't exist, return nil to fallback to cwd
+			return vim.fn.getcwd(), vim.fn.getcwd() .. "/.venv"
+		end
+
+		local file_dir = vim.fn.fnamemodify(abs_filepath, ":h")
+
+		-- Search for project root by looking for .venv or project markers
+		project_dir = M.find_project_root(file_dir)
+	else
+		-- Fallback to current working directory
+		project_dir = vim.fn.getcwd()
+	end
+
+	-- Use filepath as cache key if provided, otherwise use project_dir
+	local cache_key = filepath or project_dir
 
 	-- Cache for 5 seconds to avoid repeated calls
 	local now = vim.loop.hrtime()
-	if cache.cwd == current_cwd and cache.last_cwd_check and (now - cache.last_cwd_check) < 5e9 then
-		return cache.cwd, cache.venv_path
+	if cache.cwd == cache_key and cache.last_cwd_check and (now - cache.last_cwd_check) < 5e9 then
+		-- Return the cached PROJECT DIRECTORY, not the cache key!
+		local cached_project_dir = cache.project_dir or cache.cwd
+		return cached_project_dir, cache.venv_path
 	end
 
-	cache.cwd = current_cwd
-	cache.venv_path = current_cwd .. "/.venv"
+	cache.cwd = cache_key
+	cache.project_dir = project_dir -- Store the actual project directory
+	cache.venv_path = project_dir .. "/.venv"
 	cache.last_cwd_check = now
 
-	return cache.cwd, cache.venv_path
+	return project_dir, cache.venv_path
+end
+
+-- Find project root by looking for markers
+function M.find_project_root(start_dir)
+	local markers = {
+		".venv", -- Virtual environment
+		"pyproject.toml", -- Modern Python project
+		"setup.py", -- Python package
+		"requirements.txt", -- Python requirements
+		"uv.lock", -- UV lock file
+		"Project.toml", -- Julia project
+		"Manifest.toml", -- Julia manifest
+		".git", -- Git repository
+	}
+
+	local current = start_dir
+	local last = ""
+
+	-- Walk up the directory tree
+	while current ~= last do
+		-- Check for markers
+		for _, marker in ipairs(markers) do
+			local marker_path = current .. "/" .. marker
+			if vim.fn.isdirectory(marker_path) == 1 or vim.fn.filereadable(marker_path) == 1 then
+				return current
+			end
+		end
+
+		last = current
+		current = vim.fn.fnamemodify(current, ":h")
+	end
+
+	-- If no project root found, use the start directory
+	return start_dir
 end
 
 -- Async system call wrapper

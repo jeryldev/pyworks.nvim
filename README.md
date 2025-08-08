@@ -113,6 +113,20 @@ Pyworks provides identical zero-configuration workflows for:
 
 ## 🚀 What's New in v3.0
 
+### Latest Updates (v3.0.1)
+- **Enhanced Package Management**: New commands for Python package management
+  - `:PyworksInstallPython` - Install packages with UV or pip
+  - `:PyworksUninstallPython` - Remove packages cleanly  
+  - `:PyworksListPython` - View all installed packages
+- **Smart Package Detection**: Automatically filters out:
+  - Standard library modules (base64, os, sys, etc.)
+  - Custom/local packages (company-specific modules)
+  - Only suggests real PyPI packages
+- **Better Error Reporting**: Detailed error buffers for package installation failures
+- **Per-Project Python**: Each project uses its own Python environment correctly
+- **UV/pip Detection**: Correctly identifies and uses the right package manager
+
+### Core v3.0 Features
 - **True Zero-Config**: Just open files and start coding
 - **Dynamic Kernel Detection**: Finds julia-1.11, not hardcoded "julia"
 - **Project-Based Activation**: Only runs in actual project directories
@@ -334,6 +348,18 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `:PyworksFixNotebook [filename]`            | Fix notebook missing Python metadata            |
 | `:PyworksDebug`                             | Debug configuration and fix common issues       |
 | `:PyworksShowEnvironment`                   | Display current Python environment status       |
+
+### Python Package Management
+
+| Command                              | Description                                  |
+| ------------------------------------ | -------------------------------------------- |
+| `:PyworksInstallPython <packages>`  | Install Python packages in project venv     |
+| `:PyworksUninstallPython <packages>`| Uninstall Python packages from project venv |
+| `:PyworksListPython`                | List all installed Python packages          |
+| `<leader>pi`                        | Install detected missing packages           |
+
+> **Note**: Package names can be space or comma separated.  
+> Example: `:PyworksInstallPython numpy pandas matplotlib` or `:PyworksInstallPython requests,flask,sqlalchemy`
 | `:PyworksBrowsePackages`                    | Interactive package browser with categories     |
 | `:PyworksCheckDependencies`                 | Check status of optional dependencies           |
 | `:PyworksInstallDependencies`               | Auto-install missing dependencies               |

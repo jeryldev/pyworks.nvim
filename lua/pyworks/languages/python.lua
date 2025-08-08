@@ -7,10 +7,14 @@ local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
+local utils = require("pyworks.utils")
+
+-- Track current file being processed
+local current_filepath = nil
 
 -- Configuration
 local config = {
-	use_uv = false,
+	use_uv = true, -- Prefer uv if available (much faster!)
 	preferred_venv_name = ".venv",
 	auto_install_essentials = true,
 	essentials = {
@@ -27,66 +31,86 @@ function M.configure(opts)
 end
 
 -- Check if virtual environment exists
-function M.has_venv()
-	return vim.fn.isdirectory(config.preferred_venv_name) == 1
+-- Now accepts optional filepath to check venv for that file's project
+function M.has_venv(filepath)
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+	return vim.fn.isdirectory(venv_path) == 1
 end
 
 -- Get Python path
-function M.get_python_path()
-	if M.has_venv() then
-		local cwd = vim.fn.getcwd()
-		return cwd .. "/" .. config.preferred_venv_name .. "/bin/python"
+-- Now accepts optional filepath to get Python for that file's project
+function M.get_python_path(filepath)
+	if M.has_venv(filepath) then
+		local project_dir, venv_path = utils.get_project_paths(filepath)
+		return venv_path .. "/bin/python"
 	end
 	return nil
 end
 
 -- Get pip path
-function M.get_pip_path()
-	if M.has_venv() then
-		local cwd = vim.fn.getcwd()
-		return cwd .. "/" .. config.preferred_venv_name .. "/bin/pip"
+-- Now accepts optional filepath to get pip for that file's project
+function M.get_pip_path(filepath)
+	if M.has_venv(filepath) then
+		local project_dir, venv_path = utils.get_project_paths(filepath)
+		return venv_path .. "/bin/pip"
 	end
 	return nil
 end
 
 -- Check if venv uses uv
-function M.venv_uses_uv()
-	if not M.has_venv() then
+function M.venv_uses_uv(filepath)
+	if not M.has_venv(filepath) then
 		return false
 	end
 
-	-- Check for uv.lock or if venv was created by uv
-	-- uv venvs typically have a pyvenv.cfg with "uv" mentioned
-	local pyvenv_cfg = config.preferred_venv_name .. "/pyvenv.cfg"
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+
+	-- Primary check: uv.lock file in project (most reliable)
+	if vim.fn.filereadable(project_dir .. "/uv.lock") == 1 then
+		return true
+	end
+
+	-- Secondary check: Look for UV-specific markers in pyvenv.cfg
+	-- UV venvs have specific comments added by uv
+	local pyvenv_cfg = venv_path .. "/pyvenv.cfg"
 	if vim.fn.filereadable(pyvenv_cfg) == 1 then
 		local content = vim.fn.readfile(pyvenv_cfg)
 		for _, line in ipairs(content) do
-			if line:match("uv") then
+			-- Look for UV-specific comments or markers
+			-- UV adds "uv = " lines to pyvenv.cfg
+			if line:match("^uv = ") or line:match("^uv%-version = ") then
 				return true
 			end
 		end
 	end
 
-	-- Also check if uv.lock exists in the project
-	return vim.fn.filereadable("uv.lock") == 1
+	-- Tertiary check: Check if pip is missing (UV venvs don't have pip by default)
+	local pip_path = venv_path .. "/bin/pip"
+	if vim.fn.executable(pip_path) == 0 then
+		-- No pip in venv is a strong indicator of UV
+		return true
+	end
+
+	return false
 end
 
 -- Determine which package manager to use
-function M.get_package_manager()
-	if M.has_venv() then
-		local cwd = vim.fn.getcwd()
+function M.get_package_manager(filepath)
+	if M.has_venv(filepath) then
+		local project_dir, venv_path = utils.get_project_paths(filepath)
 		-- If venv was created with uv, we need to use uv pip
-		if M.venv_uses_uv() then
+		if M.venv_uses_uv(filepath) then
 			-- uv pip needs to be called from outside venv
 			if vim.fn.executable("uv") == 1 then
 				return "uv pip"
 			else
 				-- Fallback to pip if uv not available
-				return cwd .. "/" .. config.preferred_venv_name .. "/bin/pip"
+				return venv_path .. "/bin/pip"
 			end
 		else
-			-- Regular pip venv
-			return cwd .. "/" .. config.preferred_venv_name .. "/bin/pip"
+			-- Regular pip venv - ALWAYS use the venv's pip
+			-- Don't use UV for regular pip venvs even if UV is available
+			return venv_path .. "/bin/pip"
 		end
 	else
 		-- No venv yet, use configuration preference
@@ -99,33 +123,43 @@ function M.get_package_manager()
 end
 
 -- Create virtual environment
-function M.create_venv()
-	if M.has_venv() then
+function M.create_venv(filepath)
+	filepath = filepath or current_filepath
+	if M.has_venv(filepath) then
 		return true
 	end
 
 	notifications.progress_start("python_venv", "Python Setup", "Creating virtual environment...")
 
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+
+	-- First check if uv is available globally
+	local use_uv = vim.fn.executable("uv") == 1 -- Check for uv regardless of config
+
 	local cmd
-	if config.use_uv and vim.fn.executable("uv") == 1 then
-		-- Use uv for speed
-		cmd = string.format("uv venv %s", config.preferred_venv_name)
+	if use_uv then
+		-- Use uv for speed (it's very fast!)
+		-- uv venv accepts full path
+		cmd = string.format("uv venv %s", vim.fn.shellescape(venv_path))
 	else
-		-- Use standard venv
+		-- Use standard venv with full path
 		local python = vim.fn.executable("python3") == 1 and "python3" or "python"
-		cmd = string.format("%s -m venv %s", python, config.preferred_venv_name)
+		cmd = string.format("%s -m venv %s", python, vim.fn.shellescape(venv_path))
 	end
 
+	-- Execute command (no need to cd, using full paths)
 	local result = vim.fn.system(cmd)
 	local success = vim.v.shell_error == 0
 
 	if success then
-		notifications.progress_finish("python_venv", "Virtual environment created")
+		notifications.progress_finish("python_venv", "Virtual environment created" .. (use_uv and " with uv" or ""))
 		cache.invalidate("venv_check")
 		state.set_env_status("python", "venv_created")
 	else
 		notifications.progress_finish("python_venv")
-		notifications.notify_error("Failed to create virtual environment")
+		local error_msg =
+			string.format("Failed to create venv. Command: %s, Error: %s", table.concat(cmd, " "), result or "unknown")
+		notifications.notify_error(error_msg)
 	end
 
 	return success
@@ -157,15 +191,11 @@ function M.install_essentials()
 	notifications.progress_start(
 		"python_essentials",
 		"Python Setup",
-		string.format(
-			"Installing %d essential packages: %s",
-			#missing_essentials,
-			table.concat(missing_essentials, ", ")
-		)
+		string.format("Installing %d essential packages...", #missing_essentials)
 	)
 
 	-- Get the correct package manager command
-	local package_manager = M.get_package_manager()
+	local package_manager = M.get_package_manager(filepath)
 
 	-- Check if we're using uv or pip
 	local is_uv = package_manager:match("^uv")
@@ -196,31 +226,33 @@ function M.install_essentials()
 	-- Log the command for debugging
 	vim.notify("[Pyworks Debug] Running: " .. cmd, vim.log.levels.DEBUG)
 
+	-- Get project directory for this file (first return value)
+	local project_dir, _ = utils.get_project_paths(filepath)
+
+	-- Ensure project_dir is valid
+	if not project_dir or vim.fn.isdirectory(project_dir) ~= 1 then
+		notifications.notify_error("Invalid project directory for essentials: " .. (project_dir or "nil"))
+		return false
+	end
+
 	local error_output = {}
 	vim.fn.jobstart(cmd, {
-		cwd = vim.fn.getcwd(),
+		cwd = project_dir,
 		on_stdout = function(_, data)
-			for _, line in ipairs(data) do
-				if line ~= "" then
-					vim.schedule(function()
-						notifications.progress_update("python_essentials", line, 50)
-					end)
-				end
-			end
+			-- Silent - don't show every package being installed
 		end,
 		on_stderr = function(_, data)
 			for _, line in ipairs(data) do
 				if line ~= "" then
-					-- uv outputs progress to stderr, not an error
-					if line:match("Installed %d+ package") then
-						vim.schedule(function()
-							vim.notify("[Pyworks] " .. line, vim.log.levels.INFO)
-						end)
-					elseif not line:match("WARNING") and not line:match("Resolved") then
+					-- Only collect actual errors (not progress output)
+					if
+						not line:match("WARNING")
+						and not line:match("Resolved")
+						and not line:match("Installed")
+						and not line:match("Collecting")
+						and not line:match("Installing")
+					then
 						table.insert(error_output, line)
-						vim.schedule(function()
-							vim.notify("[Pyworks] " .. line, vim.log.levels.DEBUG)
-						end)
 					end
 				end
 			end
@@ -251,8 +283,9 @@ function M.install_essentials()
 end
 
 -- Check if a package is installed
-function M.is_package_installed(package_name)
-	local python_path = M.get_python_path()
+function M.is_package_installed(package_name, filepath)
+	filepath = filepath or current_filepath
+	local python_path = M.get_python_path(filepath)
 	if not python_path then
 		return false
 	end
@@ -285,12 +318,13 @@ function M.is_package_installed(package_name)
 end
 
 -- Get list of installed packages
-function M.get_installed_packages()
-	if not M.has_venv() then
+function M.get_installed_packages(filepath)
+	filepath = filepath or current_filepath
+	if not M.has_venv(filepath) then
 		return {}
 	end
 
-	local pip_path = M.get_pip_path()
+	local pip_path = M.get_pip_path(filepath)
 	if not pip_path then
 		return {}
 	end
@@ -314,9 +348,10 @@ function M.get_installed_packages()
 end
 
 -- Install packages
-function M.install_packages(package_list)
-	if not M.has_venv() then
-		if not M.create_venv() then
+function M.install_packages(package_list, filepath)
+	filepath = filepath or current_filepath
+	if not M.has_venv(filepath) then
+		if not M.create_venv(filepath) then
 			return false
 		end
 	end
@@ -326,7 +361,7 @@ function M.install_packages(package_list)
 	end
 
 	-- Get the correct package manager command
-	local package_manager = M.get_package_manager()
+	local package_manager = M.get_package_manager(filepath)
 
 	-- Verify the package manager is available
 	local is_uv = package_manager:match("^uv")
@@ -353,35 +388,53 @@ function M.install_packages(package_list)
 
 	local cmd = string.format("%s install %s", package_manager, packages_str)
 
+	-- Get project directory for this file (first return value)
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+
+	-- Debug: Show what we got
+	-- notifications.notify(string.format("Debug: filepath=%s, project_dir=%s", filepath or "nil", project_dir or "nil"), vim.log.levels.WARN)
+
+	-- Ensure project_dir is valid
+	if not project_dir or project_dir == "" then
+		notifications.notify_error("Project directory is nil or empty for file: " .. (filepath or "nil"))
+		return false
+	end
+
+	if vim.fn.isdirectory(project_dir) ~= 1 then
+		notifications.notify_error(
+			string.format("Project directory does not exist: '%s' (from file: %s)", project_dir, filepath or "nil")
+		)
+		return false
+	end
+
+	-- Track output for better error reporting
+	local error_lines = {}
+	local success_output = {}
+	local all_output = {} -- Keep ALL output for debugging
+
+	-- Log the command being executed
+	notifications.notify(string.format("Executing: %s", cmd), vim.log.levels.INFO)
+	notifications.notify(string.format("In directory: %s", project_dir), vim.log.levels.INFO)
+
 	-- Create a job to install packages
 	local job_id = vim.fn.jobstart(cmd, {
-		cwd = vim.fn.getcwd(),
+		cwd = project_dir,
 		on_stdout = function(_, data)
-			vim.schedule(function()
-				-- Update progress with package names as they install
-				for _, line in ipairs(data) do
-					if line:match("Successfully installed") or line:match("Collecting") then
-						notifications.progress_update("python_packages", line, 90)
-					end
+			for _, line in ipairs(data) do
+				if line ~= "" then
+					table.insert(success_output, line)
+					table.insert(all_output, "[STDOUT] " .. line)
 				end
-			end)
+			end
 		end,
 		on_stderr = function(_, data)
-			vim.schedule(function()
-				for _, line in ipairs(data) do
-					if line ~= "" then
-						-- uv outputs progress to stderr, not an error
-						if line:match("Installed %d+ package") or line:match("Resolved %d+ package") then
-							-- Don't spam with every package when not in debug mode
-							if notifications.get_config().debug_mode then
-								vim.notify("[Pyworks] " .. line, vim.log.levels.INFO)
-							end
-						elseif not line:match("WARNING") and notifications.get_config().debug_mode then
-							vim.notify("[Pyworks] " .. line, vim.log.levels.DEBUG)
-						end
-					end
+			for _, line in ipairs(data) do
+				if line ~= "" then
+					table.insert(all_output, "[STDERR] " .. line)
+					-- Capture ALL stderr for debugging, not just errors
+					table.insert(error_lines, line)
 				end
-			end)
+			end
 		end,
 		on_exit = function(job_id_exit, code)
 			vim.schedule(function()
@@ -396,7 +449,73 @@ function M.install_packages(package_list)
 					cache.invalidate_pattern("imports_")
 				else
 					notifications.progress_finish("python_packages")
-					notifications.notify_error("Failed to install some packages. Check :messages for details.")
+
+					-- Create a detailed error buffer
+					vim.cmd("new")
+					vim.bo.buftype = "nofile"
+					vim.bo.bufhidden = "wipe"
+					vim.bo.swapfile = false
+					vim.bo.filetype = "text"
+					vim.api.nvim_buf_set_name(0, "Package Installation Error")
+
+					local error_report = {
+						"PACKAGE INSTALLATION FAILED",
+						"=" .. string.rep("=", 60),
+						"",
+						"Command: " .. cmd,
+						"Directory: " .. project_dir,
+						"Exit code: " .. code,
+						"Packages attempted: " .. packages_str,
+						"",
+						"=" .. string.rep("=", 60),
+						"FULL OUTPUT:",
+						"=" .. string.rep("=", 60),
+						"",
+					}
+
+					-- Add all output
+					vim.list_extend(error_report, all_output)
+
+					-- Add specific error analysis
+					error_report[#error_report + 1] = ""
+					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+					error_report[#error_report + 1] = "ERROR ANALYSIS:"
+					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+
+					-- Look for specific UV resolution errors
+					for _, line in ipairs(error_lines) do
+						if
+							line:match("No solution found")
+							or line:match("Because")
+							or line:match("requires")
+							or line:match("depends")
+						then
+							error_report[#error_report + 1] = "• " .. line
+						end
+					end
+
+					error_report[#error_report + 1] = ""
+					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+					error_report[#error_report + 1] = "TROUBLESHOOTING:"
+					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+					error_report[#error_report + 1] = "1. Try installing packages one by one to identify conflicts"
+					error_report[#error_report + 1] = "2. Check Python version compatibility"
+					error_report[#error_report + 1] =
+						"3. For UV: Consider using 'uv pip install --no-deps' for problematic packages"
+					error_report[#error_report + 1] = "4. Use :PyworksListPython to see currently installed packages"
+					error_report[#error_report + 1] = ""
+					error_report[#error_report + 1] = "Press 'q' to close this buffer"
+
+					-- Set buffer content
+					vim.api.nvim_buf_set_lines(0, 0, -1, false, error_report)
+
+					-- Make read-only and add keymap
+					vim.bo.modifiable = false
+					vim.bo.readonly = true
+					vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
+
+					-- Also show a short notification
+					notifications.notify_error("Package installation failed. See error buffer for details.")
 				end
 
 				-- Remove job from active jobs (use the job_id from on_exit parameter)
@@ -424,7 +543,10 @@ function M.install_packages(package_list)
 end
 
 -- Ensure Python environment is ready
-function M.ensure_environment()
+function M.ensure_environment(filepath)
+	-- Use provided filepath or fall back to current_filepath
+	filepath = filepath or current_filepath
+
 	-- Check cache first
 	if not state.should_check("python_env", "python", 30) then
 		return true
@@ -433,7 +555,7 @@ function M.ensure_environment()
 	state.set_last_check("python_env", "python")
 
 	-- Step 1: Check/create venv
-	if not M.has_venv() then
+	if not M.has_venv(filepath) then
 		if not M.create_venv() then
 			return false
 		end
@@ -441,7 +563,7 @@ function M.ensure_environment()
 
 	-- Step 2: Install essentials
 	if config.auto_install_essentials then
-		M.install_essentials()
+		M.install_essentials(filepath)
 	end
 
 	-- Step 3: Notify environment ready
@@ -452,8 +574,17 @@ end
 
 -- Handle Python file
 function M.handle_file(filepath, is_notebook)
-	-- Ensure environment
-	M.ensure_environment()
+	-- Store current filepath for other functions to use
+	-- Make sure it's absolute
+	if filepath and filepath ~= "" then
+		if not filepath:match("^/") then
+			filepath = vim.fn.fnamemodify(filepath, ":p")
+		end
+		current_filepath = filepath
+	end
+
+	-- Ensure environment for this specific file's project
+	M.ensure_environment(filepath)
 
 	-- Detect missing packages
 	vim.defer_fn(function()
@@ -486,12 +617,190 @@ function M.install_missing_packages()
 		return
 	end
 
-	M.install_packages(missing)
+	-- Show which packages we're trying to install
+	notifications.notify(
+		string.format("Detected %d missing packages: %s", #missing, table.concat(missing, ", ")),
+		vim.log.levels.INFO
+	)
+
+	-- Get current buffer's filepath if not already set
+	local filepath = current_filepath
+	if not filepath or filepath == "" then
+		-- Primary method: Use vim.fn.expand which handles all cases
+		filepath = vim.fn.expand("%:p")
+
+		-- Fallback: If expand didn't work, use nvim_buf_get_name
+		if filepath == "" then
+			local bufname = vim.api.nvim_buf_get_name(0)
+			if bufname ~= "" then
+				-- Make it absolute if it's relative
+				if not bufname:match("^/") and not bufname:match("^~") then
+					-- It's a relative path, make it absolute
+					filepath = vim.fn.fnamemodify(bufname, ":p")
+				else
+					filepath = bufname
+				end
+			end
+		end
+	end
+
+	-- Final validation and error reporting
+	if not filepath or filepath == "" then
+		notifications.notify_error("Could not determine file path for package installation")
+		return
+	end
+
+	-- Check if the file actually exists
+	if vim.fn.filereadable(filepath) ~= 1 then
+		notifications.notify_error(string.format("File not found: %s", filepath))
+		return
+	end
+
+	M.install_packages(missing, filepath)
+end
+
+-- Install specific Python packages (user command)
+function M.install_python_packages(packages_str)
+	-- Get current file context
+	local filepath = current_filepath or vim.fn.expand("%:p")
+	if filepath == "" then
+		filepath = nil
+	end
+
+	-- Parse packages string (space or comma separated)
+	local packages = {}
+	for pkg in packages_str:gmatch("[^,%s]+") do
+		table.insert(packages, pkg)
+	end
+
+	if #packages == 0 then
+		notifications.notify("No packages specified", vim.log.levels.WARN)
+		return
+	end
+
+	-- Ensure environment exists
+	if not M.has_venv(filepath) then
+		notifications.notify("Creating Python virtual environment first...", vim.log.levels.INFO)
+		if not M.create_venv(filepath) then
+			return
+		end
+	end
+
+	notifications.notify(
+		string.format("Installing Python packages: %s", table.concat(packages, ", ")),
+		vim.log.levels.INFO
+	)
+	M.install_packages(packages, filepath)
+end
+
+-- Uninstall Python packages (user command)
+function M.uninstall_python_packages(packages_str)
+	-- Get current file context
+	local filepath = current_filepath or vim.fn.expand("%:p")
+	if filepath == "" then
+		filepath = nil
+	end
+
+	-- Check venv exists
+	if not M.has_venv(filepath) then
+		notifications.notify_error("No Python virtual environment found")
+		return
+	end
+
+	-- Parse packages string
+	local packages = {}
+	for pkg in packages_str:gmatch("[^,%s]+") do
+		table.insert(packages, pkg)
+	end
+
+	if #packages == 0 then
+		notifications.notify("No packages specified", vim.log.levels.WARN)
+		return
+	end
+
+	-- Get package manager
+	local package_manager = M.get_package_manager(filepath)
+	local project_dir, _ = utils.get_project_paths(filepath)
+
+	-- Build uninstall command
+	local packages_str_clean = table.concat(packages, " ")
+	local cmd = string.format("%s uninstall -y %s", package_manager, packages_str_clean)
+
+	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
+
+	-- Execute uninstall
+	local job_id = vim.fn.jobstart(cmd, {
+		cwd = project_dir,
+		on_exit = function(_, code)
+			vim.schedule(function()
+				if code == 0 then
+					notifications.notify("Packages uninstalled successfully", vim.log.levels.INFO)
+					-- Invalidate cache
+					cache.invalidate("installed_packages_python")
+				else
+					notifications.notify_error("Failed to uninstall some packages")
+				end
+			end)
+		end,
+	})
+
+	if not job_id or job_id <= 0 then
+		notifications.notify_error("Failed to start uninstall command")
+	end
+end
+
+-- List installed Python packages
+function M.list_python_packages()
+	local filepath = current_filepath or vim.fn.expand("%:p")
+	if filepath == "" then
+		filepath = nil
+	end
+
+	if not M.has_venv(filepath) then
+		notifications.notify_error("No Python virtual environment found")
+		return
+	end
+
+	local pip_path = M.get_pip_path(filepath)
+	if not pip_path then
+		notifications.notify_error("pip not found in virtual environment")
+		return
+	end
+
+	-- Run pip list
+	local cmd = string.format("%s list", pip_path)
+	local output = vim.fn.system(cmd)
+
+	if vim.v.shell_error == 0 then
+		-- Create a new buffer to show the output
+		vim.cmd("new")
+		vim.bo.buftype = "nofile"
+		vim.bo.bufhidden = "wipe"
+		vim.bo.swapfile = false
+		vim.bo.filetype = "text"
+
+		-- Set buffer name
+		vim.api.nvim_buf_set_name(0, "Python Packages")
+
+		-- Add content
+		local lines = vim.split(output, "\n")
+		vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+
+		-- Make it read-only
+		vim.bo.modifiable = false
+		vim.bo.readonly = true
+
+		-- Add keymap to close with q
+		vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
+	else
+		notifications.notify_error("Failed to list packages")
+	end
 end
 
 -- Check Python version compatibility
-function M.check_compatibility(package_name)
-	local python_path = M.get_python_path() or "python3"
+function M.check_compatibility(package_name, filepath)
+	filepath = filepath or current_filepath
+	local python_path = M.get_python_path(filepath) or "python3"
 
 	-- Get Python version
 	local cmd = string.format("%s --version 2>&1", python_path)
@@ -530,4 +839,3 @@ function M.check_compatibility(package_name)
 end
 
 return M
-

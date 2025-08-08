@@ -57,7 +57,12 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 		-- Use defer_fn for non-blocking operation
 		vim.defer_fn(function()
 			local detector = require("pyworks.core.detector")
-			detector.on_file_open(ev.file)
+			-- Ensure we pass absolute path
+			local filepath = ev.file
+			if filepath and filepath ~= "" and not filepath:match("^/") then
+				filepath = vim.fn.fnamemodify(filepath, ":p")
+			end
+			detector.on_file_open(filepath)
 		end, 100) -- Small delay to let buffer settle
 	end,
 	desc = "Pyworks: Detect and handle file type",

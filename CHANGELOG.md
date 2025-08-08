@@ -2,6 +2,36 @@
 
 All notable changes to pyworks.nvim will be documented in this file.
 
+## [3.0.1] - 2025-01-08
+
+### Added
+
+- **Python Package Management Commands**:
+  - `:PyworksInstallPython <packages>` - Install Python packages in project venv
+  - `:PyworksUninstallPython <packages>` - Uninstall packages from project venv
+  - `:PyworksListPython` - List all installed Python packages in a buffer
+- **Enhanced Error Reporting**: Detailed error buffers for package installation failures with full output and troubleshooting steps
+- **Smart Package Filtering**:
+  - Automatically ignores standard library modules (base64, os, sys, etc.)
+  - Filters out custom/local packages (company-specific prefixes like seell_, my_, internal_)
+  - Only suggests real PyPI packages for installation
+
+### Fixed
+
+- **Per-Project Python Configuration**: Each project now correctly uses its own Python environment
+- **UV/pip Detection**: Improved detection of UV vs regular pip virtual environments
+  - Checks for `uv = ` marker in pyvenv.cfg
+  - Verifies uv.lock presence
+  - Falls back to pip for non-UV venvs
+- **File Path Handling**: Consistent use of absolute paths throughout the codebase
+- **Package Installation**: Better handling of missing packages with improved logging
+
+### Changed
+
+- **Package Detection Logic**: More robust filtering to avoid installing non-existent packages
+- **Virtual Environment Detection**: Now uses file's directory instead of current working directory
+- **Error Messages**: More informative error messages with actionable troubleshooting steps
+
 ## [3.0.0] - 2024-08-08
 
 ### Major Rewrite - Complete Architecture Overhaul

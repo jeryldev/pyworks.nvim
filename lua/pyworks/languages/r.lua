@@ -377,4 +377,3 @@ function M.install_tidyverse()
 end
 
 return M
-

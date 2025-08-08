@@ -135,6 +135,8 @@ All scenarios work identically with zero configuration.
 ==============================================================================
 5. COMMANDS                                                *pyworks-commands*
 
+Core Commands~
+
 *:PyworksStatus*
     Show package status for current file
 
@@ -143,6 +145,24 @@ All scenarios work identically with zero configuration.
 
 *:PyworksSetup*
     Manually trigger environment setup (rarely needed)
+
+*:PyworksInstall*
+    Install missing packages detected in current file
+
+Python Package Management~
+
+*:PyworksInstallPython* {packages}
+    Install Python packages in project virtual environment
+    Example: :PyworksInstallPython numpy pandas matplotlib
+    Packages can be space or comma separated
+
+*:PyworksUninstallPython* {packages}
+    Uninstall Python packages from project virtual environment
+    Example: :PyworksUninstallPython pytest
+
+*:PyworksListPython*
+    List all installed Python packages in a new buffer
+    Press 'q' to close the buffer
 
 ==============================================================================
 6. KEYMAPS                                                  *pyworks-keymaps*
@@ -204,6 +224,10 @@ PYTHON SUPPORT~
 - Support for uv (10-100x faster) or pip
 - Compatibility checking for Python 3.12+
 - Auto-installs: pynvim, ipykernel, jupyter_client, jupytext
+- Filters standard library modules (os, sys, base64, etc.)
+- Ignores custom/local packages (company-specific modules)
+- Per-project Python environment configuration
+- Detailed error reporting for package installation failures
 
 JULIA SUPPORT~
 

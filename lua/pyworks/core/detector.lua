@@ -64,6 +64,16 @@ end
 
 -- Main file handler
 function M.on_file_open(filepath)
+	-- Validate and ensure absolute filepath
+	if not filepath or filepath == "" then
+		return
+	end
+	
+	-- Ensure absolute path
+	if not filepath:match("^/") then
+		filepath = vim.fn.fnamemodify(filepath, ":p")
+	end
+	
 	-- Skip if already processing
 	if state.get("processing_" .. filepath) then
 		return
@@ -236,6 +246,10 @@ end
 
 -- Python file handler
 function M.handle_python(filepath)
+	-- Set up Python host for this file's project
+	local init = require("pyworks.init")
+	init.setup_python_host(filepath)
+	
 	local python = require("pyworks.languages.python")
 	python.handle_file(filepath, false) -- false = not a notebook
 	auto_init_molten("python")
@@ -243,6 +257,10 @@ end
 
 -- Python notebook handler
 function M.handle_python_notebook(filepath)
+	-- Set up Python host for this file's project
+	local init = require("pyworks.init")
+	init.setup_python_host(filepath)
+	
 	local python = require("pyworks.languages.python")
 	python.handle_file(filepath, true) -- true = is a notebook
 	auto_init_molten("python")

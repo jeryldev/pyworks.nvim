@@ -298,4 +298,3 @@ function M.setup_molten_keymaps()
 end
 
 return M
-

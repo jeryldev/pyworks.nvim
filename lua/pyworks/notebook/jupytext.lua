@@ -6,6 +6,7 @@ local M = {}
 local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
+local utils = require("pyworks.utils")
 
 -- Check if jupytext is installed
 function M.is_jupytext_installed()
@@ -33,10 +34,13 @@ function M.is_jupytext_installed()
 end
 
 -- Get Python interpreter for jupytext
-function M.get_python_for_jupytext()
-	-- First try local venv
-	if vim.fn.isdirectory(".venv") == 1 then
-		local venv_python = ".venv/bin/python"
+function M.get_python_for_jupytext(filepath)
+	-- Get project-specific paths
+	local project_dir, venv_path = utils.get_project_paths(filepath)
+
+	-- First try project venv
+	if vim.fn.isdirectory(venv_path) == 1 then
+		local venv_python = venv_path .. "/bin/python"
 		if vim.fn.executable(venv_python) == 1 then
 			return venv_python
 		end
@@ -55,8 +59,8 @@ function M.get_python_for_jupytext()
 end
 
 -- Install jupytext
-function M.install_jupytext()
-	local python_path = M.get_python_for_jupytext()
+function M.install_jupytext(filepath)
+	local python_path = M.get_python_for_jupytext(filepath)
 	if not python_path then
 		notifications.notify_error("Python not found. Cannot install jupytext.")
 		return false
@@ -64,10 +68,11 @@ function M.install_jupytext()
 
 	notifications.progress_start("jupytext_install", "Installing Jupytext", "Installing notebook viewer...")
 
-	-- Determine pip command
+	-- Determine pip command based on project
+	local project_dir, venv_path = utils.get_project_paths(filepath)
 	local pip_cmd
-	if python_path:match("^%.venv/") then
-		pip_cmd = ".venv/bin/pip"
+	if python_path:match(venv_path) then
+		pip_cmd = venv_path .. "/bin/pip"
 	else
 		pip_cmd = python_path .. " -m pip"
 	end
@@ -91,14 +96,14 @@ function M.install_jupytext()
 end
 
 -- Ensure jupytext is available
-function M.ensure_jupytext()
+function M.ensure_jupytext(filepath)
 	if M.is_jupytext_installed() then
 		return true -- Already installed, nothing to do
 	end
 
 	-- Jupytext is part of Python essentials, so it should be auto-installed
 	-- with the Python environment. If it's still missing, install it silently
-	M.install_jupytext()
+	M.install_jupytext(filepath)
 
 	-- Return false since installation is async, will be ready later
 	return false
@@ -271,4 +276,3 @@ function M.setup_pairing(filepath)
 end
 
 return M
-

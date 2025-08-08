@@ -13,6 +13,7 @@ local package_mappings = {
 		["cv2"] = "opencv-python",
 		["PIL"] = "Pillow",
 		["bs4"] = "beautifulsoup4",
+		["sns"] = "seaborn",
 		["yaml"] = "PyYAML",
 		["discord"] = "discord.py",
 		["dotenv"] = "python-dotenv",
@@ -138,6 +139,11 @@ end
 
 -- Scan file for imports
 function M.scan_imports(filepath, language)
+	-- Ensure we have an absolute path for consistent caching
+	if filepath and not filepath:match("^/") then
+		filepath = vim.fn.fnamemodify(filepath, ":p")
+	end
+	
 	-- Try cache first
 	local cache_key = "imports_" .. filepath .. "_" .. language
 	local cached = cache.get(cache_key)
@@ -211,8 +217,8 @@ function M.detect_missing_packages(filepath, language)
 
 	local missing = {}
 	for _, import_name in ipairs(imports) do
-		-- Skip standard library modules
-		if not M.is_stdlib(import_name, language) then
+		-- Skip standard library modules and custom/local packages
+		if not M.is_stdlib(import_name, language) and not M.is_custom_package(import_name, language) then
 			-- Map import name to package name
 			local package_name = M.map_import_to_package(import_name, language)
 
@@ -224,6 +230,23 @@ function M.detect_missing_packages(filepath, language)
 	end
 
 	return missing
+end
+
+-- Check if a module is likely a custom/local package
+function M.is_custom_package(module_name, language)
+	if language == "python" then
+		-- Patterns that suggest custom/local packages
+		-- Custom packages often have company/project prefixes
+		if module_name:match("^seell_") or    -- SEELL specific
+		   module_name:match("^my_") or        -- Common custom prefix
+		   module_name:match("^custom_") or    -- Common custom prefix
+		   module_name:match("^local_") or     -- Common local prefix  
+		   module_name:match("^internal_") or  -- Internal packages
+		   module_name:match("^private_") then -- Private packages
+			return true
+		end
+	end
+	return false
 end
 
 -- Check if a module is part of standard library
@@ -257,6 +280,7 @@ function M.is_stdlib(module_name, language)
 			io = true,
 			string = true,
 			typing = true,
+			types = true,
 			enum = true,
 			dataclasses = true,
 			abc = true,
@@ -270,6 +294,8 @@ function M.is_stdlib(module_name, language)
 			hmac = true,
 			secrets = true,
 			uuid = true,
+			base64 = true,
+			codecs = true,
 			argparse = true,
 			logging = true,
 			configparser = true,
@@ -388,6 +414,11 @@ function M.analyze_buffer(language)
 	local filepath = vim.api.nvim_buf_get_name(0)
 	if filepath == "" then
 		return { imports = {}, missing = {}, installed = {} }
+	end
+	
+	-- Ensure absolute path
+	if not filepath:match("^/") then
+		filepath = vim.fn.fnamemodify(filepath, ":p")
 	end
 
 	local imports = M.scan_imports(filepath, language)

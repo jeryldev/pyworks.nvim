@@ -200,18 +200,36 @@ function M.setup(opts)
 end
 
 -- Setup Python host
-function M.setup_python_host()
-	-- Try to find the best Python executable
-	local python_candidates = {
-		vim.fn.getcwd() .. "/.venv/bin/python3",
-		vim.fn.getcwd() .. "/.venv/bin/python",
-		vim.fn.exepath("python3"),
-		vim.fn.exepath("python"),
-	}
+-- Now supports per-buffer configuration based on file location
+function M.setup_python_host(filepath)
+	local utils = require("pyworks.utils")
+	local python_candidates = {}
+	
+	if filepath then
+		-- Get project-specific venv
+		local project_dir, venv_path = utils.get_project_paths(filepath)
+		table.insert(python_candidates, venv_path .. "/bin/python3")
+		table.insert(python_candidates, venv_path .. "/bin/python")
+	else
+		-- Fallback to cwd-based detection
+		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python3")
+		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python")
+	end
+	
+	-- Add system Python as fallback
+	table.insert(python_candidates, vim.fn.exepath("python3"))
+	table.insert(python_candidates, vim.fn.exepath("python"))
 
 	for _, python_path in ipairs(python_candidates) do
 		if vim.fn.executable(python_path) == 1 then
-			vim.g.python3_host_prog = python_path
+			-- Set buffer-local Python if filepath provided
+			if filepath then
+				vim.b.python3_host_prog = python_path
+				-- Also update global for compatibility
+				vim.g.python3_host_prog = python_path
+			else
+				vim.g.python3_host_prog = python_path
+			end
 			break
 		end
 	end
@@ -305,6 +323,50 @@ vim.api.nvim_create_user_command("PyworksCacheStats", function()
 	)
 end, {
 	desc = "Show Pyworks cache statistics",
+})
+
+-- Python-specific package management commands
+vim.api.nvim_create_user_command("PyworksInstallPython", function(opts)
+	local python = require("pyworks.languages.python")
+	if opts.args and opts.args ~= "" then
+		python.install_python_packages(opts.args)
+	else
+		vim.ui.input({ prompt = "Python packages to install (space/comma separated): " }, function(input)
+			if input and input ~= "" then
+				python.install_python_packages(input)
+			end
+		end)
+	end
+end, {
+	nargs = "*",
+	desc = "Install Python packages in project virtual environment",
+	complete = function()
+		-- Suggest common packages
+		return { "numpy", "pandas", "matplotlib", "requests", "pytest", "black", "flake8", "mypy" }
+	end,
+})
+
+vim.api.nvim_create_user_command("PyworksUninstallPython", function(opts)
+	local python = require("pyworks.languages.python")
+	if opts.args and opts.args ~= "" then
+		python.uninstall_python_packages(opts.args)
+	else
+		vim.ui.input({ prompt = "Python packages to uninstall (space/comma separated): " }, function(input)
+			if input and input ~= "" then
+				python.uninstall_python_packages(input)
+			end
+		end)
+	end
+end, {
+	nargs = "*",
+	desc = "Uninstall Python packages from project virtual environment",
+})
+
+vim.api.nvim_create_user_command("PyworksListPython", function()
+	local python = require("pyworks.languages.python")
+	python.list_python_packages()
+end, {
+	desc = "List installed Python packages in project virtual environment",
 })
 
 -- Export configuration for other modules
