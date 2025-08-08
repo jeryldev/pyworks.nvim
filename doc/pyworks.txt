@@ -42,11 +42,13 @@ Key principles:
 ==============================================================================
 3. INSTALLATION                                         *pyworks-installation*
 
-Create ~/.config/nvim/lua/plugins/pyworks-setup.lua with this complete setup:
+Create ~/.config/nvim/lua/plugins/pyworks.lua with this setup:
 
-Note: The configuration is comprehensive because it integrates multiple
-systems (environment management, notebook support, code execution, and image
-display) that must work together seamlessly.
+For standard Neovim with lazy.nvim, see the README.md for the basic config.
+For LazyVim users, see examples/lazyvim-setup.lua for a complete example.
+
+Note: The configuration integrates multiple systems (environment management,
+notebook support, code execution, and image display) that work together.
 
 >lua
     return {
@@ -137,17 +139,27 @@ All scenarios work identically with zero configuration.
 
 Core Commands~
 
-*:PyworksStatus*
-    Show package status for current file
-
-*:PyworksClearCache*
-    Clear all caches
-
 *:PyworksSetup*
-    Manually trigger environment setup (rarely needed)
+    Manually trigger environment setup for current file
+    Usually not needed as setup is automatic
+
+*:PyworksStatus*
+    Show package status for current file (imports/installed/missing)
+    Works for Python, Julia, and R files
 
 *:PyworksInstall*
     Install missing packages detected in current file
+    Automatically detects package manager (uv/pip for Python)
+
+*:PyworksClearCache*
+    Clear all cached data (packages, kernels, etc.)
+
+*:PyworksCacheStats*
+    Show cache statistics (total, active, expired entries)
+
+*:PyworksDiagnostics*
+    Run environment diagnostics
+    Shows Python host, venv status, package manager
 
 Python Package Management~
 
@@ -155,23 +167,31 @@ Python Package Management~
     Install Python packages in project virtual environment
     Example: :PyworksInstallPython numpy pandas matplotlib
     Packages can be space or comma separated
+    Tab completion available for common packages
 
 *:PyworksUninstallPython* {packages}
     Uninstall Python packages from project virtual environment
-    Example: :PyworksUninstallPython pytest
+    Example: :PyworksUninstallPython tensorflow
 
 *:PyworksListPython*
     List all installed Python packages in a new buffer
+    Shows package names and versions
     Press 'q' to close the buffer
 
 ==============================================================================
 6. KEYMAPS                                                  *pyworks-keymaps*
 
-Code Execution (via Molten)~
+Pyworks Core~
+
+*<leader>ps*  Show package status
+*<leader>pc*  Clear cache
+*<leader>pi*  Install missing packages (buffer-local, when available)
+
+Code Execution (Molten)~
 
 *<leader>jl*  Execute current line
 *<leader>jv*  Execute visual selection
-*<leader>jr*  Select current cell (visual mode)
+*<leader>jr*  Select current cell
 *<leader>jc*  Re-evaluate current cell
 *<leader>jd*  Delete cell output
 *<leader>jo*  Show output window
@@ -179,12 +199,15 @@ Code Execution (via Molten)~
 *<leader>je*  Enter output window
 *[j*          Jump to previous cell
 *]j*          Jump to next cell
+*K*           Show Molten output or LSP hover (context-aware)
 
-Package Management~
+Kernel Management (Molten)~
 
-*<leader>pi*  Install missing packages
-*<leader>ps*  Show package status
-*<leader>pc*  Clear cache
+*<leader>mi*  Initialize kernel
+*<leader>mr*  Restart kernel
+*<leader>mx*  Interrupt execution
+*<leader>mn*  Import notebook outputs
+*<leader>ms*  Save outputs
 
 ==============================================================================
 7. CONFIGURATION                                            *pyworks-config*

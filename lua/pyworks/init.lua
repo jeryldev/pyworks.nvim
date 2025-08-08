@@ -48,7 +48,7 @@ function M.configure_dependencies(opts)
 	if not opts.skip_molten and vim.fn.exists(":MoltenInit") == 2 then
 		vim.g.molten_image_provider = "image.nvim"
 		vim.g.molten_auto_open_output = true
-		vim.g.molten_virt_text_output = false -- Don't show inline virtual text
+		vim.g.molten_virt_text_output = true
 		vim.g.molten_virt_lines_off_by_1 = false
 		vim.g.molten_output_win_max_height = 40
 		vim.g.molten_output_win_max_width = 150
@@ -204,7 +204,7 @@ end
 function M.setup_python_host(filepath)
 	local utils = require("pyworks.utils")
 	local python_candidates = {}
-	
+
 	if filepath then
 		-- Get project-specific venv
 		local project_dir, venv_path = utils.get_project_paths(filepath)
@@ -215,7 +215,7 @@ function M.setup_python_host(filepath)
 		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python3")
 		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python")
 	end
-	
+
 	-- Add system Python as fallback
 	table.insert(python_candidates, vim.fn.exepath("python3"))
 	table.insert(python_candidates, vim.fn.exepath("python"))
@@ -436,4 +436,3 @@ function M.health()
 end
 
 return M
-

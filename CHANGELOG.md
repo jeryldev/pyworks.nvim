@@ -2,6 +2,23 @@
 
 All notable changes to pyworks.nvim will be documented in this file.
 
+## [3.0.2] - 2025-01-08
+
+### Added
+
+- **LazyVim Configuration Example**: Added `examples/lazyvim-setup.lua` with complete LazyVim-specific setup
+- **Molten Virtual Text Output**: Enabled `molten_virt_text_output` to show both images and text output persistently
+
+### Fixed
+
+- **Molten Cell Persistence**: Cells now properly show output when cursor returns to them
+- **Image Display**: Images now display correctly in Molten output windows alongside text
+
+### Documentation
+
+- Updated README with LazyVim-specific installation instructions
+- Added example configuration files for different Neovim distributions
+
 ## [3.0.1] - 2025-01-08
 
 ### Added

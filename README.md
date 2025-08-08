@@ -42,25 +42,31 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 
 Create `~/.config/nvim/lua/plugins/pyworks.lua` with this **simplified configuration**:
 
+> **LazyVim Users**: See [examples/lazyvim-setup.lua](examples/lazyvim-setup.lua) for LazyVim-specific configuration
+
 ```lua
 return {
   {
     "jeryldev/pyworks.nvim",
     dependencies = {
+      {
+        "GCBallesteros/jupytext.nvim",
+        config = true, -- This ensures jupytext.setup() is called!
+      },
       "nvim-lua/plenary.nvim",      -- Required: Core utilities
       "benlubas/molten-nvim",       -- Required: Code execution
-      "GCBallesteros/jupytext.nvim", -- Required: Notebook support
       "3rd/image.nvim",             -- Required: Image display
     },
     config = function()
       require("pyworks").setup({
         -- Pyworks auto-configures everything with proven settings!
+        -- Just specify any preferences:
         python = {
           use_uv = true,  -- Use uv for faster package installation
         },
         image_backend = "kitty",  -- or "ueberzug" for other terminals
 
-        -- Optional: Skip auto-configuration if needed
+        -- Optional: Skip auto-configuration of specific dependencies
         -- skip_molten = false,
         -- skip_jupytext = false,
         -- skip_image = false,
@@ -69,7 +75,7 @@ return {
     end,
     lazy = false,    -- Load immediately for file detection
     priority = 100,  -- Load early
-  }
+  },
 }
 ```
 
@@ -261,18 +267,75 @@ install.packages('IRkernel')
 IRkernel::installspec()
 ```
 
+## 📚 Commands
+
+### Core Commands
+
+| Command | Description |
+|---------|-------------|
+| `:PyworksSetup` | Manually trigger environment setup for current file |
+| `:PyworksStatus` | Show package status (imported/installed/missing) |
+| `:PyworksInstall` | Install missing packages for current file |
+| `:PyworksClearCache` | Clear all cached data |
+| `:PyworksCacheStats` | Show cache statistics |
+| `:PyworksDiagnostics` | Run diagnostics to check environment setup |
+
+### Python-Specific Commands
+
+| Command | Description |
+|---------|-------------|
+| `:PyworksInstallPython <packages>` | Install specific Python packages |
+| `:PyworksUninstallPython <packages>` | Uninstall Python packages |
+| `:PyworksListPython` | List all installed Python packages |
+
+### Keymaps
+
+#### Pyworks Keymaps
+
+| Keymap | Description |
+|--------|-------------|
+| `<leader>ps` | Show package status |
+| `<leader>pc` | Clear cache |
+| `<leader>pi` | Install missing packages (buffer-local) |
+
+#### Molten (Code Execution) Keymaps
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>jl` | Normal | Run current line |
+| `<leader>jv` | Visual | Run selected lines |
+| `<leader>jr` | Normal | Select current cell |
+| `<leader>jc` | Normal | Re-evaluate current cell |
+| `<leader>jd` | Normal | Delete cell output |
+| `<leader>jo` | Normal | Show output window |
+| `<leader>jh` | Normal | Hide output window |
+| `<leader>je` | Normal | Enter output window |
+| `]j` | Normal | Jump to next cell |
+| `[j` | Normal | Jump to previous cell |
+| `K` | Normal | Show output or LSP hover |
+
+#### Molten Kernel Management
+
+| Keymap | Description |
+|--------|-------------|
+| `<leader>mi` | Initialize kernel |
+| `<leader>mr` | Restart kernel |
+| `<leader>mx` | Interrupt execution |
+| `<leader>mn` | Import notebook outputs |
+| `<leader>ms` | Save outputs |
+
 ## 🎯 Quick Start
 
 ### Python Data Science
 
 ```vim
-:PyworksSetup    " Choose 'Data Science / Notebooks'
-:PyworksNewNotebook analysis.ipynb
-" → Detected notebook - checking for Jupyter support...
-" → Checking for compatible Python kernel...
-" → ✓ Initialized kernel: python3
+" Just open a Python file or notebook
+nvim analysis.py
+" → 🔍 Processing: analysis.py
+" → 🐍 Python (analysis): Using .venv
+" → ✅ Molten ready with python3 kernel
 " → 📦 Missing packages: numpy, pandas
-" → >>> Press <leader>pi to install missing packages
+" → Press <leader>pi to install
 ```
 
 ### Julia Scientific Computing
@@ -280,10 +343,9 @@ IRkernel::installspec()
 ```vim
 " Just open any .jl file - automatic setup!
 nvim experiment.jl
-" → Detected Julia file - checking for Jupyter support...
-" → Checking for compatible Julia kernel...
-" → ✓ Initialized kernel: julia-1.9
-" Ready to run with <leader>jl or <leader>jv
+" → 🔍 Processing: experiment.jl
+" → 🔶 Julia (experiment): Using Project.toml
+" → ✅ Molten ready with julia kernel
 ```
 
 ### R Statistical Analysis
@@ -291,99 +353,10 @@ nvim experiment.jl
 ```vim
 " Just open any .R file - automatic setup!
 nvim analysis.R
-" → Detected R file - checking for Jupyter support...
-" → Checking for compatible R kernel...
-" → ✓ Initialized kernel: ir
-" Ready to run with <leader>jl or <leader>jv
+" → 🔍 Processing: analysis.R
+" → 📦 R (analysis): Using renv
+" → ✅ Molten ready with ir kernel
 ```
-
-### Python Web Development
-
-```vim
-:PyworksWeb      " Quick setup for FastAPI/Flask/Django
-" → Creating virtual environment...
-" → Installing web frameworks...
-" → ✓ Environment ready!
-```
-
-## 🎬 Demonstrations
-
-### Setup and Usage
-
-_Video demonstration of pyworks.nvim setup process and basic commands_
-
-[![Setup Demo](https://img.youtube.com/vi/hoxrN8Qrbt4/maxresdefault.jpg)](https://www.youtube.com/watch?v=hoxrN8Qrbt4)
-
-**What you'll see:**
-
-- Running `:PyworksSetup` and choosing project type
-- Virtual environment creation with automatic package installation
-- Python host configuration and PATH setup
-- Creating notebooks with `:PyworksNewNotebook`
-
-### Notebook Workflow
-
-_Video demonstration of Jupyter notebook workflow with Molten integration_
-
-[![Notebook Workflow Demo](https://img.youtube.com/vi/D_y4YkZqGRY/maxresdefault.jpg)](https://www.youtube.com/watch?v=D_y4YkZqGRY)
-
-**What you'll see:**
-
-- Cell navigation with `]j` and `[j` (next/previous cell)
-- Selecting cells with `<leader>jr` (select current cell)
-- Running selections with `<leader>jv` (run visual selection)
-- Chart generation with matplotlib, seaborn, and plotly
-- Real-time output display and image rendering
-
-## 📚 Commands
-
-### Core Commands
-
-| Command                                     | Description                                     |
-| ------------------------------------------- | ----------------------------------------------- |
-| `:PyworksSetup`                             | Interactive project setup with async operations |
-| `:PyworksCheckEnvironment`                  | Show comprehensive environment diagnostics      |
-| `:PyworksInstallPackages <packages>`        | Install packages in background (non-blocking)   |
-| `:PyworksNewNotebook <filename> [language]` | Create notebook with auto kernel initialization |
-| `:PyworksFixNotebook [filename]`            | Fix notebook missing Python metadata            |
-| `:PyworksDebug`                             | Debug configuration and fix common issues       |
-| `:PyworksShowEnvironment`                   | Display current Python environment status       |
-
-### Python Package Management
-
-| Command                              | Description                                  |
-| ------------------------------------ | -------------------------------------------- |
-| `:PyworksInstallPython <packages>`  | Install Python packages in project venv     |
-| `:PyworksUninstallPython <packages>`| Uninstall Python packages from project venv |
-| `:PyworksListPython`                | List all installed Python packages          |
-| `<leader>pi`                        | Install detected missing packages           |
-
-> **Note**: Package names can be space or comma separated.  
-> Example: `:PyworksInstallPython numpy pandas matplotlib` or `:PyworksInstallPython requests,flask,sqlalchemy`
-| `:PyworksBrowsePackages`                    | Interactive package browser with categories     |
-| `:PyworksCheckDependencies`                 | Check status of optional dependencies           |
-| `:PyworksInstallDependencies`               | Auto-install missing dependencies               |
-| `:PyworksInstallEssentials`                 | Install essential notebook packages (auto-runs) |
-| `:PyworksCreateKernel`                      | Create Jupyter kernel from current project venv |
-| `:PyworksFixKernel [name]`                  | Fix kernel by installing missing packages       |
-| `:PyworksListKernels`                       | List and verify all Jupyter kernels             |
-| `:PyworksRemoveKernel [name]`               | Remove a Jupyter kernel                         |
-
-### Quick Setup Commands
-
-| Command        | Description               |
-| -------------- | ------------------------- |
-| `:PyworksWeb`  | Setup for web development |
-| `:PyworksData` | Setup for data science    |
-
-### Short Aliases
-
-| Alias            | Full Command               |
-| ---------------- | -------------------------- |
-| `:PWSetup`       | `:PyworksSetup`            |
-| `:PWCheck`       | `:PyworksCheckEnvironment` |
-| `:PWInstall`     | `:PyworksInstallPackages`  |
-| `:PWNewNotebook` | `:PyworksNewNotebook`      |
 
 ## ⌨️ Keybindings
 
@@ -409,30 +382,23 @@ _Video demonstration of Jupyter notebook workflow with Molten integration_
 | `<leader>pi` | Install missing packages (auto-detected from imports) |
 | `<leader>pa` | Manually analyze imports in current buffer            |
 
-## 🛠️ Project Types
+## 🛠️ Common Use Cases
 
-### 1. Data Science / Notebooks
+### Data Science / Notebooks
 
-- **Packages**: numpy, pandas, matplotlib, scikit-learn, jupyter, and more
+- **Packages**: numpy, pandas, matplotlib, scikit-learn, jupyter
 - **Features**: Full Jupyter integration with Molten
-- **Auto-configures**: Python host and PATH for notebooks
+- **Quick Start**: Just open any `.py` or `.ipynb` file
 
-### 2. Web Development
+### Web Development
 
 - **Packages**: FastAPI, Flask, Django, SQLAlchemy, pytest, black, ruff
-- **Quick Start**: `:PyworksWeb`
+- **Quick Start**: `:PyworksInstallPython fastapi uvicorn sqlalchemy`
 
-### 3. General Python Development
+### Machine Learning
 
-- **Packages**: pytest, black, ruff, mypy, ipython, rich, typer
-
-### 4. Automation / Scripting
-
-- **Packages**: requests, beautifulsoup4, selenium, schedule
-
-### 5. Custom
-
-- Choose your own packages
+- **Packages**: torch, transformers, scikit-learn, xgboost
+- **Quick Start**: `:PyworksInstallPython torch transformers`
 - Decide if you need Jupyter integration
 
 ## 🔧 Configuration
