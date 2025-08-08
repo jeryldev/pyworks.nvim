@@ -6,6 +6,13 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Added
 
+- **Notebook Creation Commands**: Six new commands for creating notebooks
+  - `:PyworksNewPython [name]` - Create Python file with cell markers
+  - `:PyworksNewJulia [name]` - Create Julia file with cell markers
+  - `:PyworksNewR [name]` - Create R file with cell markers
+  - `:PyworksNewPythonNotebook [name]` - Create Python .ipynb notebook
+  - `:PyworksNewJuliaNotebook [name]` - Create Julia .ipynb notebook
+  - `:PyworksNewRNotebook [name]` - Create R .ipynb notebook
 - **LazyVim Configuration Example**: Added `examples/lazyvim-setup.lua` with complete LazyVim-specific setup
 - **Molten Virtual Text Output**: Enabled `molten_virt_text_output` to show both images and text output persistently
 

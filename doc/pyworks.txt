@@ -161,6 +161,33 @@ Core Commands~
     Run environment diagnostics
     Shows Python host, venv status, package manager
 
+Notebook Creation Commands~
+
+*:PyworksNewPython* [name]
+    Create new Python file with cell markers (.py)
+    If name is provided, saves as name.py
+    Otherwise creates unnamed buffer (save with :w)
+
+*:PyworksNewJulia* [name]
+    Create new Julia file with cell markers (.jl)
+    Includes common imports like Plots, DataFrames
+
+*:PyworksNewR* [name]
+    Create new R file with cell markers (.R)
+    Includes common libraries like ggplot2, dplyr
+
+*:PyworksNewPythonNotebook* [name]
+    Create new Python Jupyter notebook (.ipynb)
+    Creates proper JSON structure with Python kernel
+
+*:PyworksNewJuliaNotebook* [name]
+    Create new Julia Jupyter notebook (.ipynb)
+    Creates proper JSON structure with Julia kernel
+
+*:PyworksNewRNotebook* [name]
+    Create new R Jupyter notebook (.ipynb)
+    Creates proper JSON structure with R kernel
+
 Python Package Management~
 
 *:PyworksInstallPython* {packages}

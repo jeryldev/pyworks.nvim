@@ -197,6 +197,9 @@ function M.setup(opts)
 
 	-- Mark setup as complete
 	vim.g.pyworks_setup_complete = true
+	
+	-- Load notebook creation commands
+	require("pyworks.commands.create")
 end
 
 -- Setup Python host

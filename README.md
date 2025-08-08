@@ -280,6 +280,17 @@ IRkernel::installspec()
 | `:PyworksCacheStats` | Show cache statistics |
 | `:PyworksDiagnostics` | Run diagnostics to check environment setup |
 
+### Notebook Creation Commands
+
+| Command | Description |
+|---------|-------------|
+| `:PyworksNewPython [name]` | Create new Python file with cell markers (.py) |
+| `:PyworksNewJulia [name]` | Create new Julia file with cell markers (.jl) |
+| `:PyworksNewR [name]` | Create new R file with cell markers (.R) |
+| `:PyworksNewPythonNotebook [name]` | Create new Python Jupyter notebook (.ipynb) |
+| `:PyworksNewJuliaNotebook [name]` | Create new Julia Jupyter notebook (.ipynb) |
+| `:PyworksNewRNotebook [name]` | Create new R Jupyter notebook (.ipynb) |
+
 ### Python-Specific Commands
 
 | Command | Description |
