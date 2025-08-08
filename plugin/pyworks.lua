@@ -120,16 +120,13 @@ vim.api.nvim_create_autocmd("FileType", {
 		keymaps.setup_buffer_keymaps()
 		keymaps.setup_molten_keymaps()
 
-		-- For notebooks (.ipynb files converted by jupytext), trigger full initialization
+		-- For notebooks (.ipynb files converted by jupytext), trigger auto-initialization
 		-- This is needed because jupytext changes the filetype after conversion
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)
 		if filepath:match("%.ipynb$") then
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
-				-- First, trigger the main file handler (environment setup, package detection, etc.)
-				detector.on_file_open(filepath)
-				
-				-- Then trigger notebook-specific initialization (Molten, kernels, etc.)
+				-- Trigger auto-initialization based on the filetype
 				local ft = vim.bo[ev.buf].filetype
 				if ft == "python" then
 					detector.handle_python_notebook(filepath)
