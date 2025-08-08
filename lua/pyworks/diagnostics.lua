@@ -1,7 +1,18 @@
 -- Diagnostic module for pyworks.nvim
 local M = {}
 
+local error_handler = require("pyworks.core.error_handler")
+
 function M.run_diagnostics()
+	local ok, report = error_handler.protected_call(function()
+		local report = {}
+		return report
+	end, "Diagnostics failed")
+	
+	if not ok then
+		return
+	end
+	
 	local report = {}
 
 	-- Check current working directory

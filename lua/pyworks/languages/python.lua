@@ -8,6 +8,7 @@ local notifications = require("pyworks.core.notifications")
 local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
+local error_handler = require("pyworks.core.error_handler")
 
 -- Track current file being processed
 local current_filepath = nil
@@ -709,15 +710,17 @@ function M.install_python_packages(packages_str)
 		table.insert(packages, pkg)
 	end
 
-	if #packages == 0 then
-		notifications.notify("No packages specified", vim.log.levels.WARN)
+	-- Validate packages
+	packages = error_handler.validate_packages(packages, "Python")
+	if not packages then
 		return
 	end
 
 	-- Ensure environment exists
 	if not M.has_venv(filepath) then
 		notifications.notify("Creating Python virtual environment first...", vim.log.levels.INFO)
-		if not M.create_venv(filepath) then
+		local ok = error_handler.protected_call(M.create_venv, "Failed to create virtual environment", filepath)
+		if not ok then
 			return
 		end
 	end
@@ -749,8 +752,9 @@ function M.uninstall_python_packages(packages_str)
 		table.insert(packages, pkg)
 	end
 
-	if #packages == 0 then
-		notifications.notify("No packages specified", vim.log.levels.WARN)
+	-- Validate packages
+	packages = error_handler.validate_packages(packages, "Python")
+	if not packages then
 		return
 	end
 

@@ -7,6 +7,7 @@ local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
+local error_handler = require("pyworks.core.error_handler")
 
 -- Check if R is installed
 function M.has_r()

@@ -40,6 +40,7 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 ## 📝 Typical Workflow
 
 1. **Create a new notebook:**
+
    ```vim
    :PyworksNewPython analysis     " Creates analysis.py with cells
    " or
@@ -47,17 +48,20 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
    ```
 
 2. **Write your code:**
+
    - Cells are marked with `# %%`
    - Add imports in first cell
    - Write analysis code in subsequent cells
 
 3. **Execute code:**
+
    - `<leader>jv` - Run selected lines (visual mode)
    - `<leader>jl` - Run current line
    - `<leader>jr` - Select current cell
    - `<leader>jc` - Re-run current cell
 
 4. **Navigate:**
+
    - `]j` - Next cell
    - `[j` - Previous cell
    - `<leader>jo` - Show output
@@ -151,9 +155,10 @@ Pyworks provides identical zero-configuration workflows for:
 ## 🚀 What's New in v3.0
 
 ### Latest Updates (v3.0.1)
+
 - **Enhanced Package Management**: New commands for Python package management
   - `:PyworksInstallPython` - Install packages with UV or pip
-  - `:PyworksUninstallPython` - Remove packages cleanly  
+  - `:PyworksUninstallPython` - Remove packages cleanly
   - `:PyworksListPython` - View all installed packages
 - **Smart Package Detection**: Automatically filters out:
   - Standard library modules (base64, os, sys, etc.)
@@ -164,6 +169,7 @@ Pyworks provides identical zero-configuration workflows for:
 - **UV/pip Detection**: Correctly identifies and uses the right package manager
 
 ### Core v3.0 Features
+
 - **True Zero-Config**: Just open files and start coding
 - **Dynamic Kernel Detection**: Finds julia-1.11, not hardcoded "julia"
 - **Project-Based Activation**: Only runs in actual project directories
@@ -302,69 +308,69 @@ IRkernel::installspec()
 
 ### Core Commands
 
-| Command | Description |
-|---------|-------------|
-| `:PyworksSetup` | Manually trigger environment setup for current file |
-| `:PyworksStatus` | Show package status (imported/installed/missing) |
-| `:PyworksInstall` | Install missing packages for current file |
-| `:PyworksClearCache` | Clear all cached data |
-| `:PyworksCacheStats` | Show cache statistics |
-| `:PyworksDiagnostics` | Run diagnostics to check environment setup |
+| Command               | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `:PyworksSetup`       | Manually trigger environment setup for current file |
+| `:PyworksStatus`      | Show package status (imported/installed/missing)    |
+| `:PyworksInstall`     | Install missing packages for current file           |
+| `:PyworksClearCache`  | Clear all cached data                               |
+| `:PyworksCacheStats`  | Show cache statistics                               |
+| `:PyworksDiagnostics` | Run diagnostics to check environment setup          |
 
 ### Notebook Creation Commands
 
-| Command | Description |
-|---------|-------------|
-| `:PyworksNewPython [name]` | Create new Python file with cell markers (.py) |
-| `:PyworksNewJulia [name]` | Create new Julia file with cell markers (.jl) |
-| `:PyworksNewR [name]` | Create new R file with cell markers (.R) |
-| `:PyworksNewPythonNotebook [name]` | Create new Python Jupyter notebook (.ipynb) |
-| `:PyworksNewJuliaNotebook [name]` | Create new Julia Jupyter notebook (.ipynb) |
-| `:PyworksNewRNotebook [name]` | Create new R Jupyter notebook (.ipynb) |
+| Command                            | Description                                    |
+| ---------------------------------- | ---------------------------------------------- |
+| `:PyworksNewPython [name]`         | Create new Python file with cell markers (.py) |
+| `:PyworksNewJulia [name]`          | Create new Julia file with cell markers (.jl)  |
+| `:PyworksNewR [name]`              | Create new R file with cell markers (.R)       |
+| `:PyworksNewPythonNotebook [name]` | Create new Python Jupyter notebook (.ipynb)    |
+| `:PyworksNewJuliaNotebook [name]`  | Create new Julia Jupyter notebook (.ipynb)     |
+| `:PyworksNewRNotebook [name]`      | Create new R Jupyter notebook (.ipynb)         |
 
 ### Python-Specific Commands
 
-| Command | Description |
-|---------|-------------|
-| `:PyworksInstallPython <packages>` | Install specific Python packages |
-| `:PyworksUninstallPython <packages>` | Uninstall Python packages |
-| `:PyworksListPython` | List all installed Python packages |
+| Command                              | Description                        |
+| ------------------------------------ | ---------------------------------- |
+| `:PyworksInstallPython <packages>`   | Install specific Python packages   |
+| `:PyworksUninstallPython <packages>` | Uninstall Python packages          |
+| `:PyworksListPython`                 | List all installed Python packages |
 
 ### Keymaps
 
 #### Pyworks Keymaps
 
-| Keymap | Description |
-|--------|-------------|
-| `<leader>ps` | Show package status |
-| `<leader>pc` | Clear cache |
+| Keymap       | Description                             |
+| ------------ | --------------------------------------- |
+| `<leader>ps` | Show package status                     |
+| `<leader>pc` | Clear cache                             |
 | `<leader>pi` | Install missing packages (buffer-local) |
 
 #### Molten (Code Execution) Keymaps
 
-| Keymap | Mode | Description |
-|--------|------|-------------|
-| `<leader>jl` | Normal | Run current line |
-| `<leader>jv` | Visual | Run selected lines |
-| `<leader>jr` | Normal | Select current cell |
+| Keymap       | Mode   | Description              |
+| ------------ | ------ | ------------------------ |
+| `<leader>jl` | Normal | Run current line         |
+| `<leader>jv` | Visual | Run selected lines       |
+| `<leader>jr` | Normal | Select current cell      |
 | `<leader>jc` | Normal | Re-evaluate current cell |
-| `<leader>jd` | Normal | Delete cell output |
-| `<leader>jo` | Normal | Show output window |
-| `<leader>jh` | Normal | Hide output window |
-| `<leader>je` | Normal | Enter output window |
-| `]j` | Normal | Jump to next cell |
-| `[j` | Normal | Jump to previous cell |
-| `K` | Normal | Show output or LSP hover |
+| `<leader>jd` | Normal | Delete cell output       |
+| `<leader>jo` | Normal | Show output window       |
+| `<leader>jh` | Normal | Hide output window       |
+| `<leader>je` | Normal | Enter output window      |
+| `]j`         | Normal | Jump to next cell        |
+| `[j`         | Normal | Jump to previous cell    |
+| `K`          | Normal | Show output or LSP hover |
 
 #### Molten Kernel Management
 
-| Keymap | Description |
-|--------|-------------|
-| `<leader>mi` | Initialize kernel |
-| `<leader>mr` | Restart kernel |
-| `<leader>mx` | Interrupt execution |
+| Keymap       | Description             |
+| ------------ | ----------------------- |
+| `<leader>mi` | Initialize kernel       |
+| `<leader>mr` | Restart kernel          |
+| `<leader>mx` | Interrupt execution     |
 | `<leader>mn` | Import notebook outputs |
-| `<leader>ms` | Save outputs |
+| `<leader>ms` | Save outputs            |
 
 ## 🎯 Quick Start
 

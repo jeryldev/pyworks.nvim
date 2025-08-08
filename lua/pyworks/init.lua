@@ -9,6 +9,9 @@
 
 local M = {}
 
+-- Dependencies
+local error_handler = require("pyworks.core.error_handler")
+
 -- Default configuration
 local default_config = {
 	python = {
@@ -245,7 +248,17 @@ end
 vim.api.nvim_create_user_command("PyworksSetup", function()
 	local detector = require("pyworks.core.detector")
 	local filepath = vim.api.nvim_buf_get_name(0)
-	detector.on_file_open(filepath)
+	
+	-- Validate filepath
+	filepath = error_handler.validate_filepath(filepath, "setup environment")
+	if not filepath then
+		return
+	end
+	
+	local ok = error_handler.protected_call(detector.on_file_open, "Setup failed", filepath)
+	if ok then
+		vim.notify("✅ Environment setup complete", vim.log.levels.INFO)
+	end
 end, {
 	desc = "Manually trigger Pyworks environment setup for current file",
 })
@@ -255,15 +268,15 @@ vim.api.nvim_create_user_command("PyworksInstall", function()
 	local ft = vim.bo.filetype
 	if ft == "python" then
 		local python = require("pyworks.languages.python")
-		python.install_missing_packages()
+		error_handler.protected_call(python.install_missing_packages, "Package installation failed")
 	elseif ft == "julia" then
 		local julia = require("pyworks.languages.julia")
-		julia.install_missing_packages()
+		error_handler.protected_call(julia.install_missing_packages, "Package installation failed")
 	elseif ft == "r" then
 		local r = require("pyworks.languages.r")
-		r.install_missing_packages()
+		error_handler.protected_call(r.install_missing_packages, "Package installation failed")
 	else
-		vim.notify("No missing packages detected for this file type", vim.log.levels.INFO)
+		vim.notify("ℹ️ No missing packages detected for this file type", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Install missing packages for current file",

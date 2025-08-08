@@ -10,6 +10,8 @@
 
 local M = {}
 
+local error_handler = require("pyworks.core.error_handler")
+
 -- Set up keymaps for a buffer
 function M.setup_buffer_keymaps()
 	local opts = { buffer = true, silent = true }
@@ -34,12 +36,14 @@ function M.setup_buffer_keymaps()
 
 				if kernel then
 					vim.notify("Initializing " .. kernel .. " kernel...", vim.log.levels.INFO)
-					vim.cmd("MoltenInit " .. kernel)
-					vim.b[bufnr].molten_initialized = true
+					local ok = error_handler.protected_call(vim.cmd, "Failed to initialize kernel", "MoltenInit " .. kernel)
+					if ok then
+						vim.b[bufnr].molten_initialized = true
+					end
 
 					-- Wait a moment then run the line
 					vim.defer_fn(function()
-						vim.cmd("MoltenEvaluateLine")
+						error_handler.protected_call(vim.cmd, "Failed to evaluate line", "MoltenEvaluateLine")
 						-- Move to next line
 						local cursor = vim.api.nvim_win_get_cursor(0)
 						local next_line = cursor[1] + 1
