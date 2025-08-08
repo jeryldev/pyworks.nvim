@@ -72,7 +72,10 @@ function M.notify(message, level, options)
 	-- Determine if we should show the notification
 	local should_show = false
 
-	if options.error then
+	-- Check force flag first (highest priority)
+	if options.force then
+		should_show = true
+	elseif options.error then
 		-- Always show errors
 		should_show = true
 		level = vim.log.levels.ERROR
@@ -89,7 +92,7 @@ function M.notify(message, level, options)
 	elseif options.always then
 		-- Force show
 		should_show = true
-	elseif config.silent_when_ready and not options.force then
+	elseif config.silent_when_ready then
 		-- Silent mode when everything is ready
 		should_show = false
 	else
@@ -227,4 +230,3 @@ function M.get_history()
 end
 
 return M
-

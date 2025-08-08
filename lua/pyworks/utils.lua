@@ -138,16 +138,15 @@ function M.get_project_paths(filepath)
 
 		-- Validate the path exists
 		if vim.fn.filereadable(abs_filepath) ~= 1 then
-			-- If file doesn't exist, return nil to fallback to cwd
+			-- If file doesn't exist, use cwd as base
 			return vim.fn.getcwd(), vim.fn.getcwd() .. "/.venv"
 		end
 
-		local file_dir = vim.fn.fnamemodify(abs_filepath, ":h")
-
-		-- Search for project root by looking for .venv or project markers
-		project_dir = M.find_project_root(file_dir)
+		-- SIMPLIFIED LOGIC: Always use the file's directory as the project base
+		-- Each folder with Python files should have its own venv
+		project_dir = vim.fn.fnamemodify(abs_filepath, ":h")
 	else
-		-- Fallback to current working directory
+		-- When no file is specified, use current working directory
 		project_dir = vim.fn.getcwd()
 	end
 

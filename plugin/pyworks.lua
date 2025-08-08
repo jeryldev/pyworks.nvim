@@ -15,8 +15,8 @@ end
 -- Create autocmd group for pyworks
 local augroup = vim.api.nvim_create_augroup("Pyworks", { clear = true })
 
--- Helper function to check if we're in a pyworks-managed directory
-local function is_pyworks_project()
+-- Helper function to check if a file is in a pyworks-managed directory
+local function is_pyworks_project(filepath)
 	-- Check for common project markers
 	local markers = {
 		".venv", -- Python virtual environment
@@ -29,11 +29,23 @@ local function is_pyworks_project()
 		"Manifest.toml", -- Julia manifest
 	}
 
-	local cwd = vim.fn.getcwd()
-	for _, marker in ipairs(markers) do
-		if vim.fn.filereadable(cwd .. "/" .. marker) == 1 or vim.fn.isdirectory(cwd .. "/" .. marker) == 1 then
-			return true
+	-- Use the file's directory, not cwd!
+	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()
+
+	-- Walk up the directory tree to find a project root
+	local current = dir
+	local last = ""
+	while current ~= last do
+		for _, marker in ipairs(markers) do
+			if
+				vim.fn.filereadable(current .. "/" .. marker) == 1
+				or vim.fn.isdirectory(current .. "/" .. marker) == 1
+			then
+				return true
+			end
 		end
+		last = current
+		current = vim.fn.fnamemodify(current, ":h")
 	end
 
 	return false
@@ -44,25 +56,28 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 	group = augroup,
 	pattern = { "*.py", "*.jl", "*.R", "*.ipynb" },
 	callback = function(ev)
-		-- Only run pyworks in project directories
-		if not is_pyworks_project() then
+		-- Get the actual buffer number and its full path
+		local bufnr = ev.buf
+		local full_path = vim.api.nvim_buf_get_name(bufnr)
+
+		-- Use the full path for project detection
+		local check_path = full_path ~= "" and full_path or ev.file
+
+		-- Only run pyworks in project directories (check the file's location)
+		if not is_pyworks_project(check_path) then
 			return
 		end
 
 		-- Debug: Show that autocmd fired
 		if vim.g.pyworks_debug then
-			vim.notify("[Pyworks] File opened: " .. ev.file, vim.log.levels.DEBUG)
+			vim.notify("[Pyworks] File opened: " .. check_path, vim.log.levels.DEBUG)
 		end
 
 		-- Use defer_fn for non-blocking operation
 		vim.defer_fn(function()
 			local detector = require("pyworks.core.detector")
-			-- Ensure we pass absolute path
-			local filepath = ev.file
-			if filepath and filepath ~= "" and not filepath:match("^/") then
-				filepath = vim.fn.fnamemodify(filepath, ":p")
-			end
-			detector.on_file_open(filepath)
+			-- Use the full path directly
+			detector.on_file_open(full_path)
 		end, 100) -- Small delay to let buffer settle
 	end,
 	desc = "Pyworks: Detect and handle file type",
@@ -73,8 +88,8 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 	group = augroup,
 	pattern = { "*.py", "*.jl", "*.R", "*.ipynb" },
 	callback = function(ev)
-		-- Only run in project directories
-		if not is_pyworks_project() then
+		-- Only run in project directories (check the file's location)
+		if not is_pyworks_project(ev.file) then
 			return
 		end
 
@@ -91,8 +106,9 @@ vim.api.nvim_create_autocmd("FileType", {
 	group = augroup,
 	pattern = { "python", "julia", "r" },
 	callback = function(ev)
-		-- Only set up keymaps in project directories
-		if not is_pyworks_project() then
+		-- Only set up keymaps in project directories (check the file's location)
+		local filepath = vim.api.nvim_buf_get_name(ev.buf)
+		if not is_pyworks_project(filepath) then
 			-- Still set up Molten keymaps even outside projects
 			local keymaps = require("pyworks.keymaps")
 			keymaps.setup_buffer_keymaps()
