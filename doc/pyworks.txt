@@ -55,7 +55,17 @@ notebook support, code execution, and image display) that work together.
       -- Pyworks core
       {
         "jeryldev/pyworks.nvim",
-        dependencies = { "nvim-lua/plenary.nvim" },
+        dependencies = {
+          {
+            "GCBallesteros/jupytext.nvim",
+            config = true,
+          },
+          {
+            "benlubas/molten-nvim",
+            build = ":UpdateRemotePlugins",
+          },
+          "3rd/image.nvim",
+        },
         lazy = false,
         priority = 100,
         config = function()

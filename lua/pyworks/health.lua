@@ -37,6 +37,22 @@ function M.check()
 		end
 	end
 
+	-- Check plugin dependencies
+	health.start("Plugin Dependencies")
+
+	local dependencies = require("pyworks.dependencies")
+	local dep_health = dependencies.check_health()
+	for _, status in ipairs(dep_health) do
+		if status:match("^✅") then
+			health.ok(status:gsub("^✅ ", ""))
+		else
+			health.error(status:gsub("^❌ ", ""), {
+				"Run :PyworksInstallDependencies to auto-install",
+				"Or manually install the missing dependency",
+			})
+		end
+	end
+
 	health.start("Language Support")
 
 	-- Check Python

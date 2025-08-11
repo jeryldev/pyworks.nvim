@@ -10,6 +10,7 @@
 local M = {}
 
 -- Dependencies
+local dependencies = require("pyworks.dependencies")
 local error_handler = require("pyworks.core.error_handler")
 
 -- Default configuration
@@ -163,6 +164,10 @@ function M.setup(opts)
 		return
 	end
 
+	-- Ensure all dependencies are installed and configured
+	-- This handles molten-nvim, jupytext.nvim, image.nvim automatically
+	dependencies.setup(opts)
+
 	-- Auto-configure dependencies with proven settings
 	-- Use defer_fn to ensure plugins are loaded
 	vim.defer_fn(function()
@@ -200,7 +205,7 @@ function M.setup(opts)
 
 	-- Mark setup as complete
 	vim.g.pyworks_setup_complete = true
-	
+
 	-- Load notebook creation commands
 	require("pyworks.commands.create")
 end
@@ -248,13 +253,13 @@ end
 vim.api.nvim_create_user_command("PyworksSetup", function()
 	local detector = require("pyworks.core.detector")
 	local filepath = vim.api.nvim_buf_get_name(0)
-	
+
 	-- Validate filepath
 	filepath = error_handler.validate_filepath(filepath, "setup environment")
 	if not filepath then
 		return
 	end
-	
+
 	local ok = error_handler.protected_call(detector.on_file_open, "Setup failed", filepath)
 	if ok then
 		vim.notify("✅ Environment setup complete", vim.log.levels.INFO)
@@ -383,6 +388,14 @@ vim.api.nvim_create_user_command("PyworksListPython", function()
 	python.list_python_packages()
 end, {
 	desc = "List installed Python packages in project virtual environment",
+})
+
+-- Command to manually install/check dependencies
+vim.api.nvim_create_user_command("PyworksInstallDependencies", function()
+	local deps = require("pyworks.dependencies")
+	deps.install_dependencies()
+end, {
+	desc = "Check and configure all notebook dependencies (molten, jupytext, image)",
 })
 
 -- Export configuration for other modules

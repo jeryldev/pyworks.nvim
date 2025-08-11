@@ -86,10 +86,12 @@ return {
     dependencies = {
       {
         "GCBallesteros/jupytext.nvim",
-        config = true, -- This ensures jupytext.setup() is called!
+        config = true, -- IMPORTANT: This ensures jupytext.setup() is called!
       },
-      "nvim-lua/plenary.nvim",      -- Required: Core utilities
-      "benlubas/molten-nvim",       -- Required: Code execution
+      {
+        "benlubas/molten-nvim",     -- Required: Code execution
+        build = ":UpdateRemotePlugins", -- IMPORTANT: Required for Molten to work
+      },
       "3rd/image.nvim",             -- Required: Image display
     },
     config = function()
