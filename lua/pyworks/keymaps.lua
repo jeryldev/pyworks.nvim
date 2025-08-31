@@ -86,6 +86,12 @@ function M.setup_buffer_keymaps()
 
 		-- Also allow running in normal mode if there's a visual selection
 		vim.keymap.set("n", "<leader>jv", function()
+			-- Check if Python provider is working
+			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
+				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
+				return
+			end
+			
 			-- Check if kernel is initialized
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
@@ -121,6 +127,12 @@ function M.setup_buffer_keymaps()
 
 		-- Select/highlight current cell (between cell markers) or entire file
 		vim.keymap.set("n", "<leader>jr", function()
+			-- Check if Python provider is working
+			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
+				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
+				return
+			end
+			
 			-- Save current position
 			local save_cursor = vim.api.nvim_win_get_cursor(0)
 
@@ -192,7 +204,11 @@ function M.setup_buffer_keymaps()
 
 		-- Enter output window (to interact with it)
 		vim.keymap.set("n", "<leader>je", function()
-			vim.cmd("MoltenEnterOutput")
+			-- Check if Python provider is working before trying Molten commands
+			local ok, _ = pcall(vim.cmd, "MoltenEnterOutput")
+			if not ok then
+				vim.notify("⚠️  Molten not ready. Run :PyworksSetup first, then restart Neovim", vim.log.levels.WARN)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Molten: Enter output window" }))
 
 		-- Hover to show output (using K or gh)

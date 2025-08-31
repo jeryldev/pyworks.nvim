@@ -251,7 +251,6 @@ end
 
 -- Command to manually trigger environment setup
 vim.api.nvim_create_user_command("PyworksSetup", function()
-	local detector = require("pyworks.core.detector")
 	local filepath = vim.api.nvim_buf_get_name(0)
 
 	-- Validate filepath
@@ -260,9 +259,32 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		return
 	end
 
-	local ok = error_handler.protected_call(detector.on_file_open, "Setup failed", filepath)
-	if ok then
-		vim.notify("✅ Environment setup complete", vim.log.levels.INFO)
+	-- Determine file type and run appropriate setup
+	local ext = vim.fn.fnamemodify(filepath, ":e")
+	local ft = vim.bo.filetype
+	
+	if ext == "py" or ft == "python" or ext == "ipynb" then
+		-- For Python files, ensure environment and create venv if needed
+		local python = require("pyworks.languages.python")
+		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
+		if ok then
+			vim.notify("✅ Python environment setup complete", vim.log.levels.INFO)
+			-- Re-run detection to set up everything properly
+			vim.defer_fn(function()
+				local detector = require("pyworks.core.detector")
+				detector.on_file_open(filepath)
+			end, 500)
+		end
+	elseif ext == "jl" or ft == "julia" then
+		local julia = require("pyworks.languages.julia")
+		julia.handle_file(filepath, false)
+		vim.notify("✅ Julia environment checked", vim.log.levels.INFO)
+	elseif ext == "R" or ft == "r" then
+		local r = require("pyworks.languages.r")
+		r.handle_file(filepath, false)
+		vim.notify("✅ R environment checked", vim.log.levels.INFO)
+	else
+		vim.notify("ℹ️ No setup needed for this file type", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Manually trigger Pyworks environment setup for current file",

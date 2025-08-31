@@ -17,12 +17,17 @@ __pycache__/
 venv/
 .env
 
-# Test files
+# Test files and scenarios
 test_*.py
 test_*.lua
 test_*.vim
 *.ipynb
 !examples/*.ipynb
+# Test scenarios folder (contains many test cases)
+test/scenarios/
+# Keep test documentation
+!test/SCENARIOS.md
+!test/create_test_scenarios.sh
 
 # IDE
 .idea/

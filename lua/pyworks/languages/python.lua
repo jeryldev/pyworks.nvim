@@ -167,9 +167,10 @@ function M.create_venv(filepath)
 end
 
 -- Install essential packages
-function M.install_essentials()
-	if not M.has_venv() then
-		if not M.create_venv() then
+function M.install_essentials(filepath)
+	filepath = filepath or current_filepath
+	if not M.has_venv(filepath) then
+		if not M.create_venv(filepath) then
 			return false
 		end
 	end
@@ -180,7 +181,7 @@ function M.install_essentials()
 	-- Check if essentials are already installed
 	local missing_essentials = {}
 	for _, pkg in ipairs(config.essentials) do
-		if not M.is_package_installed(pkg) then
+		if not M.is_package_installed(pkg, filepath) then
 			table.insert(missing_essentials, pkg)
 		end
 	end
@@ -593,7 +594,7 @@ function M.ensure_environment(filepath)
 
 	-- Step 1: Check/create venv
 	if not M.has_venv(filepath) then
-		if not M.create_venv() then
+		if not M.create_venv(filepath) then
 			return false
 		end
 	end

@@ -424,25 +424,41 @@ function M.handle_python(filepath)
 	local init = require("pyworks.init")
 	init.setup_python_host(filepath)
 
-	-- Show project and venv detection in a single notification
+	-- Show detailed project and venv detection
 	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 	local notifications = require("pyworks.core.notifications")
 	
-	-- Combine project and venv info
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-	if vim.fn.isdirectory(venv_path) == 1 then
+	-- Get relative paths for cleaner display
+	local file_rel = vim.fn.fnamemodify(filepath, ":~:.")
+	local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
+	local venv_exists = vim.fn.isdirectory(venv_path) == 1
+	
+	-- Detect project type
+	local project_type = utils.detect_project_type(project_dir)
+	
+	-- Show detection results
+	if venv_exists then
 		notifications.notify(
-			string.format("🐍 Python (%s): Using .venv", project_name),
+			string.format("🐍 %s project: venv at %s/.venv", project_type, project_rel),
 			vim.log.levels.INFO,
 			{ force = true }
 		)
 	else
 		notifications.notify(
-			string.format("🐍 Python (%s): Creating .venv", project_name),
+			string.format("⚠️  %s project: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
 			{ force = true }
 		)
+		notifications.notify(
+			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			vim.log.levels.INFO,
+			{ force = true }
+		)
+		-- Don't auto-create on file open, but still set up for manual creation
+		-- Store filepath for PyworksSetup command
+		vim.b.pyworks_filepath = filepath
+		return
 	end
 
 	local python = require("pyworks.languages.python")
@@ -456,25 +472,39 @@ function M.handle_python_notebook(filepath)
 	local init = require("pyworks.init")
 	init.setup_python_host(filepath)
 
-	-- Show project and venv detection in a single notification
+	-- Show detailed project and venv detection for notebooks
 	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 	local notifications = require("pyworks.core.notifications")
 	
-	-- Combine project and venv info for notebook
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-	if vim.fn.isdirectory(venv_path) == 1 then
+	-- Get relative paths for cleaner display
+	local file_rel = vim.fn.fnamemodify(filepath, ":~:.")
+	local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
+	local venv_exists = vim.fn.isdirectory(venv_path) == 1
+	
+	-- Detect project type
+	local project_type = utils.detect_project_type(project_dir)
+	
+	-- Show detection results
+	if venv_exists then
 		notifications.notify(
-			string.format("📓 Python Notebook (%s): Using .venv", project_name),
+			string.format("📓 %s notebook: venv at %s/.venv", project_type, project_rel),
 			vim.log.levels.INFO,
 			{ force = true }
 		)
 	else
 		notifications.notify(
-			string.format("📓 Python Notebook (%s): Creating .venv", project_name),
+			string.format("⚠️  %s notebook: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
 			{ force = true }
 		)
+		notifications.notify(
+			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			vim.log.levels.INFO,
+			{ force = true }
+		)
+		-- Don't auto-create for notebooks, let user decide
+		return
 	end
 
 	local python = require("pyworks.languages.python")

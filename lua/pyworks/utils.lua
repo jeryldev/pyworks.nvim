@@ -142,9 +142,8 @@ function M.get_project_paths(filepath)
 			return vim.fn.getcwd(), vim.fn.getcwd() .. "/.venv"
 		end
 
-		-- SIMPLIFIED LOGIC: Always use the file's directory as the project base
-		-- Each folder with Python files should have its own venv
-		project_dir = vim.fn.fnamemodify(abs_filepath, ":h")
+		-- SMART LOGIC: Find the project root by walking up the directory tree
+		project_dir = M.find_project_root(vim.fn.fnamemodify(abs_filepath, ":h"))
 	else
 		-- When no file is specified, use current working directory
 		project_dir = vim.fn.getcwd()
@@ -169,17 +168,69 @@ function M.get_project_paths(filepath)
 	return project_dir, cache.venv_path
 end
 
+-- Detect project type based on files present
+function M.detect_project_type(project_dir)
+	if vim.fn.filereadable(project_dir .. "/manage.py") == 1 then
+		return "Django"
+	elseif vim.fn.filereadable(project_dir .. "/app.py") == 1 then
+		-- Could be Flask or Streamlit
+		local content = vim.fn.readfile(project_dir .. "/app.py", "", 100) -- Read first 100 lines
+		local content_str = table.concat(content, "\n")
+		if content_str:match("Flask") then
+			return "Flask"
+		elseif content_str:match("streamlit") or content_str:match("st%.") then
+			return "Streamlit"
+		else
+			return "Python App"
+		end
+	elseif vim.fn.filereadable(project_dir .. "/main.py") == 1 then
+		local content = vim.fn.readfile(project_dir .. "/main.py", "", 100)
+		local content_str = table.concat(content, "\n")
+		if content_str:match("FastAPI") or content_str:match("fastapi") then
+			return "FastAPI"
+		else
+			return "Python"
+		end
+	elseif vim.fn.filereadable(project_dir .. "/dvc.yaml") == 1 then
+		return "DVC/MLOps"
+	elseif vim.fn.filereadable(project_dir .. "/mlflow.yaml") == 1 then
+		return "MLflow"
+	elseif vim.fn.filereadable(project_dir .. "/pyproject.toml") == 1 then
+		return "Poetry/Modern Python"
+	elseif vim.fn.filereadable(project_dir .. "/setup.py") == 1 then
+		return "Python Package"
+	elseif vim.fn.filereadable(project_dir .. "/requirements.txt") == 1 then
+		return "Python Project"
+	elseif vim.fn.filereadable(project_dir .. "/environment.yml") == 1 or vim.fn.filereadable(project_dir .. "/conda.yaml") == 1 then
+		return "Conda Project"
+	else
+		return "Python"
+	end
+end
+
 -- Find project root by looking for markers
 function M.find_project_root(start_dir)
 	local markers = {
-		".venv", -- Virtual environment
+		".venv", -- Virtual environment (highest priority)
 		"pyproject.toml", -- Modern Python project
 		"setup.py", -- Python package
 		"requirements.txt", -- Python requirements
+		"manage.py", -- Django project
+		"app.py", -- Flask/Streamlit app
+		"main.py", -- FastAPI/general entry point
+		"Pipfile", -- Pipenv project
+		"poetry.lock", -- Poetry project
+		"conda.yaml", -- Conda environment
+		"environment.yml", -- Conda/Mamba env
+		"dvc.yaml", -- DVC (ML pipelines)
+		"mlflow.yaml", -- MLflow project
+		"setup.cfg", -- Python package config
+		"tox.ini", -- Testing config (often at root)
+		".dvcignore", -- DVC project
 		"uv.lock", -- UV lock file
 		"Project.toml", -- Julia project
 		"Manifest.toml", -- Julia manifest
-		".git", -- Git repository
+		".git", -- Git repository (lower priority)
 	}
 
 	local current = start_dir
