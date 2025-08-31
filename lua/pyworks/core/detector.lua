@@ -205,7 +205,7 @@ local function get_kernel_for_language(language, filepath)
 					)
 					-- Create venv if it doesn't have Python
 					local python_module = require("pyworks.languages.python")
-					python_module.ensure_venv(project_dir)
+					python_module.create_venv(filepath)
 					-- Try again
 					python_path = venv_path .. "/bin/python3"
 				end
