@@ -101,11 +101,7 @@ function M.ensure_jupytext(filepath)
 		return true -- Already installed, nothing to do
 	end
 
-	-- Jupytext is part of Python essentials, so it should be auto-installed
-	-- with the Python environment. If it's still missing, install it silently
-	M.install_jupytext(filepath)
-
-	-- Return false since installation is async, will be ready later
+	-- Don't auto-install, just return false so proper warnings are shown
 	return false
 end
 

@@ -54,7 +54,7 @@ end
 -- Set up autocmds for file detection
 vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 	group = augroup,
-	pattern = { "*.py", "*.jl", "*.R", "*.ipynb" },
+	pattern = { "*.py", "*.jl", "*.R" }, -- Removed *.ipynb to let jupytext handle it first
 	callback = function(ev)
 		-- Get the actual buffer number and its full path
 		local bufnr = ev.buf
@@ -148,6 +148,27 @@ vim.api.nvim_create_autocmd("FileType", {
 		-- This is needed because jupytext changes the filetype after conversion
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)
 		if filepath:match("%.ipynb$") then
+			-- Check if jupytext successfully converted the file
+			local first_line = vim.api.nvim_buf_get_lines(ev.buf, 0, 1, false)[1] or ""
+			if first_line:match("^{") then
+				-- It's still JSON, jupytext didn't work
+				local utils = require("pyworks.utils")
+				local project_dir, venv_path = utils.get_project_paths(filepath)
+				local project_type = utils.detect_project_type(project_dir)
+				local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
+				
+				vim.notify(
+					string.format("❌ %s notebook not converted: jupytext missing", project_type),
+					vim.log.levels.ERROR
+				)
+				vim.notify(
+					string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+					vim.log.levels.INFO
+				)
+				return
+			end
+			
+			-- Jupytext worked, handle the notebook
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
 				-- Trigger auto-initialization based on the filetype
@@ -166,7 +187,13 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- Clean up cache periodically
-vim.defer_fn(function()
-	local cache = require("pyworks.core.cache")
-	cache.start_periodic_cleanup(300) -- Every 5 minutes
-end, 5000)
+vim.api.nvim_create_autocmd("VimEnter", {
+	group = augroup,
+	callback = function()
+		vim.defer_fn(function()
+			local cache = require("pyworks.core.cache")
+			cache.start_periodic_cleanup(300) -- Every 5 minutes
+		end, 5000)
+	end,
+	desc = "Pyworks: Start cache cleanup timer",
+})

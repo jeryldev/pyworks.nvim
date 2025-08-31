@@ -124,10 +124,19 @@ function M.handle_notebook(filepath)
 	-- Step 1: Ensure jupytext is available
 	local notebook = require("pyworks.notebook.jupytext")
 	if not notebook.ensure_jupytext() then
+		-- Get project info for better instructions
+		local utils = require("pyworks.utils")
+		local project_dir, venv_path = utils.get_project_paths(filepath)
+		local project_type = utils.detect_project_type(project_dir)
+		local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
+		
 		notifications.notify(
-			"Jupytext not found. Install with: pip install jupytext",
-			vim.log.levels.WARN,
-			{ action_required = true }
+			string.format("❌ Cannot open %s notebook: jupytext not found", project_type),
+			vim.log.levels.ERROR
+		)
+		notifications.notify(
+			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			vim.log.levels.INFO
 		)
 		return
 	end
