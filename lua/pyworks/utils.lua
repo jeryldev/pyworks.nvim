@@ -250,7 +250,21 @@ function M.find_project_root(start_dir)
 		current = vim.fn.fnamemodify(current, ":h")
 	end
 
-	-- If no project root found, use the start directory
+	-- If no project root found, check if file is under Neovim's working directory
+	local cwd = vim.fn.getcwd()
+	
+	if cwd and cwd ~= "" then
+		-- Check if the file is under the current working directory
+		local relative_path = vim.fn.fnamemodify(start_dir, ":p")
+		local cwd_absolute = vim.fn.fnamemodify(cwd, ":p")
+		
+		-- If the file is under cwd, use cwd as project root
+		if relative_path:sub(1, #cwd_absolute) == cwd_absolute then
+			return cwd_absolute
+		end
+	end
+	
+	-- Last resort: use the file's directory
 	return start_dir
 end
 
