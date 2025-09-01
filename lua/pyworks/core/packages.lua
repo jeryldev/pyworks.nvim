@@ -17,6 +17,7 @@ local package_mappings = {
 		["yaml"] = "PyYAML",
 		["discord"] = "discord.py",
 		["dotenv"] = "python-dotenv",
+		["rest_framework"] = "djangorestframework",
 		["magic"] = "python-magic",
 		["dateutil"] = "python-dateutil",
 		["jwt"] = "PyJWT",
