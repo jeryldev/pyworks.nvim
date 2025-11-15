@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        neovim-version: [stable, nightly]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Neovim (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://github.com/neovim/neovim/releases/download/${{ matrix.neovim-version }}/nvim-linux64.tar.gz
+          tar xzf nvim-linux64.tar.gz
+          echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
+
+      - name: Install Neovim (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install neovim
+
+      - name: Verify Neovim installation
+        run: |
+          nvim --version
+
+      - name: Install Plenary.nvim
+        run: |
+          mkdir -p ~/.local/share/nvim/site/pack/vendor/start
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim \
+            ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
+
+      - name: Run tests
+        run: |
+          ./run_tests.sh
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.neovim-version }}
+          path: |
+            test-results/
+            *.log
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Neovim
+        run: |
+          wget -q https://github.com/neovim/neovim/releases/download/stable/nvim-linux64.tar.gz
+          tar xzf nvim-linux64.tar.gz
+          echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
+
+      - name: Install Stylua
+        run: |
+          wget -q https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip
+          unzip stylua-linux-x86_64.zip
+          chmod +x stylua
+          sudo mv stylua /usr/local/bin/
+
+      - name: Check formatting
+        run: |
+          stylua --check lua/ tests/
+
+      - name: Lint with Luacheck (if available)
+        continue-on-error: true
+        run: |
+          if command -v luacheck &> /dev/null; then
+            luacheck lua/ tests/
+          else
+            echo "Luacheck not installed, skipping..."
+          fi
