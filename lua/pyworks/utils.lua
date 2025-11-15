@@ -1,5 +1,4 @@
 local M = {}
-local config = require("pyworks.config")
 
 -- Cache for expensive operations
 local cache = {
@@ -149,19 +148,17 @@ function M.get_project_paths(filepath)
 		project_dir = vim.fn.getcwd()
 	end
 
-	-- Use filepath as cache key if provided, otherwise use project_dir
-	local cache_key = filepath or project_dir
+	-- Use project_dir as cache key for consistent caching across files in same project
+	local cache_key = project_dir
 
 	-- Cache for 5 seconds to avoid repeated calls
 	local now = vim.loop.hrtime()
 	if cache.cwd == cache_key and cache.last_cwd_check and (now - cache.last_cwd_check) < 5e9 then
-		-- Return the cached PROJECT DIRECTORY, not the cache key!
-		local cached_project_dir = cache.project_dir or cache.cwd
-		return cached_project_dir, cache.venv_path
+		return cache.project_dir, cache.venv_path
 	end
 
 	cache.cwd = cache_key
-	cache.project_dir = project_dir -- Store the actual project directory
+	cache.project_dir = project_dir
 	cache.venv_path = project_dir .. "/.venv"
 	cache.last_cwd_check = now
 
@@ -363,45 +360,6 @@ function M.command_exists(cmd)
 		return result ~= ""
 	end
 	return false
-end
-
--- Progress indicator for long operations
-function M.progress_start(title)
-	local progress_id = tostring(vim.loop.hrtime())
-	config.state.progress[progress_id] = {
-		title = title,
-		start_time = vim.loop.hrtime(),
-	}
-
-	M.notify(title .. "...", vim.log.levels.INFO)
-	return progress_id
-end
-
-function M.progress_end(progress_id, success, message)
-	local progress_info = config.state.progress[progress_id]
-	if progress_info then
-		local elapsed = (vim.loop.hrtime() - progress_info.start_time) / 1e9
-		local status = success and "completed" or "failed"
-		local level = success and vim.log.levels.INFO or vim.log.levels.ERROR
-		local icon = success and "success" or "error"
-
-		M.notify(
-			string.format("%s %s in %.2fs%s", progress_info.title, status, elapsed, message and (": " .. message) or ""),
-			level,
-			nil,
-			icon
-		)
-
-		config.state.progress[progress_id] = nil
-	end
-end
-
--- Notification wrapper with consistent formatting
-function M.notify(message, level, title, icon_name)
-	level = level or vim.log.levels.INFO
-	local icon = icon_name and config.icon(icon_name) or config.icon("python")
-	local prefix = title and (icon .. " " .. title .. ": ") or (icon .. " ")
-	vim.notify(prefix .. message, level)
 end
 
 -- Path manipulation utilities

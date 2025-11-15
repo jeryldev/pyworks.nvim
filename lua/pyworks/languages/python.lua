@@ -175,9 +175,6 @@ function M.install_essentials(filepath)
 		end
 	end
 
-	-- Wait a bit for venv to be ready
-	vim.wait(500)
-
 	-- Check if essentials are already installed
 	local missing_essentials = {}
 	for _, pkg in ipairs(config.essentials) do
@@ -624,7 +621,7 @@ function M.handle_file(filepath, is_notebook)
 	-- Ensure environment for this specific file's project
 	M.ensure_environment(filepath)
 
-	-- Detect missing packages
+	-- Detect missing packages (async to avoid blocking file open)
 	vim.defer_fn(function()
 		local missing = packages.detect_missing_packages(filepath, "python")
 
@@ -637,7 +634,7 @@ function M.handle_file(filepath, is_notebook)
 			-- Clear any previous missing packages
 			state.remove("missing_packages_python")
 		end
-	end, 500) -- Small delay to let environment setup complete
+	end, 100) -- Small delay to avoid blocking file open
 
 	-- If it's a notebook, ensure jupytext
 	if is_notebook then

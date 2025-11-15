@@ -315,6 +315,18 @@ local function get_kernel_for_language(language, filepath)
 			kernel_name = project_name:lower():gsub("[^%w_]", "_")
 		end
 
+		-- Check if ipykernel is installed before creating kernel
+		local check_cmd = string.format("%s -c 'import ipykernel' 2>/dev/null", python_path)
+		vim.fn.system(check_cmd)
+		if vim.v.shell_error ~= 0 then
+			notifications.notify(
+				string.format("❌ ipykernel not found in venv. Run: %s/bin/pip install ipykernel", venv_path),
+				vim.log.levels.ERROR,
+				{ action_required = true }
+			)
+			return nil
+		end
+
 		notifications.notify(
 			string.format("🔨 Creating kernel '%s' for venv: %s", kernel_name, venv_path),
 			vim.log.levels.INFO
@@ -338,8 +350,8 @@ local function get_kernel_for_language(language, filepath)
 			return kernel_name
 		else
 			notifications.notify(
-				"❌ Failed to create kernel. Install ipykernel in the venv first.",
-				vim.log.levels.WARN
+				string.format("❌ Failed to create kernel: %s", vim.trim(output)),
+				vim.log.levels.ERROR
 			)
 			return nil
 		end
@@ -387,7 +399,11 @@ local function auto_init_molten(language, filepath)
 	local kernel = get_kernel_for_language(language, filepath)
 
 	if kernel then
-		-- Initialize Molten after a short delay to let environment setup complete
+		-- Initialize Molten after a delay to ensure:
+		-- 1. Buffer is fully loaded and ready
+		-- 2. Any auto-commands have finished
+		-- 3. LSP and other plugins have initialized
+		-- Note: This is a pragmatic workaround. Ideally we'd use callbacks.
 		vim.defer_fn(function()
 			-- Try to initialize the kernel
 			local ok, err = pcall(vim.cmd, "MoltenInit " .. kernel)

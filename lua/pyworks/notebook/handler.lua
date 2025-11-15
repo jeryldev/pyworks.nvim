@@ -5,7 +5,17 @@ local notifications = require("pyworks.core.notifications")
 local utils = require("pyworks.utils")
 
 -- Check if jupytext CLI is available
-function M.check_jupytext_cli()
+function M.check_jupytext_cli(filepath)
+    -- First check project venv
+    if filepath then
+        local project_dir, venv_path = utils.get_project_paths(filepath)
+        local venv_jupytext = venv_path .. "/bin/jupytext"
+        if vim.fn.executable(venv_jupytext) == 1 then
+            return true
+        end
+    end
+
+    -- Fall back to system PATH check
     local handle = io.popen("which jupytext 2>/dev/null")
     if handle then
         local result = handle:read("*a")
@@ -18,7 +28,7 @@ end
 -- Handle notebook opening with fallback
 function M.handle_notebook_open(filepath)
     -- Check if jupytext CLI is available
-    if not M.check_jupytext_cli() then
+    if not M.check_jupytext_cli(filepath) then
         -- Get project info
         local project_dir, venv_path = utils.get_project_paths(filepath)
         local project_type = utils.detect_project_type(project_dir)
