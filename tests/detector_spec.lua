@@ -133,6 +133,13 @@ describe("detector", function()
       local temp_file = vim.fn.tempname() .. ".ipynb"
       vim.fn.writefile({ '{"cells": []}' }, temp_file)
 
+      -- Mock jupytext check to return true
+      local notebook = require("pyworks.notebook.jupytext")
+      local original_ensure = notebook.ensure_jupytext
+      notebook.ensure_jupytext = function()
+        return true
+      end
+
       local handle_notebook_called = false
       local original_handle = detector.handle_python_notebook
       detector.handle_python_notebook = function(filepath)
@@ -147,7 +154,9 @@ describe("detector", function()
         return handle_notebook_called
       end)
 
+      -- Restore mocks
       detector.handle_python_notebook = original_handle
+      notebook.ensure_jupytext = original_ensure
       assert.is_true(handle_notebook_called)
       vim.fn.delete(temp_file)
     end)
