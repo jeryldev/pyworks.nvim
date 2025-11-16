@@ -1,0 +1,48 @@
+[project]
+name = "pyworks.nvim"
+version = "1.0.0"
+description = "Neovim plugin for interactive Python/Julia/R notebooks"
+
+[tool.ruff]
+# Python version target
+target-version = "py312"
+
+# Line length (following Black's default)
+line-length = 88
+
+# Enable preview features
+preview = true
+
+[tool.ruff.lint]
+# Enable standard Python code quality rules
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "SIM", # flake8-simplify
+]
+
+# Don't auto-remove unused imports (be conservative)
+ignore = []
+
+# Allow autofix for specific rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"
+
+# Preserve trailing commas
+skip-magic-trailing-comma = false
+
+# Format docstrings
+docstring-code-format = true

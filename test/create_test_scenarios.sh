@@ -17,7 +17,7 @@ echo "📦 Creating Python basic scenarios..."
 
 # 1.1 Simple Python file (no markers)
 mkdir -p "$BASE_DIR/01_python_simple"
-cat > "$BASE_DIR/01_python_simple/hello.py" << 'EOF'
+cat >"$BASE_DIR/01_python_simple/hello.py" <<'EOF'
 # Simple Python file with no project markers
 print("Hello World")
 EOF
@@ -25,7 +25,7 @@ EOF
 # 1.2 Python with existing venv
 mkdir -p "$BASE_DIR/02_python_with_venv/.venv/bin"
 touch "$BASE_DIR/02_python_with_venv/.venv/bin/python"
-cat > "$BASE_DIR/02_python_with_venv/main.py" << 'EOF'
+cat >"$BASE_DIR/02_python_with_venv/main.py" <<'EOF'
 # Python file with existing venv
 import numpy as np
 print("Has venv")
@@ -35,7 +35,7 @@ EOF
 mkdir -p "$BASE_DIR/03_python_nested/.venv/bin"
 mkdir -p "$BASE_DIR/03_python_nested/src/utils"
 touch "$BASE_DIR/03_python_nested/.venv/bin/python"
-cat > "$BASE_DIR/03_python_nested/src/utils/helper.py" << 'EOF'
+cat >"$BASE_DIR/03_python_nested/src/utils/helper.py" <<'EOF'
 # Nested file should find parent venv
 def process_data():
     return "processed"
@@ -50,7 +50,7 @@ echo "🌐 Creating web framework scenarios..."
 # 1.4 Django project
 mkdir -p "$BASE_DIR/04_django_project/myapp/views"
 mkdir -p "$BASE_DIR/04_django_project/notebooks/analysis"
-cat > "$BASE_DIR/04_django_project/manage.py" << 'EOF'
+cat >"$BASE_DIR/04_django_project/manage.py" <<'EOF'
 #!/usr/bin/env python
 import os
 import sys
@@ -60,21 +60,21 @@ if __name__ == '__main__':
     from django.core.management import execute_from_command_line
     execute_from_command_line(sys.argv)
 EOF
-cat > "$BASE_DIR/04_django_project/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/04_django_project/requirements.txt" <<'EOF'
 django==4.2.0
 pandas==2.0.0
 EOF
-cat > "$BASE_DIR/04_django_project/myapp/views/user.py" << 'EOF'
+cat >"$BASE_DIR/04_django_project/myapp/views/user.py" <<'EOF'
 from django.views import View
 
 class UserView(View):
     pass
 EOF
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' > "$BASE_DIR/04_django_project/notebooks/analysis/explore.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/04_django_project/notebooks/analysis/explore.ipynb"
 
 # 1.5 Flask project
 mkdir -p "$BASE_DIR/05_flask_project/routes"
-cat > "$BASE_DIR/05_flask_project/app.py" << 'EOF'
+cat >"$BASE_DIR/05_flask_project/app.py" <<'EOF'
 from flask import Flask
 app = Flask(__name__)
 
@@ -82,11 +82,11 @@ app = Flask(__name__)
 def hello():
     return "Hello Flask"
 EOF
-cat > "$BASE_DIR/05_flask_project/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/05_flask_project/requirements.txt" <<'EOF'
 flask==2.3.0
 sqlalchemy==2.0.0
 EOF
-cat > "$BASE_DIR/05_flask_project/routes/auth.py" << 'EOF'
+cat >"$BASE_DIR/05_flask_project/routes/auth.py" <<'EOF'
 from flask import Blueprint
 auth_bp = Blueprint('auth', __name__)
 EOF
@@ -94,7 +94,7 @@ EOF
 # 1.6 FastAPI project
 mkdir -p "$BASE_DIR/06_fastapi_project/api/endpoints"
 mkdir -p "$BASE_DIR/06_fastapi_project/ml/models"
-cat > "$BASE_DIR/06_fastapi_project/main.py" << 'EOF'
+cat >"$BASE_DIR/06_fastapi_project/main.py" <<'EOF'
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -104,12 +104,12 @@ app = FastAPI()
 def read_root():
     return {"Hello": "FastAPI"}
 EOF
-cat > "$BASE_DIR/06_fastapi_project/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/06_fastapi_project/requirements.txt" <<'EOF'
 fastapi==0.100.0
 uvicorn==0.23.0
 scikit-learn==1.3.0
 EOF
-cat > "$BASE_DIR/06_fastapi_project/api/endpoints/predict.py" << 'EOF'
+cat >"$BASE_DIR/06_fastapi_project/api/endpoints/predict.py" <<'EOF'
 from fastapi import APIRouter
 router = APIRouter()
 
@@ -121,18 +121,18 @@ EOF
 # 1.7 Streamlit project
 mkdir -p "$BASE_DIR/07_streamlit_project/pages"
 mkdir -p "$BASE_DIR/07_streamlit_project/data"
-cat > "$BASE_DIR/07_streamlit_project/app.py" << 'EOF'
+cat >"$BASE_DIR/07_streamlit_project/app.py" <<'EOF'
 import streamlit as st
 import pandas as pd
 
 st.title("Data Dashboard")
 st.write("Welcome to Streamlit")
 EOF
-cat > "$BASE_DIR/07_streamlit_project/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/07_streamlit_project/requirements.txt" <<'EOF'
 streamlit==1.25.0
 plotly==5.15.0
 EOF
-cat > "$BASE_DIR/07_streamlit_project/pages/analysis.py" << 'EOF'
+cat >"$BASE_DIR/07_streamlit_project/pages/analysis.py" <<'EOF'
 import streamlit as st
 st.header("Analysis Page")
 EOF
@@ -145,7 +145,7 @@ echo "📚 Creating package management scenarios..."
 
 # 1.8 Poetry project
 mkdir -p "$BASE_DIR/08_poetry_project/src/mypackage"
-cat > "$BASE_DIR/08_poetry_project/pyproject.toml" << 'EOF'
+cat >"$BASE_DIR/08_poetry_project/pyproject.toml" <<'EOF'
 [tool.poetry]
 name = "mypackage"
 version = "0.1.0"
@@ -155,14 +155,14 @@ description = "Poetry managed project"
 python = "^3.9"
 requests = "^2.31.0"
 EOF
-cat > "$BASE_DIR/08_poetry_project/src/mypackage/core.py" << 'EOF'
+cat >"$BASE_DIR/08_poetry_project/src/mypackage/core.py" <<'EOF'
 def main():
     return "Poetry project"
 EOF
 
 # 1.9 Pipenv project
 mkdir -p "$BASE_DIR/09_pipenv_project/app"
-cat > "$BASE_DIR/09_pipenv_project/Pipfile" << 'EOF'
+cat >"$BASE_DIR/09_pipenv_project/Pipfile" <<'EOF'
 [[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
@@ -175,14 +175,14 @@ flask = "*"
 [dev-packages]
 pytest = "*"
 EOF
-cat > "$BASE_DIR/09_pipenv_project/app/main.py" << 'EOF'
+cat >"$BASE_DIR/09_pipenv_project/app/main.py" <<'EOF'
 import requests
 print("Pipenv project")
 EOF
 
 # 1.10 Conda project
 mkdir -p "$BASE_DIR/10_conda_project/notebooks"
-cat > "$BASE_DIR/10_conda_project/environment.yml" << 'EOF'
+cat >"$BASE_DIR/10_conda_project/environment.yml" <<'EOF'
 name: myenv
 channels:
   - conda-forge
@@ -192,7 +192,7 @@ dependencies:
   - pandas
   - scikit-learn
 EOF
-cat > "$BASE_DIR/10_conda_project/analysis.py" << 'EOF'
+cat >"$BASE_DIR/10_conda_project/analysis.py" <<'EOF'
 import numpy as np
 import pandas as pd
 print("Conda project")
@@ -207,7 +207,7 @@ echo "🤖 Creating MLOps scenarios..."
 # 1.13 DVC project
 mkdir -p "$BASE_DIR/13_dvc_project/data"
 mkdir -p "$BASE_DIR/13_dvc_project/notebooks/eda"
-cat > "$BASE_DIR/13_dvc_project/dvc.yaml" << 'EOF'
+cat >"$BASE_DIR/13_dvc_project/dvc.yaml" <<'EOF'
 stages:
   prepare:
     cmd: python src/prepare.py
@@ -222,21 +222,21 @@ stages:
     outs:
       - models/model.pkl
 EOF
-cat > "$BASE_DIR/13_dvc_project/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/13_dvc_project/requirements.txt" <<'EOF'
 dvc==3.0.0
 scikit-learn==1.3.0
 pandas==2.0.0
 EOF
-cat > "$BASE_DIR/13_dvc_project/src/train.py" << 'EOF'
+cat >"$BASE_DIR/13_dvc_project/src/train.py" <<'EOF'
 # ML training pipeline
 from sklearn.ensemble import RandomForestClassifier
 print("Training model...")
 EOF
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' > "$BASE_DIR/13_dvc_project/notebooks/eda/explore.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/13_dvc_project/notebooks/eda/explore.ipynb"
 
 # 1.14 MLflow project
 mkdir -p "$BASE_DIR/14_mlflow_project/experiments"
-cat > "$BASE_DIR/14_mlflow_project/MLproject" << 'EOF'
+cat >"$BASE_DIR/14_mlflow_project/MLproject" <<'EOF'
 name: my_model
 
 conda_env: conda.yaml
@@ -247,7 +247,7 @@ entry_points:
       alpha: {type: float, default: 0.5}
     command: "python train.py --alpha {alpha}"
 EOF
-cat > "$BASE_DIR/14_mlflow_project/conda.yaml" << 'EOF'
+cat >"$BASE_DIR/14_mlflow_project/conda.yaml" <<'EOF'
 name: mlflow-env
 channels:
   - defaults
@@ -256,7 +256,7 @@ dependencies:
   - mlflow
   - scikit-learn
 EOF
-cat > "$BASE_DIR/14_mlflow_project/train.py" << 'EOF'
+cat >"$BASE_DIR/14_mlflow_project/train.py" <<'EOF'
 import mlflow
 import mlflow.sklearn
 print("MLflow project")
@@ -270,30 +270,30 @@ echo "📓 Creating notebook scenarios..."
 
 # 2.1 Standalone notebook
 mkdir -p "$BASE_DIR/21_standalone_notebook"
-echo '{"cells": [{"cell_type": "code", "source": ["print(\"hello\")"]}], "metadata": {"kernelspec": {"language": "python"}}}' > "$BASE_DIR/21_standalone_notebook/analysis.ipynb"
+echo '{"cells": [{"cell_type": "code", "source": ["print(\"hello\")"]}], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/21_standalone_notebook/analysis.ipynb"
 
 # 2.4 Django with notebooks (deeply nested)
 mkdir -p "$BASE_DIR/24_django_notebooks/backend/apps/analytics/views"
 mkdir -p "$BASE_DIR/24_django_notebooks/research/notebooks/experiments/2024"
-cat > "$BASE_DIR/24_django_notebooks/manage.py" << 'EOF'
+cat >"$BASE_DIR/24_django_notebooks/manage.py" <<'EOF'
 #!/usr/bin/env python
 import django
 EOF
-cat > "$BASE_DIR/24_django_notebooks/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/24_django_notebooks/requirements.txt" <<'EOF'
 django==4.2.0
 jupyter==1.0.0
 pandas==2.0.0
 EOF
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' > "$BASE_DIR/24_django_notebooks/research/notebooks/experiments/2024/q1_analysis.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/24_django_notebooks/research/notebooks/experiments/2024/q1_analysis.ipynb"
 
 # 2.5 FastAPI with ML notebooks
 mkdir -p "$BASE_DIR/25_fastapi_ml/api/v1/endpoints"
 mkdir -p "$BASE_DIR/25_fastapi_ml/ml/notebooks/training"
-cat > "$BASE_DIR/25_fastapi_ml/main.py" << 'EOF'
+cat >"$BASE_DIR/25_fastapi_ml/main.py" <<'EOF'
 from fastapi import FastAPI
 app = FastAPI(title="ML API")
 EOF
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' > "$BASE_DIR/25_fastapi_ml/ml/notebooks/training/model_v2.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/25_fastapi_ml/ml/notebooks/training/model_v2.ipynb"
 
 # ==============================================================================
 # JULIA SCENARIOS
@@ -303,7 +303,7 @@ echo "🔷 Creating Julia scenarios..."
 
 # 3.1 Julia with Project.toml
 mkdir -p "$BASE_DIR/31_julia_project/src"
-cat > "$BASE_DIR/31_julia_project/Project.toml" << 'EOF'
+cat >"$BASE_DIR/31_julia_project/Project.toml" <<'EOF'
 name = "MyPackage"
 uuid = "12345678-1234-5678-1234-567812345678"
 version = "0.1.0"
@@ -312,14 +312,14 @@ version = "0.1.0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 EOF
-cat > "$BASE_DIR/31_julia_project/src/analysis.jl" << 'EOF'
+cat >"$BASE_DIR/31_julia_project/src/analysis.jl" <<'EOF'
 using DataFrames
 println("Julia project")
 EOF
 
 # 3.4 Julia notebook
 mkdir -p "$BASE_DIR/34_julia_notebook"
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "julia", "name": "julia-1.9"}}}' > "$BASE_DIR/34_julia_notebook/compute.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "julia", "name": "julia-1.9"}}}' >"$BASE_DIR/34_julia_notebook/compute.ipynb"
 
 # ==============================================================================
 # R SCENARIOS
@@ -329,7 +329,7 @@ echo "📊 Creating R scenarios..."
 
 # 4.1 R with renv
 mkdir -p "$BASE_DIR/41_r_renv_project"
-cat > "$BASE_DIR/41_r_renv_project/renv.lock" << 'EOF'
+cat >"$BASE_DIR/41_r_renv_project/renv.lock" <<'EOF'
 {
   "R": {
     "Version": "4.3.0",
@@ -343,14 +343,14 @@ cat > "$BASE_DIR/41_r_renv_project/renv.lock" << 'EOF'
   }
 }
 EOF
-cat > "$BASE_DIR/41_r_renv_project/analysis.R" << 'EOF'
+cat >"$BASE_DIR/41_r_renv_project/analysis.R" <<'EOF'
 library(ggplot2)
 print("R with renv")
 EOF
 
 # 4.4 R notebook
 mkdir -p "$BASE_DIR/44_r_notebook"
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "R", "name": "ir"}}}' > "$BASE_DIR/44_r_notebook/stats.ipynb"
+echo '{"cells": [], "metadata": {"kernelspec": {"language": "R", "name": "ir"}}}' >"$BASE_DIR/44_r_notebook/stats.ipynb"
 
 # ==============================================================================
 # EDGE CASES
@@ -361,17 +361,17 @@ echo "🔧 Creating edge cases..."
 # 5.1 Multiple markers (should prioritize .venv)
 mkdir -p "$BASE_DIR/51_multiple_markers/.venv/bin"
 touch "$BASE_DIR/51_multiple_markers/.venv/bin/python"
-cat > "$BASE_DIR/51_multiple_markers/manage.py" << 'EOF'
+cat >"$BASE_DIR/51_multiple_markers/manage.py" <<'EOF'
 # Django manage
 EOF
-cat > "$BASE_DIR/51_multiple_markers/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/51_multiple_markers/requirements.txt" <<'EOF'
 django==4.2.0
 EOF
-cat > "$BASE_DIR/51_multiple_markers/pyproject.toml" << 'EOF'
+cat >"$BASE_DIR/51_multiple_markers/pyproject.toml" <<'EOF'
 [tool.poetry]
 name = "multi"
 EOF
-cat > "$BASE_DIR/51_multiple_markers/test.py" << 'EOF'
+cat >"$BASE_DIR/51_multiple_markers/test.py" <<'EOF'
 # Should use .venv (highest priority)
 print("Multiple markers")
 EOF
@@ -380,19 +380,19 @@ EOF
 mkdir -p "$BASE_DIR/55_mixed_language/python"
 mkdir -p "$BASE_DIR/55_mixed_language/julia"
 mkdir -p "$BASE_DIR/55_mixed_language/r"
-cat > "$BASE_DIR/55_mixed_language/requirements.txt" << 'EOF'
+cat >"$BASE_DIR/55_mixed_language/requirements.txt" <<'EOF'
 numpy==1.24.0
 EOF
-cat > "$BASE_DIR/55_mixed_language/Project.toml" << 'EOF'
+cat >"$BASE_DIR/55_mixed_language/Project.toml" <<'EOF'
 name = "JuliaPart"
 EOF
-cat > "$BASE_DIR/55_mixed_language/python/analysis.py" << 'EOF'
+cat >"$BASE_DIR/55_mixed_language/python/analysis.py" <<'EOF'
 import numpy as np
 EOF
-cat > "$BASE_DIR/55_mixed_language/julia/compute.jl" << 'EOF'
+cat >"$BASE_DIR/55_mixed_language/julia/compute.jl" <<'EOF'
 using LinearAlgebra
 EOF
-cat > "$BASE_DIR/55_mixed_language/r/stats.R" << 'EOF'
+cat >"$BASE_DIR/55_mixed_language/r/stats.R" <<'EOF'
 library(stats)
 EOF
 
@@ -407,5 +407,5 @@ echo "   3. Observe the pyworks detection messages"
 echo ""
 echo "📝 Scenarios created:"
 find "$BASE_DIR" -maxdepth 1 -type d | sort | tail -n +2 | while read dir; do
-    echo "   - $(basename "$dir")"
+  echo "   - $(basename "$dir")"
 done

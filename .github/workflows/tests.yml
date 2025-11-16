@@ -23,7 +23,12 @@ jobs:
       - name: Install Neovim (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          wget -q https://github.com/neovim/neovim/releases/download/${{ matrix.neovim-version }}/nvim-linux64.tar.gz
+          if [ "${{ matrix.neovim-version }}" = "stable" ]; then
+            NVIM_VERSION="v0.10.2"
+          else
+            NVIM_VERSION="nightly"
+          fi
+          wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux64.tar.gz
           tar xzf nvim-linux64.tar.gz
           echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
 
@@ -48,7 +53,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.neovim-version }}
           path: |
@@ -65,7 +70,8 @@ jobs:
 
       - name: Install Neovim
         run: |
-          wget -q https://github.com/neovim/neovim/releases/download/stable/nvim-linux64.tar.gz
+          NVIM_VERSION="v0.10.2"
+          wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux64.tar.gz
           tar xzf nvim-linux64.tar.gz
           echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
 
