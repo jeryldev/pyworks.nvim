@@ -24,11 +24,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           if [ "${{ matrix.neovim-version }}" = "stable" ]; then
-            NVIM_VERSION="v0.10.2"
+            NVIM_URL="https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-linux64.tar.gz"
           else
-            NVIM_VERSION="nightly"
+            NVIM_URL="https://github.com/neovim/neovim/releases/download/nightly/nvim-linux64.tar.gz"
           fi
-          wget -q https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux64.tar.gz
+          wget -q "$NVIM_URL"
           tar xzf nvim-linux64.tar.gz
           echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
 

@@ -142,6 +142,11 @@ describe("detector", function()
 
       detector.on_file_open(temp_file)
 
+      -- Wait for async processing
+      vim.wait(100, function()
+        return handle_notebook_called
+      end)
+
       detector.handle_python_notebook = original_handle
       assert.is_true(handle_notebook_called)
       vim.fn.delete(temp_file)
