@@ -176,20 +176,33 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		end
 	end
 	
+	-- Generate unique cell IDs (required in nbformat 4.5+)
+	local function generate_cell_id()
+		local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+		local id = ""
+		for i = 1, 8 do
+			local idx = math.random(1, #chars)
+			id = id .. chars:sub(idx, idx)
+		end
+		return id
+	end
+
 	-- Create notebook JSON structure
 	local notebook = {
 		cells = {
 			{
 				cell_type = "code",
 				execution_count = vim.NIL,
-				metadata = {},
+				id = generate_cell_id(),
+				metadata = vim.empty_dict(),
 				outputs = {},
 				source = imports
 			},
 			{
 				cell_type = "code",
 				execution_count = vim.NIL,
-				metadata = {},
+				id = generate_cell_id(),
+				metadata = vim.empty_dict(),
 				outputs = {},
 				source = { "# Your code here" }
 			}
