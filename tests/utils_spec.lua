@@ -303,7 +303,7 @@ describe("utils", function()
 
       assert.is_nil(content)
       assert.is_not_nil(err)
-      assert.is_true(err:match("Failed to open file"))
+      assert.is_not_nil(err:match("Failed to open file"))
     end)
   end)
 

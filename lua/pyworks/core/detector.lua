@@ -682,5 +682,7 @@ end
 
 -- Export kernel detection for use in other modules
 M.get_kernel_for_language = get_kernel_for_language
+-- Export for testing
+M.detect_notebook_language = detect_notebook_language
 
 return M
