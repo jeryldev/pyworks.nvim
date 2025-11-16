@@ -176,8 +176,7 @@ function M.setup(opts)
 
 	-- Add helpful keymaps
 	if not opts.skip_keymaps then
-		vim.keymap.set("n", "<leader>ps", "<cmd>PyworksStatus<cr>", { desc = "Pyworks: Show package status" })
-		vim.keymap.set("n", "<leader>pc", "<cmd>PyworksClearCache<cr>", { desc = "Pyworks: Clear cache" })
+		vim.keymap.set("n", "<leader>ps", "<cmd>PyworksStatus<cr>", { desc = "Pyworks: Show status" })
 	end
 
 	-- Merge user configuration with defaults

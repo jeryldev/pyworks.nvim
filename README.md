@@ -55,16 +55,14 @@ A revolutionary Neovim plugin that provides automatic environment setup, package
 
 3. **Execute code:**
 
-   - `<leader>jv` - Run selected lines (visual mode)
    - `<leader>jl` - Run current line
-   - `<leader>jr` - Select current cell
-   - `<leader>jc` - Re-run current cell
+   - `<leader>jr` - Run visual selection
+   - `<leader>jc` - Select current cell
 
 4. **Navigate:**
 
-   - `]j` - Next cell
-   - `[j` - Previous cell
-   - `<leader>jo` - Show output
+   - `<leader>j]` - Next cell
+   - `<leader>j[` - Previous cell
 
 5. **Package management:**
    - Missing packages detected automatically
@@ -124,7 +122,7 @@ return {
 - **Molten Setup**: Configures hover-based output with optimal window sizes
 - **Jupytext Integration**: Handles PATH management and notebook conversion
 - **Image Display**: Sets up plot rendering with terminal compatibility
-- **Helper Keymaps**: Adds `<leader>ps` (status) and `<leader>pc` (clear cache)
+- **Helper Keymaps**: Adds `<leader>ps` (status)
 
 **🔧 Four Complex Systems, One Simple Config**: Behind the scenes, pyworks coordinates:
 
@@ -264,14 +262,6 @@ Pyworks uses Molten's enhanced popup window system for displaying cell outputs:
 - **Smart border cropping** - Windows adjust to fit screen edges
 - **Image support** - Full color plots and images (requires Kitty/Ghostty terminal)
 
-#### Output Controls
-
-- `<leader>jo` - Open/show output window
-- `<leader>jh` - Hide output window
-- `<leader>jd` - Delete/clear cell output
-- `<leader>jc` - Clear all images
-
-> **Tip**: Adjust window sizes in your config if needed for ultra-wide monitors or specific workflows.
 
 ### Terminal Requirements for Images
 
@@ -340,29 +330,33 @@ IRkernel::installspec()
 
 ### Keymaps
 
-#### Pyworks Keymaps
+#### Essential Keymaps (8 total)
 
-| Keymap       | Description                             |
-| ------------ | --------------------------------------- |
-| `<leader>ps` | Show package status                     |
-| `<leader>pc` | Clear cache                             |
-| `<leader>pi` | Install missing packages (buffer-local) |
+**Jupyter/Notebook Operations** (`<leader>j*`):
 
-#### Molten (Code Execution) Keymaps
+| Keymap        | Mode   | Description          |
+| ------------- | ------ | -------------------- |
+| `<leader>jl`  | Normal | Run current line     |
+| `<leader>jr`  | Visual | Run selection        |
+| `<leader>jc`  | Normal | Select current cell  |
+| `<leader>j]`  | Normal | Next cell            |
+| `<leader>j[`  | Normal | Previous cell        |
 
-| Keymap       | Mode   | Description              |
-| ------------ | ------ | ------------------------ |
-| `<leader>jl` | Normal | Run current line         |
-| `<leader>jv` | Visual | Run selected lines       |
-| `<leader>jr` | Normal | Select current cell      |
-| `<leader>jc` | Normal | Re-evaluate current cell |
-| `<leader>jd` | Normal | Delete cell output       |
-| `<leader>jo` | Normal | Show output window       |
-| `<leader>jh` | Normal | Hide output window       |
-| `<leader>je` | Normal | Enter output window      |
-| `]j`         | Normal | Jump to next cell        |
-| `[j`         | Normal | Jump to previous cell    |
-| `K`          | Normal | Show output or LSP hover |
+**Kernel Management** (`<leader>m*`):
+
+| Keymap       | Description             |
+| ------------ | ----------------------- |
+| `<leader>mr` | Restart kernel          |
+| `<leader>mx` | Interrupt execution     |
+
+**Utilities**:
+
+| Keymap       | Description    |
+| ------------ | -------------- |
+| `<leader>ps` | Show status    |
+| `K`          | Show output or LSP hover |
+
+> **Note**: Press `<leader>j` or `<leader>m` to see all available commands in which-key!
 
 #### Molten Kernel Management
 
@@ -402,8 +396,8 @@ IRkernel::installspec()
 " → 🐍 Python (analysis): Using .venv
 " → ✅ Molten ready with python3 kernel
 
-" Select code and run with <leader>jv
-" Navigate cells with ]j and [j
+" Select code and run with <leader>jr (visual mode)
+" Navigate cells with <leader>j] and <leader>j[
 ```
 
 ### Julia Scientific Computing
@@ -428,18 +422,15 @@ IRkernel::installspec()
 
 ### Jupyter/Notebook Operations
 
-| Keybinding   | Description                            | When Needed               |
-| ------------ | -------------------------------------- | ------------------------- |
-| `<leader>ji` | Initialize Jupyter kernel manually     | Rarely - auto-initializes |
-| `<leader>jl` | Evaluate current line                  | Execute single line       |
-| `<leader>jv` | Evaluate visual selection              | Execute selected code     |
-| `<leader>jr` | Select current cell (visual selection) | Select notebook cell      |
-| `<leader>je` | Evaluate operator                      | Execute with motion       |
-| `<leader>jo` | Open output window                     | View hidden output        |
-| `<leader>jh` | Hide output                            | Hide output window        |
-| `<leader>jd` | Delete cell output                     | Clear cell results        |
-| `<leader>js` | Show kernel status/info                | Check kernel state        |
-| `<leader>jc` | Clear images                           | Remove displayed images   |
+| Keybinding    | Description                  | When Needed               |
+| ------------- | ---------------------------- | ------------------------- |
+| `<leader>jl`  | Run current line             | Execute single line       |
+| `<leader>jr`  | Run visual selection         | Execute selected code     |
+| `<leader>jc`  | Select current cell          | Select notebook cell      |
+| `<leader>j]`  | Next cell                    | Navigate cells            |
+| `<leader>j[`  | Previous cell                | Navigate cells            |
+| `<leader>mr`  | Restart kernel               | Reset when stuck          |
+| `<leader>mx`  | Interrupt execution          | Stop long-running code    |
 
 ### Package Management
 
@@ -520,11 +511,10 @@ Pyworks only activates in directories containing:
 
 pyworks.nvim automatically configures Molten when you choose a data science project type. After setup:
 
-- `<leader>ji` - Initialize kernel
-- `<leader>jl` - Run current line
-- `<leader>jr` - Select current cell
-- `<leader>jv` - Run visual selection
-- `[j` / `]j` - Navigate between cells
+- `<leader>jl` - Run current line (auto-initializes kernel if needed)
+- `<leader>jr` - Run visual selection
+- `<leader>jc` - Select current cell
+- `<leader>j[` / `<leader>j]` - Navigate between cells
 
 ### Dependencies Explained
 
@@ -578,7 +568,7 @@ Fully compatible with LazyVim distributions. Just add to your plugins spec!
 A: v3.0 only activates in project directories with markers (.venv, Project.toml, etc.)
 
 **Q: "No visual selection found" with Molten**
-A: Use `<leader>jr` to select cell, then `<leader>jv` while in visual mode
+A: Use `<leader>jc` to select cell, then `<leader>jr` while in visual mode
 
 **Q: Julia kernel not found**
 A: Julia kernels include version (julia-1.11). Install IJulia if missing.

@@ -71,62 +71,21 @@ function M.setup_buffer_keymaps()
 		-- Run visual selection
 		vim.keymap.set(
 			"v",
-			"<leader>jv",
+			"<leader>jr",
 			":<C-u>MoltenEvaluateVisual<CR>",
-			vim.tbl_extend("force", opts, { desc = "Molten: Run selected lines" })
+			vim.tbl_extend("force", opts, { desc = "Run selection" })
 		)
 
 		-- Also support visual block mode
 		vim.keymap.set(
 			"x",
-			"<leader>jv",
+			"<leader>jr",
 			":<C-u>MoltenEvaluateVisual<CR>",
-			vim.tbl_extend("force", opts, { desc = "Molten: Run selected block" })
+			vim.tbl_extend("force", opts, { desc = "Run selection" })
 		)
 
-		-- Also allow running in normal mode if there's a visual selection
-		vim.keymap.set("n", "<leader>jv", function()
-			-- Check if Python provider is working
-			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
-				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
-				return
-			end
-			
-			-- Check if kernel is initialized
-			local bufnr = vim.api.nvim_get_current_buf()
-			if not vim.b[bufnr].molten_initialized then
-				-- Auto-initialize based on file type
-				local ft = vim.bo.filetype
-				local filepath = vim.api.nvim_buf_get_name(bufnr)
-				local detector = require("pyworks.core.detector")
-				-- Pass filepath for project-aware kernel selection
-				local kernel = detector.get_kernel_for_language(ft, filepath)
-
-				if kernel then
-					vim.notify("Initializing " .. kernel .. " kernel...", vim.log.levels.INFO)
-					vim.cmd("MoltenInit " .. kernel)
-					vim.b[bufnr].molten_initialized = true
-
-					-- Wait a moment then run the last selection
-					vim.defer_fn(function()
-						vim.cmd("normal! gv") -- Reselect
-						vim.defer_fn(function()
-							vim.cmd("MoltenEvaluateVisual")
-						end, 50)
-					end, 100)
-					return
-				end
-			end
-
-			-- Reselect and run
-			vim.cmd("normal! gv") -- Reselect last visual selection
-			vim.defer_fn(function()
-				vim.cmd("MoltenEvaluateVisual")
-			end, 50)
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Run visual selection" }))
-
 		-- Select/highlight current cell (between cell markers) or entire file
-		vim.keymap.set("n", "<leader>jr", function()
+		vim.keymap.set("n", "<leader>jc", function()
 			-- Check if Python provider is working
 			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
 				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
@@ -165,51 +124,8 @@ function M.setup_buffer_keymaps()
 				vim.cmd("normal! ggVG")
 				vim.notify("No cell markers found, selected entire file", vim.log.levels.INFO)
 			end
-		end, vim.tbl_extend("force", opts, { desc = "Select current cell or entire file" }))
+		end, vim.tbl_extend("force", opts, { desc = "Select current cell" }))
 
-		-- Re-evaluate current cell (or use operator to run cell)
-		vim.keymap.set("n", "<leader>jc", function()
-			-- Check if we have cell markers
-			local has_cells = vim.fn.search("^# %%", "nw") > 0
-			if has_cells then
-				-- Use MoltenEvaluateOperator with text object for cell
-				vim.cmd("MoltenEvaluateOperator")
-				-- Send 'ic' (inside cell) text object
-				vim.api.nvim_feedkeys("ic", "n", false)
-			else
-				-- No cells, try to re-evaluate or run whole file
-				local ok = pcall(vim.cmd, "MoltenReevaluateCell")
-				if not ok then
-					-- Fall back to running entire file
-					vim.cmd("normal! ggVG")
-					vim.cmd(":<C-u>MoltenEvaluateVisual<CR>")
-				end
-			end
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Re-evaluate current cell" }))
-
-		-- Delete cell output
-		vim.keymap.set("n", "<leader>jd", function()
-			vim.cmd("MoltenDelete")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Delete cell output" }))
-
-		-- Show output (useful since auto_open is disabled)
-		vim.keymap.set("n", "<leader>jo", function()
-			vim.cmd("MoltenShowOutput")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Show output window" }))
-
-		-- Hide output window
-		vim.keymap.set("n", "<leader>jh", function()
-			vim.cmd("MoltenHideOutput")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Hide output window" }))
-
-		-- Enter output window (to interact with it)
-		vim.keymap.set("n", "<leader>je", function()
-			-- Check if Python provider is working before trying Molten commands
-			local ok, _ = pcall(vim.cmd, "MoltenEnterOutput")
-			if not ok then
-				vim.notify("⚠️  Molten not ready. Run :PyworksSetup first, then restart Neovim", vim.log.levels.WARN)
-			end
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Enter output window" }))
 
 		-- Hover to show output (using K or gh)
 		vim.keymap.set("n", "K", function()
@@ -224,7 +140,7 @@ function M.setup_buffer_keymaps()
 		-- Fallback keymaps when Molten is not available
 		-- These just select text for manual copying
 
-		vim.keymap.set("n", "<leader>jr", function()
+		vim.keymap.set("n", "<leader>jc", function()
 			-- Highlight/select current cell
 			vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>") -- Go to cell start
 			vim.cmd("normal! V") -- Start visual line mode
@@ -233,9 +149,9 @@ function M.setup_buffer_keymaps()
 			vim.notify("Molten not available. Cell selected for manual copy.", vim.log.levels.WARN)
 		end, vim.tbl_extend("force", opts, { desc = "Select current cell (Molten not available)" }))
 
-		vim.keymap.set("v", "<leader>jv", function()
+		vim.keymap.set("v", "<leader>jr", function()
 			vim.notify("Molten not available. Copy selection to run elsewhere.", vim.log.levels.WARN)
-		end, vim.tbl_extend("force", opts, { desc = "Run selected lines (Molten not available)" }))
+		end, vim.tbl_extend("force", opts, { desc = "Run selection (Molten not available)" }))
 
 		vim.keymap.set("n", "<leader>jl", function()
 			vim.notify("Molten not available. Use :MoltenInit to initialize.", vim.log.levels.WARN)
@@ -243,22 +159,21 @@ function M.setup_buffer_keymaps()
 	end
 
 	-- Cell navigation (works with or without Molten)
-	-- Using ]j and [j for cell navigation (avoiding ]c/[c which LazyVim uses)
-	vim.keymap.set("n", "]j", function()
+	vim.keymap.set("n", "<leader>j]", function()
 		-- Search for next cell marker (# %% for Python/Julia/R notebooks)
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
 		end
-	end, vim.tbl_extend("force", opts, { desc = "Jump to next cell" }))
+	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
-	vim.keymap.set("n", "[j", function()
+	vim.keymap.set("n", "<leader>j[", function()
 		-- Search for previous cell marker
 		local found = vim.fn.search("^# %%", "bW")
 		if found == 0 then
 			vim.notify("No previous cells", vim.log.levels.INFO)
 		end
-	end, vim.tbl_extend("force", opts, { desc = "Jump to previous cell" }))
+	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end
 
 -- Set up Molten kernel management keymaps
@@ -269,55 +184,15 @@ function M.setup_molten_keymaps()
 	local has_molten = vim.fn.exists(":MoltenInit") == 2
 
 	if has_molten then
-		-- Initialize Molten kernel for current file type
-		vim.keymap.set("n", "<leader>mi", function()
-			local ft = vim.bo.filetype
-			local ext = vim.fn.expand("%:e")
-
-			-- Determine kernel based on file type or extension
-			local kernel = nil
-			if ft == "python" or (ext == "ipynb" and ft == "") then
-				kernel = "python3"
-			elseif ft == "julia" then
-				kernel = "julia"
-			elseif ft == "r" then
-				kernel = "ir" -- IRkernel for R
-			end
-
-			if kernel then
-				vim.cmd("MoltenInit " .. kernel)
-				vim.notify("Initialized Molten with " .. kernel .. " kernel", vim.log.levels.INFO)
-			else
-				-- Let user choose
-				vim.cmd("MoltenInit")
-			end
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Initialize kernel" }))
-
-		-- Restart kernel
+		-- Restart kernel (when things go wrong)
 		vim.keymap.set("n", "<leader>mr", function()
 			vim.cmd("MoltenRestart")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Restart kernel" }))
+		end, vim.tbl_extend("force", opts, { desc = "Restart kernel" }))
 
-		-- Interrupt execution
+		-- Interrupt execution (stop long-running code)
 		vim.keymap.set("n", "<leader>mx", function()
 			vim.cmd("MoltenInterrupt")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Interrupt execution" }))
-
-		-- Import notebook (for .ipynb files)
-		vim.keymap.set("n", "<leader>mn", function()
-			local ext = vim.fn.expand("%:e")
-			if ext == "ipynb" then
-				vim.cmd("MoltenImportOutput")
-				vim.notify("Imported notebook outputs", vim.log.levels.INFO)
-			else
-				vim.notify("Not a notebook file", vim.log.levels.WARN)
-			end
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Import notebook outputs" }))
-
-		-- Save outputs
-		vim.keymap.set("n", "<leader>ms", function()
-			vim.cmd("MoltenSave")
-		end, vim.tbl_extend("force", opts, { desc = "Molten: Save outputs" }))
+		end, vim.tbl_extend("force", opts, { desc = "Interrupt execution" }))
 	end
 end
 
