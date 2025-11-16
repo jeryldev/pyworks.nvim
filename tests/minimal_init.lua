@@ -9,7 +9,7 @@ package.path = package.path .. ";" .. pyworks_path .. "/lua/?/init.lua"
 -- Add plenary to runtimepath if available
 local plenary_path = vim.fn.stdpath("data") .. "/lazy/plenary.nvim"
 if vim.fn.isdirectory(plenary_path) == 1 then
-  vim.opt.runtimepath:append(plenary_path)
+	vim.opt.runtimepath:append(plenary_path)
 end
 
 -- Disable unnecessary features for testing
