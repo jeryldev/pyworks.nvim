@@ -57,11 +57,6 @@ local function evaluate_percent_cell()
 		true
 	)
 	vim.api.nvim_feedkeys(keys, "x", false)
-
-	-- Restore cursor position after a short delay
-	vim.defer_fn(function()
-		vim.api.nvim_win_set_cursor(0, cursor_pos)
-	end, 100)
 end
 
 -- Set up keymaps for a buffer
@@ -153,11 +148,13 @@ function M.setup_buffer_keymaps()
 			-- This works whether or not a Molten cell already exists
 			evaluate_percent_cell()
 
-			-- Move to next cell marker
-			local found = vim.fn.search("^# %%", "W")
-			if found == 0 then
-				vim.notify("Last cell", vim.log.levels.INFO)
-			end
+			-- Move to next cell marker after a short delay to ensure evaluation starts
+			vim.defer_fn(function()
+				local found = vim.fn.search("^# %%", "W")
+				if found == 0 then
+					vim.notify("Last cell", vim.log.levels.INFO)
+				end
+			end, 100)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
 		-- Re-evaluate current cell (stay in place)
@@ -168,9 +165,17 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
+			-- Save cursor position before evaluating
+			local cursor_pos = vim.api.nvim_win_get_cursor(0)
+
 			-- Always evaluate the # %% delimited cell
 			-- This works whether or not a Molten cell already exists
 			evaluate_percent_cell()
+
+			-- Restore cursor position after evaluation
+			vim.defer_fn(function()
+				vim.api.nvim_win_set_cursor(0, cursor_pos)
+			end, 100)
 		end, vim.tbl_extend("force", opts, { desc = "Re-evaluate current cell" }))
 
 		-- ============================================================================

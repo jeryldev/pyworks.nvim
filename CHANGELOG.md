@@ -22,6 +22,10 @@ All notable changes to pyworks.nvim will be documented in this file.
   - Properly excludes `# %%` markers from execution (only executes cell content)
   - Uses visual selection to create Molten cells on-the-fly
   - Keybindings now work whether or not a Molten cell exists
+- **Cursor Movement After Cell Execution**: Fixed `<leader>jc` not moving to next cell
+  - Removed cursor restoration from `evaluate_percent_cell()` to prevent overwriting navigation
+  - Added proper cursor positioning control in `<leader>jc` (move to next) and `<leader>je` (stay in place)
+  - Cell execution now properly mimics Jupyter's Shift+Enter behavior
 
 ### Changed
 
