@@ -14,6 +14,8 @@ A Neovim plugin that provides automatic environment setup, package detection, an
 - **Jupyter Notebook Support** - Edit .ipynb files as naturally as .py files
 - **Molten Integration** - Execute code cells with Jupyter-like experience
 - **Inline Plots** - Display matplotlib output directly in Neovim
+- **Cell Folding & Numbering** - Collapse/expand cells and see cell numbers inline
+- **Execution Status Tracking** - Cell numbers turn green when executed, red when unrun
 - **Project-Based Activation** - Only runs in actual project directories
 
 > **Note**: While pyworks.nvim includes experimental support for Julia and R, the primary focus is on Python and Python notebooks.
@@ -123,6 +125,7 @@ For inline plot/image display:
 | `<leader>jr` | Visual | Run selection                    |
 | `<leader>jc` | Normal | Run current cell and move to next |
 | `<leader>je` | Normal | Re-evaluate current cell (stay in place) |
+| `<leader>jR` | Normal | Run all cells in buffer          |
 
 ### Cell Selection & Navigation
 
@@ -131,7 +134,7 @@ For inline plot/image display:
 | `<leader>jv` | Normal | Visual select current cell |
 | `<leader>j]` | Normal | Next cell                |
 | `<leader>j[` | Normal | Previous cell            |
-| `<leader>jg` | Normal | Go to cell N (prompt)    |
+| `<leader>jg` | Normal | Go to cell N (works without running cells) |
 
 ### Output Management
 
@@ -158,6 +161,15 @@ For inline plot/image display:
 | `<leader>jt` | Toggle cell type (code ↔ markdown) |
 | `<leader>jJ` | Merge with cell below      |
 | `<leader>js` | Split cell at cursor       |
+
+### Cell Folding & UI
+
+| Keymap        | Description                    |
+| ------------- | ------------------------------ |
+| `<leader>jf`  | Toggle cell folding on/off     |
+| `<leader>jzc` | Collapse all cells             |
+| `<leader>jze` | Expand all cells               |
+| `<leader>jn`  | Refresh cell numbers           |
 
 ### Kernel Management
 

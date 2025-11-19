@@ -6,16 +6,36 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Added
 
+- **Run All Cells (`<leader>jR`)**: Execute all cells sequentially from top to bottom
+  - Automatically finds and counts all cells in the buffer
+  - Runs cells with 200ms delay to prevent kernel overload
+  - Shows progress notification and restores cursor position when complete
+  - Works with both code and markdown cells (markdown cells are skipped by kernel)
+- **Cell Folding & UI Enhancements**: New visual features for better cell organization
+  - Cell folding: Collapse/expand cells with `<leader>jf`, `<leader>jzc`, `<leader>jze`
+  - Cell numbering: Automatic inline cell numbering with type indicators (code/markdown)
+  - Execution status: Cell numbers change from red (unrun) to green (executed) when cells are run
+  - Tracks execution state per buffer - visual feedback for which cells have been executed
+  - Custom fold text showing cell type, line count, and content preview
+  - Configurable via `setup({ show_cell_numbers = true, enable_cell_folding = false })`
 - **15 New Jupyter-like Keybindings**: Comprehensive cell manipulation and execution
   - Cell execution: `<leader>jc` (run and move next), `<leader>je` (re-evaluate in place)
   - Cell creation: `<leader>ja/jb` (insert code cells above/below), `<leader>jma/jmb` (insert markdown cells)
   - Cell operations: `<leader>jt` (toggle type), `<leader>jJ` (merge below), `<leader>js` (split at cursor)
   - Output management: `<leader>jd` (delete), `<leader>jh` (hide), `<leader>jo` (enter window)
-  - Navigation: `<leader>jg` (go to cell N)
+  - Navigation: `<leader>jg` (go to cell N - now works without running cells)
   - Kernel management: `<leader>mi` (initialize), `<leader>mI` (show info)
 
 ### Fixed
 
+- **Cell Toggle (`<leader>jt`)**: Fixed toggle not working from markdown back to code
+  - Simplified pattern matching to check for `[markdown]` substring instead of complex regex
+  - Now correctly toggles between `# %%` and `# %% [markdown]` in both directions
+- **Cell Navigation (`<leader>jg`)**: Reimplemented to work without executing cells
+  - Previously used `MoltenGoto` which required cells to be executed first
+  - Now searches for `# %%` markers directly, enabling navigation before execution
+  - Shows helpful error if requested cell number doesn't exist
+  - Restores cursor position on error for better UX
 - **Molten Cell Execution for Percent-Format Scripts**: Fixed "not in a cell" errors
   - `<leader>jc` and `<leader>je` now work correctly with `# %%` delimited cells
   - Added `evaluate_percent_cell()` helper that finds code between `# %%` markers
