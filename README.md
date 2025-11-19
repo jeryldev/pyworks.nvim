@@ -261,8 +261,8 @@ Pyworks only activates in directories containing:
 
 ### Common Issues
 
-**Q: "No visual selection found" error**
-A: Use `<leader>jc` to select cell, then `<leader>jr` while in visual mode to execute.
+**Q: "No kernel initialized" warning when using `<leader>jc` or `<leader>je`**
+A: Press `<leader>jl` first to auto-initialize the kernel for the current file type.
 
 **Q: Jupytext command not found**
 A: Pyworks adds .venv/bin to PATH automatically. Run `:PyworksSetup` to install jupytext.

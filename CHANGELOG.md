@@ -14,6 +14,15 @@ All notable changes to pyworks.nvim will be documented in this file.
   - Navigation: `<leader>jg` (go to cell N)
   - Kernel management: `<leader>mi` (initialize), `<leader>mI` (show info)
 
+### Fixed
+
+- **Molten Cell Execution for Percent-Format Scripts**: Fixed "not in a cell" errors
+  - `<leader>jc` and `<leader>je` now work correctly with `# %%` delimited cells
+  - Added `evaluate_percent_cell()` helper that finds code between `# %%` markers
+  - Properly excludes `# %%` markers from execution (only executes cell content)
+  - Uses visual selection to create Molten cells on-the-fly
+  - Keybindings now work whether or not a Molten cell exists
+
 ### Changed
 
 - **Breaking**: `<leader>jc` changed from "select cell" to "run cell and move to next"
