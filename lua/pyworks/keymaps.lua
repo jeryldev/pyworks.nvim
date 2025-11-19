@@ -12,6 +12,58 @@ local M = {}
 
 local error_handler = require("pyworks.core.error_handler")
 
+-- Helper function to find and execute code between # %% markers
+-- This creates a Molten cell if one doesn't exist yet
+local function evaluate_percent_cell()
+	local cursor_pos = vim.api.nvim_win_get_cursor(0)
+
+	-- Find cell boundaries
+	local cell_start = vim.fn.search("^# %%", "bnW") -- Search backwards for cell start
+	local cell_end = vim.fn.search("^# %%", "nW") -- Search forwards for next cell start
+
+	local start_line, end_line
+
+	if cell_start == 0 and cell_end == 0 then
+		-- No cell markers found, evaluate entire file
+		start_line = 1
+		end_line = vim.fn.line("$")
+	elseif cell_start == 0 then
+		-- Before first cell marker, select from start to line before first marker
+		start_line = 1
+		end_line = cell_end - 1
+	elseif cell_end == 0 then
+		-- After last cell marker, select from line after marker to end
+		start_line = cell_start + 1
+		end_line = vim.fn.line("$")
+	else
+		-- Between markers: from line after first marker to line before next marker
+		start_line = cell_start + 1
+		end_line = cell_end - 1
+	end
+
+	-- Ensure we have valid content to execute (not just empty lines or markers)
+	if start_line > end_line then
+		vim.notify("Empty cell", vim.log.levels.WARN)
+		return
+	end
+
+	-- Execute the range by entering visual mode and calling MoltenEvaluateVisual from within it
+	-- We use vim.api.nvim_feedkeys to simulate the user's keystrokes
+	-- This keeps us in visual mode when MoltenEvaluateVisual is called
+	local keys = vim.api.nvim_replace_termcodes(
+		string.format("%dGV%dG:<C-u>MoltenEvaluateVisual<CR>", start_line, end_line),
+		true,
+		false,
+		true
+	)
+	vim.api.nvim_feedkeys(keys, "x", false)
+
+	-- Restore cursor position after a short delay
+	vim.defer_fn(function()
+		vim.api.nvim_win_set_cursor(0, cursor_pos)
+	end, 100)
+end
+
 -- Set up keymaps for a buffer
 function M.setup_buffer_keymaps()
 	local opts = { buffer = true, silent = true }
@@ -97,10 +149,11 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			-- Re-evaluate current cell
-			error_handler.protected_call(vim.cmd, "Failed to evaluate cell", "MoltenReevaluateCell")
+			-- Always evaluate the # %% delimited cell
+			-- This works whether or not a Molten cell already exists
+			evaluate_percent_cell()
 
-			-- Move to next cell
+			-- Move to next cell marker
 			local found = vim.fn.search("^# %%", "W")
 			if found == 0 then
 				vim.notify("Last cell", vim.log.levels.INFO)
@@ -115,7 +168,9 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			error_handler.protected_call(vim.cmd, "Failed to re-evaluate cell", "MoltenReevaluateCell")
+			-- Always evaluate the # %% delimited cell
+			-- This works whether or not a Molten cell already exists
+			evaluate_percent_cell()
 		end, vim.tbl_extend("force", opts, { desc = "Re-evaluate current cell" }))
 
 		-- ============================================================================
@@ -184,17 +239,23 @@ function M.setup_buffer_keymaps()
 
 		-- Delete cell output
 		vim.keymap.set("n", "<leader>jd", function()
-			error_handler.protected_call(vim.cmd, "Failed to delete output", "MoltenDelete")
+			-- Silently try to delete - if not in cell, no error shown
+			pcall(vim.cmd, "silent! MoltenDelete")
 		end, vim.tbl_extend("force", opts, { desc = "Delete cell output" }))
 
 		-- Hide output window
 		vim.keymap.set("n", "<leader>jh", function()
-			error_handler.protected_call(vim.cmd, "Failed to hide output", "MoltenHideOutput")
+			-- Try to hide current Molten cell output if it exists
+			local ok = pcall(vim.cmd, "MoltenHideOutput")
+			if not ok then
+				vim.notify("No output window to hide", vim.log.levels.INFO)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Hide output window" }))
 
 		-- Enter/open output window
 		vim.keymap.set("n", "<leader>jo", function()
-			error_handler.protected_call(vim.cmd, "Failed to enter output", "noautocmd MoltenEnterOutput")
+			-- Silently try to enter output - if not in cell, no error shown
+			pcall(vim.cmd, "silent! noautocmd MoltenEnterOutput")
 		end, vim.tbl_extend("force", opts, { desc = "Enter output window" }))
 
 		-- Hover to show output (using K)
