@@ -4,6 +4,8 @@
 
 A Neovim plugin that provides automatic environment setup, package detection, and code execution for Python projects - primarily focused on Python and Python notebooks.
 
+> ⚠️ **Active Development**: This plugin is under active development and may introduce breaking changes between versions. Check the [CHANGELOG](CHANGELOG.md) for migration guides when updating.
+
 ## Features
 
 - **Zero Configuration** - Just open files and start coding
