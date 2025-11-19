@@ -1,58 +1,53 @@
-*pyworks.txt*  Zero-configuration multi-language support for Python, Julia, and R
+*pyworks.txt*  Zero-configuration Python development for Neovim
 
 ==============================================================================
 CONTENTS                                                    *pyworks-contents*
 
   1. Introduction.......................................|pyworks-introduction|
-  2. Features.................................................|pyworks-features|
+  2. Requirements.........................................|pyworks-requirements|
   3. Installation.........................................|pyworks-installation|
-  4. Usage.........................................................|pyworks-usage|
-  5. Commands.................................................|pyworks-commands|
-  6. Keymaps....................................................|pyworks-keymaps|
+  4. Quick Start............................................|pyworks-quickstart|
+  5. Key Bindings.............................................|pyworks-keymaps|
+  6. Commands.................................................|pyworks-commands|
   7. Configuration.............................................|pyworks-config|
-  8. Languages.............................................|pyworks-languages|
-  9. Troubleshooting...................................|pyworks-troubleshooting|
- 10. Architecture..........................................|pyworks-architecture|
+  8. Troubleshooting...................................|pyworks-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                         *pyworks-introduction*
 
-Pyworks.nvim is a zero-configuration plugin that provides automatic
-environment setup, package detection, and Jupyter-like execution for Python,
-Julia, and R in Neovim.
+Pyworks.nvim is a zero-configuration plugin for Python development in Neovim.
+It provides automatic environment setup, package detection, and Jupyter-like
+code execution - primarily focused on Python and Python notebooks.
 
-Key principles:
-- Zero configuration required - just open files and start coding
-- Automatic environment management (virtual environments, kernels)
-- Smart package detection and installation
-- Seamless notebook support via Molten and jupytext
-- Consistent workflow across all supported languages
+Key Features:
+- Zero configuration required
+- Automatic virtual environment management
+- Smart package detection from imports
+- Jupyter notebook support via Molten
+- Inline plot display with image.nvim
+- Project-based activation
+
+Note: While pyworks includes experimental support for Julia and R, the
+primary focus is on Python and Python notebooks.
 
 ==============================================================================
-2. FEATURES                                                *pyworks-features*
+2. REQUIREMENTS                                         *pyworks-requirements*
 
-- **Automatic Environment Setup**: Creates and manages virtual environments
-- **Smart Package Detection**: Detects missing packages from imports
-- **Jupyter Integration**: Execute code cells with Molten
-- **Multi-Language Support**: Python, Julia, and R
-- **Notebook Support**: View and edit .ipynb files seamlessly
-- **Project-Based Activation**: Only runs in project directories
-- **Dynamic Kernel Detection**: Finds available kernels automatically
+Required:
+- Neovim ≥ 0.9.0
+- Python 3.8+
+- jupytext CLI (automatically installed by pyworks)
+
+Optional:
+- uv (10-100x faster package management than pip)
+- Kitty or Ghostty terminal (for inline image display)
 
 ==============================================================================
 3. INSTALLATION                                         *pyworks-installation*
 
-Create ~/.config/nvim/lua/plugins/pyworks.lua with this setup:
-
-For standard Neovim with lazy.nvim, see the README.md for the basic config.
-For LazyVim users, see examples/lazyvim-setup.lua for a complete example.
-
-Note: The configuration integrates multiple systems (environment management,
-notebook support, code execution, and image display) that work together.
-
+With lazy.nvim, create ~/.config/nvim/lua/plugins/pyworks.lua:
 >lua
     return {
-      -- Pyworks core
       {
         "jeryldev/pyworks.nvim",
         dependencies = {
@@ -66,236 +61,182 @@ notebook support, code execution, and image display) that work together.
           },
           "3rd/image.nvim",
         },
+        config = function()
+          require("pyworks").setup({
+            python = {
+              use_uv = true,
+            },
+            image_backend = "kitty",
+          })
+        end,
         lazy = false,
         priority = 100,
-        config = function()
-          -- Project detection (only runs in project directories)
-          local function is_project_dir()
-            local markers = {".venv", "Project.toml", "renv.lock"}
-            -- Check for markers...
-          end
-          if is_project_dir() then
-            require("pyworks").setup({
-              python = { use_uv = true },
-              julia = { auto_install_ijulia = true },
-              r = { auto_install_irkernel = true },
-            })
-          end
-        end,
-      },
-      
-      -- Notebook support
-      {
-        "GCBallesteros/jupytext.nvim",
-        config = true,
-        lazy = false,
-      },
-      
-      -- Code execution
-      {
-        "benlubas/molten-nvim",
-        version = "^1.0.0",
-        build = ":UpdateRemotePlugins",
-        dependencies = { "3rd/image.nvim" },
-        init = function()
-          vim.g.molten_image_provider = "image.nvim"
-          vim.g.molten_auto_open_output = true
-          vim.g.molten_virt_text_output = false  -- No inline text
-          vim.g.molten_output_win_max_height = 40
-          vim.g.molten_output_win_max_width = 150
-          vim.g.molten_auto_image_popup = false  -- Prevent external viewers
-        end,
-      },
-      
-      -- Image display
-      {
-        "3rd/image.nvim",
-        lazy = false,
-        opts = {
-          backend = "kitty",  -- or "ueberzug"
-          max_width = 150,
-          max_height = 40,
-        },
       },
     }
 <
 
 ==============================================================================
-4. USAGE                                                       *pyworks-usage*
+4. QUICK START                                          *pyworks-quickstart*
 
-QUICK START~
+CREATING NOTEBOOKS~
 
-Create and run a notebook in 30 seconds:
+Create Python file with cells:
 >vim
-    :PyworksNewPython analysis     " Create analysis.py
-    " Write some code, select it (visual mode)
-    <leader>jv                     " Run selected code
+    :PyworksNewPython analysis
 <
+Creates analysis.py with cell markers (# %%)
+
+Create Jupyter notebook:
+>vim
+    :PyworksNewPythonNotebook report
+<
+Creates report.ipynb
 
 TYPICAL WORKFLOW~
 
-1. Create a new notebook:
+1. Create notebook:
 >vim
-    :PyworksNewPython ml_model       " Python with cells
-    :PyworksNewJulia simulation      " Julia with cells  
-    :PyworksNewPythonNotebook report " Jupyter notebook
+    :PyworksNewPython ml_model
 <
 
-2. Code structure (cells marked with # %%):
+2. Write code with cell markers:
 >python
     # %%
     import numpy as np
     import pandas as pd
-    
+
     # %%
     data = pd.read_csv('data.csv')
     print(data.head())
 <
 
 3. Execute code:
-   - |<leader>jv| - Run visual selection
    - |<leader>jl| - Run current line
-   - |<leader>jr| - Select cell, then |<leader>jv| to run
+   - |<leader>jc| - Run current cell and move to next (Shift+Enter in Jupyter)
+   - |<leader>je| - Re-run current cell
 
-4. Navigate cells:
-   - |]j| - Next cell
-   - |[j| - Previous cell
+4. Create new cells:
+   - |<leader>ja| - Insert code cell above
+   - |<leader>jb| - Insert code cell below
+   - |<leader>jma| - Insert markdown cell above
 
-5. Manage packages:
-   - Auto-detected from imports
-   - |<leader>pi| - Install missing
+5. Navigate:
+   - |<leader>j]| - Next cell
+   - |<leader>j[| - Previous cell
+   - |<leader>jv| - Select current cell
+
+6. Manage packages:
+   - Missing packages detected automatically
+   - |<leader>pi| - Install missing packages
    - |:PyworksInstallPython| numpy pandas
 
-SIX CORE SCENARIOS~
+==============================================================================
+5. KEY BINDINGS                                            *pyworks-keymaps*
 
-All work identically with zero configuration:
+CELL EXECUTION~
 
-1. Python file (.py) with cells
-2. Julia file (.jl) with cells
-3. R file (.R) with cells
-4. Python notebook (.ipynb)
-5. Julia notebook (.ipynb)
-6. R notebook (.ipynb)
+*<leader>jl*  Run current line (Normal mode)
+*<leader>jr*  Run selection (Visual mode)
+*<leader>jc*  Run current cell and move to next (Normal mode)
+*<leader>je*  Re-evaluate current cell, stay in place (Normal mode)
+
+CELL SELECTION & NAVIGATION~
+
+*<leader>jv*  Visual select current cell (Normal mode)
+*<leader>j]*  Next cell (Normal mode)
+*<leader>j[*  Previous cell (Normal mode)
+*<leader>jg*  Go to cell N (prompt) (Normal mode)
+
+OUTPUT MANAGEMENT~
+
+*<leader>jd*  Delete cell output
+*<leader>jh*  Hide output window
+*<leader>jo*  Enter output window
+*K*           Show Molten output or LSP hover (context-aware)
+
+CELL CREATION~
+
+*<leader>ja*   Insert code cell above
+*<leader>jb*   Insert code cell below
+*<leader>jma*  Insert markdown cell above
+*<leader>jmb*  Insert markdown cell below
+
+CELL OPERATIONS~
+
+*<leader>jt*  Toggle cell type (code ↔ markdown)
+*<leader>jJ*  Merge with cell below
+*<leader>js*  Split cell at cursor
+
+KERNEL MANAGEMENT~
+
+*<leader>mi*  Initialize kernel (manual)
+*<leader>mr*  Restart kernel
+*<leader>mx*  Interrupt execution
+*<leader>mI*  Show kernel info
+
+PACKAGE MANAGEMENT~
+
+*<leader>pi*  Install missing packages
+*<leader>ps*  Show package status
 
 ==============================================================================
-5. COMMANDS                                                *pyworks-commands*
+6. COMMANDS                                                *pyworks-commands*
 
-Core Commands~
+NOTEBOOK CREATION~
+
+*:PyworksNewPython* [name]
+    Create Python file with cell markers (.py)
+    If name provided, saves as name.py
+
+*:PyworksNewPythonNotebook* [name]
+    Create Python Jupyter notebook (.ipynb)
+
+Note: Julia and R notebook creation commands exist but are experimental.
+
+ENVIRONMENT MANAGEMENT~
 
 *:PyworksSetup*
-    Manually trigger environment setup for current file
+    Manually trigger environment setup
     Usually not needed as setup is automatic
 
 *:PyworksStatus*
-    Show package status for current file (imports/installed/missing)
-    Works for Python, Julia, and R files
+    Show package status (imports/installed/missing)
 
 *:PyworksInstall*
     Install missing packages detected in current file
-    Automatically detects package manager (uv/pip for Python)
 
 *:PyworksClearCache*
-    Clear all cached data (packages, kernels, etc.)
-
-*:PyworksCacheStats*
-    Show cache statistics (total, active, expired entries)
+    Clear all cached data
 
 *:PyworksDiagnostics*
     Run environment diagnostics
     Shows Python host, venv status, package manager
 
-Notebook Creation Commands~
-
-*:PyworksNewPython* [name]
-    Create new Python file with cell markers (.py)
-    If name is provided, saves as name.py
-    Otherwise creates unnamed buffer (save with :w)
-
-*:PyworksNewJulia* [name]
-    Create new Julia file with cell markers (.jl)
-    Includes common imports like Plots, DataFrames
-
-*:PyworksNewR* [name]
-    Create new R file with cell markers (.R)
-    Includes common libraries like ggplot2, dplyr
-
-*:PyworksNewPythonNotebook* [name]
-    Create new Python Jupyter notebook (.ipynb)
-    Creates proper JSON structure with Python kernel
-
-*:PyworksNewJuliaNotebook* [name]
-    Create new Julia Jupyter notebook (.ipynb)
-    Creates proper JSON structure with Julia kernel
-
-*:PyworksNewRNotebook* [name]
-    Create new R Jupyter notebook (.ipynb)
-    Creates proper JSON structure with R kernel
-
-Python Package Management~
+PYTHON PACKAGE MANAGEMENT~
 
 *:PyworksInstallPython* {packages}
     Install Python packages in project virtual environment
     Example: :PyworksInstallPython numpy pandas matplotlib
-    Packages can be space or comma separated
-    Tab completion available for common packages
 
 *:PyworksUninstallPython* {packages}
-    Uninstall Python packages from project virtual environment
+    Uninstall Python packages
     Example: :PyworksUninstallPython tensorflow
 
 *:PyworksListPython*
-    List all installed Python packages in a new buffer
-    Shows package names and versions
-    Press 'q' to close the buffer
-
-==============================================================================
-6. KEYMAPS                                                  *pyworks-keymaps*
-
-Pyworks Core~
-
-*<leader>ps*  Show package status
-*<leader>pc*  Clear cache
-*<leader>pi*  Install missing packages (buffer-local, when available)
-
-Code Execution (Molten)~
-
-*<leader>jl*  Execute current line
-*<leader>jv*  Execute visual selection
-*<leader>jr*  Select current cell
-*<leader>jc*  Re-evaluate current cell
-*<leader>jd*  Delete cell output
-*<leader>jo*  Show output window
-*<leader>jh*  Hide output window
-*<leader>je*  Enter output window
-*[j*          Jump to previous cell
-*]j*          Jump to next cell
-*K*           Show Molten output or LSP hover (context-aware)
-
-Kernel Management (Molten)~
-
-*<leader>mi*  Initialize kernel
-*<leader>mr*  Restart kernel
-*<leader>mx*  Interrupt execution
-*<leader>mn*  Import notebook outputs
-*<leader>ms*  Save outputs
+    List all installed Python packages
+    Press 'q' to close buffer
 
 ==============================================================================
 7. CONFIGURATION                                            *pyworks-config*
 
 Default configuration (all optional):
 >lua
-    {
+    require("pyworks").setup({
       python = {
         preferred_venv_name = ".venv",
-        use_uv = true,  -- Use uv if available
+        use_uv = true,  -- 10-100x faster than pip
         auto_install_essentials = true,
         essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
-      },
-      julia = {
-        auto_install_ijulia = true,
-      },
-      r = {
-        auto_install_irkernel = true,
       },
       notifications = {
         verbose_first_time = true,
@@ -303,167 +244,60 @@ Default configuration (all optional):
         show_progress = true,
         debug_mode = false,
       },
-    }
+      -- Optional: Skip auto-configuration of dependencies
+      skip_molten = false,
+      skip_jupytext = false,
+      skip_image = false,
+      skip_keymaps = false,
+    })
 <
 
-==============================================================================
-8. LANGUAGES                                            *pyworks-languages*
+PROJECT DETECTION~
 
-PYTHON SUPPORT~
-
-- Automatic .venv creation and activation
-- Package detection from import/from statements
-- Smart package name mapping (sklearn → scikit-learn)
-- Support for uv (10-100x faster) or pip
-- Compatibility checking for Python 3.12+
-- Auto-installs: pynvim, ipykernel, jupyter_client, jupytext
-- Filters standard library modules (os, sys, base64, etc.)
-- Ignores custom/local packages (company-specific modules)
-- Per-project Python environment configuration
-- Detailed error reporting for package installation failures
-
-JULIA SUPPORT~
-
-- Dynamic kernel detection (finds julia-1.11, etc.)
-- Project.toml and Manifest.toml awareness
-- Package detection from using/import statements
-- Automatic project activation
-- Prompts once for IJulia installation if missing
-- Full Molten integration for cell execution
-
-R SUPPORT~
-
-- IRkernel management and detection
-- Package detection from library()/require() calls
-- renv.lock awareness for reproducible environments
-- RStudio project (.Rproj) compatibility
-- Prompts once for IRkernel installation if missing
-- Full Molten integration for cell execution
+Pyworks only activates in directories containing:
+- .venv (Python virtual environment)
+- requirements.txt, setup.py, pyproject.toml (Python markers)
+- Project.toml (Julia - experimental)
+- renv.lock, .Rproj (R - experimental)
 
 ==============================================================================
-9. TROUBLESHOOTING                                  *pyworks-troubleshooting*
+8. TROUBLESHOOTING                                  *pyworks-troubleshooting*
 
 COMMON ISSUES~
 
-Q: Pyworks activates in all directories
-A: v3.0 fixed this. Pyworks only activates in directories with project
-   markers (.venv, Project.toml, requirements.txt, renv.lock, etc.)
-
 Q: "No visual selection found" error
-A: Fixed in v3.0. Use <leader>jr to select cell visually, then <leader>jv
-   while still in visual mode to execute.
-
-Q: Kernel not found for Julia
-A: Julia kernels include version (julia-1.11). Pyworks detects them
-   dynamically. Run: using Pkg; Pkg.add("IJulia")
-
-Q: Images open in external viewer
-A: Fixed by setting molten_auto_image_popup = false. Images now only
-   display in Molten's floating window.
+A: Use |<leader>jc| to select cell, then |<leader>jr| while in visual mode
 
 Q: Jupytext command not found
-A: Pyworks adds .venv/bin to PATH automatically. If issue persists,
-   install globally: pip install --user jupytext
+A: Pyworks adds .venv/bin to PATH automatically. Run |:PyworksSetup|
+
+Q: Images open in external viewer
+A: Fixed by default. Ensure using Kitty or Ghostty terminal
 
 Q: Matplotlib opens external window
-A: Don't use plt.show(). Just create the plot and let Molten capture it.
-   Alternatively, use: matplotlib.use('Agg') before importing pyplot.
-
-Q: Auto-initialization not working for notebooks
-A: Fixed in v3.0. Notebooks now trigger auto-initialization after jupytext
-   conversion completes.
+A: Don't use plt.show(). Just create plot and Molten captures it
 
 DEBUG MODE~
 
-Enable debug mode to see what's happening:
+Enable debug mode:
 >lua
     require("pyworks").setup({
       notifications = { debug_mode = true }
     })
 <
 
-Or temporarily: >vim
+Or temporarily:
+>vim
     :lua vim.g.pyworks_debug = true
 <
 
-==============================================================================
-10. ARCHITECTURE                                        *pyworks-architecture*
+DEPENDENCIES~
 
-PLUGIN STRUCTURE~
-
-plugin/pyworks.lua                    Main plugin entry point and autocmds
-lua/pyworks/
-├── init.lua                          Main module setup and API
-├── config.lua                        Configuration management
-├── health.lua                        Health check integration
-├── keymaps.lua                       Molten keybinding setup
-├── utils.lua                         Common utility functions
-├── diagnostics.lua                   Environment diagnostics
-├── core/
-│   ├── cache.lua                     Caching system with TTL
-│   ├── detector.lua                  File type and language detection
-│   ├── notifications.lua             Progress and status notifications
-│   ├── packages.lua                  Package detection and management
-│   └── state.lua                     Session state management
-├── languages/
-│   ├── python.lua                    Python environment and package handling
-│   ├── julia.lua                     Julia project and kernel management
-│   └── r.lua                         R environment and IRkernel setup
-└── notebook/
-    └── jupytext.lua                  Jupyter notebook conversion support
-
-FILE PURPOSES~
-
-*plugin/pyworks.lua*
-  - Sets up autocmds for file detection (.py, .jl, .R, .ipynb)
-  - Project directory validation (only runs in project dirs)
-  - Triggers auto-initialization workflow
-
-*lua/pyworks/init.lua*
-  - Main plugin setup() function and configuration
-  - User commands (PyworksStatus, PyworksClearCache, etc.)
-  - Package installation commands (leader-pi keymap)
-
-*lua/pyworks/core/detector.lua*
-  - Detects file types and notebook languages
-  - Routes files to appropriate language handlers
-  - Manages kernel detection and initialization
-
-*lua/pyworks/languages/python.lua*
-  - Virtual environment creation and management
-  - Essential package installation (pynvim, ipykernel, etc.)
-  - Package compatibility checking and installation
-  - Integration with uv/pip package managers
-
-*lua/pyworks/languages/julia.lua*
-  - Julia project detection and activation
-  - IJulia kernel management
-  - Package detection from using/import statements
-
-*lua/pyworks/languages/r.lua*
-  - R environment setup and IRkernel management
-  - Package detection from library()/require() calls
-  - Integration with renv for reproducible environments
-
-*lua/pyworks/keymaps.lua*
-  - Molten integration keybindings
-  - Cell navigation ([j, ]j) and execution (leader-jv, leader-jl)
-  - Auto-initialization fallbacks for kernel setup
-
-*lua/pyworks/core/cache.lua*
-  - TTL-based caching system for expensive operations
-  - Caches kernel lists, package checks, and environment status
-  - Automatic cache invalidation
-
-*lua/pyworks/core/state.lua*
-  - Session state management and job tracking
-  - Package installation status tracking
-  - Environment readiness checks
-
-*lua/pyworks/notebook/jupytext.lua*
-  - Jupyter notebook conversion via jupytext
-  - PATH management for jupytext command
-  - Notebook metadata handling
+Plugin          Purpose                 Required
+---------------------------------------------------------
+molten-nvim     Code execution          Yes (for notebooks)
+jupytext.nvim   Open/save .ipynb files  Yes (for notebooks)
+image.nvim      Display plots inline    Yes (for plots)
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
