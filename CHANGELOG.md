@@ -2,6 +2,39 @@
 
 All notable changes to pyworks.nvim will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **15 New Jupyter-like Keybindings**: Comprehensive cell manipulation and execution
+  - Cell execution: `<leader>jc` (run and move next), `<leader>je` (re-evaluate in place)
+  - Cell creation: `<leader>ja/jb` (insert code cells above/below), `<leader>jma/jmb` (insert markdown cells)
+  - Cell operations: `<leader>jt` (toggle type), `<leader>jJ` (merge below), `<leader>js` (split at cursor)
+  - Output management: `<leader>jd` (delete), `<leader>jh` (hide), `<leader>jo` (enter window)
+  - Navigation: `<leader>jg` (go to cell N)
+  - Kernel management: `<leader>mi` (initialize), `<leader>mI` (show info)
+
+### Changed
+
+- **Breaking**: `<leader>jc` changed from "select cell" to "run cell and move to next"
+  - Use `<leader>jv` for visual select cell (better vim semantics)
+  - This provides Jupyter-like Shift+Enter behavior
+- **Documentation**: Simplified README and help docs by removing verbose sections
+  - Removed "Why This Simple Configuration Works" section
+  - Removed "What's New in v3.0" marketing language
+  - Removed "The Six Core Scenarios" section
+  - Consolidated Jupyter Notebook Support into Quick Start
+- **Focus**: Updated documentation to reflect Python-first approach
+  - Julia and R support marked as experimental
+  - Primary focus on Python and Python notebooks
+
+### Documentation
+
+- Added active development warning to README
+- Updated all keybinding tables with comprehensive new set (24 total keybindings)
+- Reorganized keybindings into logical categories (Execution, Navigation, Output, Creation, Operations, Kernel)
+- Updated typical workflow examples with new keybindings
+
 ## [3.0.2] - 2025-01-08
 
 ### Added
