@@ -10,6 +10,8 @@ tests/
 ├── utils_spec.lua             # Tests for core utilities (project detection, caching, file ops)
 ├── detector_spec.lua          # Tests for file type detection and kernel management
 ├── notebook_handler_spec.lua  # Tests for notebook handling and jupytext integration
+├── init_spec.lua              # Tests for configure_dependencies and jupytext race condition fix
+├── create_spec.lua            # Tests for notebook creation commands and JSON validity
 └── README.md                  # This file
 ```
 
@@ -94,6 +96,37 @@ nvim --headless -c "PlenaryBustedFile tests/utils_spec.lua"
 **Critical Bug Tests:**
 - ✅ Finds jupytext in parent directory venv
 - ✅ Checks project venv before system PATH
+
+### init_spec.lua (Configuration & Race Condition Fix)
+
+**Covered:**
+- ✅ PATH updates with venv bin directories
+- ✅ PATH updates with parent venv directories
+- ✅ Conda environment PATH handling
+- ✅ skip_jupytext option respected
+- ✅ jupytext.setup() NOT called in configure_dependencies
+
+**Critical Bug Tests:**
+- ✅ Verifies race condition fix (no double jupytext.setup)
+- ✅ Documents orphaned BufWriteCmd handlers issue
+- ✅ Comments explain the fix in source code
+
+**Pending:**
+- ⏳ PATH deduplication on multiple calls
+
+### create_spec.lua (Notebook Creation)
+
+**Covered:**
+- ✅ Creates valid JSON notebook files
+- ✅ Proper nbformat 4.5 structure
+- ✅ Cells have required fields (id, metadata, source)
+- ✅ Auto-adds .ipynb extension
+- ✅ Detects corrupted notebooks (percent format in .ipynb)
+
+**Critical Bug Tests:**
+- ✅ Newly created notebooks are valid JSON
+- ✅ Notebooks start with '{' (JSON object)
+- ✅ Notebooks don't contain jupytext header
 
 ## Test Patterns
 
@@ -215,12 +248,12 @@ jobs:
 
 ## Test Metrics
 
-Current test coverage (as of 2025-11-16):
+Current test coverage (as of 2025-12-21):
 
-- **Total test files**: 3
-- **Total test cases**: 45+
-- **Coverage focus**: Critical bug fixes and core functionality
-- **Pending tests**: 5 (require advanced mocking)
+- **Total test files**: 5
+- **Total test cases**: 60+
+- **Coverage focus**: Critical bug fixes, race conditions, and core functionality
+- **Pending tests**: 6 (require advanced mocking or future improvements)
 
 ## Contributing
 

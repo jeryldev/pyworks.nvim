@@ -65,7 +65,9 @@ function M.configure_dependencies(opts)
 		vim.g.molten_tick_rate = 100
 	end
 
-	-- Configure jupytext with PATH management and optimal settings
+	-- Configure jupytext PATH (but don't call setup again - it's already done by pyworks-setup.lua)
+	-- Calling jupytext.setup() twice causes a race condition where BufWriteCmd handlers
+	-- for already-open files get orphaned, leading to corrupted .ipynb files
 	if not opts.skip_jupytext then
 		-- Add venv/bin to PATH for jupytext command
 		local cwd = vim.fn.getcwd()
@@ -92,38 +94,14 @@ function M.configure_dependencies(opts)
 			end
 		end
 
-		-- Update PATH
+		-- Update PATH (this is safe to do multiple times)
 		if #paths_to_add > 0 then
 			vim.env.PATH = table.concat(paths_to_add, ":") .. ":" .. vim.env.PATH
 		end
 
-		-- Auto-configure jupytext if available
-		local ok, jupytext = pcall(require, "jupytext")
-		if ok then
-			-- Find jupytext command
-			local jupytext_cmd = "jupytext"
-			local venv_jupytext = cwd .. "/.venv/bin/jupytext"
-			if vim.fn.executable(venv_jupytext) == 1 then
-				jupytext_cmd = venv_jupytext
-			else
-				local parent_jupytext = vim.fn.fnamemodify(cwd, ":h") .. "/.venv/bin/jupytext"
-				if vim.fn.executable(parent_jupytext) == 1 then
-					jupytext_cmd = parent_jupytext
-				end
-			end
-
-			jupytext.setup({
-				style = "percent",
-				output_extension = "auto",
-				force_ft = nil,
-				jupytext_command = jupytext_cmd,
-				custom_language_formatting = {
-					python = { extension = "py", style = "percent", comment = "#" },
-					julia = { extension = "jl", style = "percent", comment = "#" },
-					r = { extension = "R", style = "percent", comment = "#" },
-				},
-			})
-		end
+		-- NOTE: jupytext.setup() is NOT called here anymore
+		-- It should only be called once, in pyworks-setup.lua (the user's config)
+		-- The PATH update above is sufficient for jupytext CLI to work
 	end
 
 	-- Configure image.nvim with optimal settings
