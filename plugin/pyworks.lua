@@ -190,14 +190,21 @@ vim.api.nvim_create_autocmd("FileType", {
 	desc = "Pyworks: Set up language-specific keymaps and auto-init for notebooks",
 })
 
--- Clean up cache periodically
+-- Clean up cache periodically and pre-warm kernel cache
 vim.api.nvim_create_autocmd("VimEnter", {
 	group = augroup,
 	callback = function()
 		vim.defer_fn(function()
 			local cache = require("pyworks.core.cache")
 			cache.start_periodic_cleanup(300) -- Every 5 minutes
-		end, 5000)
+
+			-- Pre-warm kernel cache asynchronously to avoid blocking on first file open
+			-- This runs in background so opening files is fast
+			local detector = require("pyworks.core.detector")
+			if detector.prewarm_kernel_cache then
+				detector.prewarm_kernel_cache()
+			end
+		end, 1000) -- Start earlier (1 second) for faster first-file experience
 	end,
-	desc = "Pyworks: Start cache cleanup timer",
+	desc = "Pyworks: Start cache cleanup and pre-warm kernel cache",
 })

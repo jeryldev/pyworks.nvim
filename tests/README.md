@@ -12,6 +12,7 @@ tests/
 ├── notebook_handler_spec.lua  # Tests for notebook handling and jupytext integration
 ├── init_spec.lua              # Tests for configure_dependencies and jupytext race condition fix
 ├── create_spec.lua            # Tests for notebook creation commands and JSON validity
+├── performance_spec.lua       # Tests for async kernel detection and tmux/image.nvim fixes
 └── README.md                  # This file
 ```
 
@@ -127,6 +128,22 @@ nvim --headless -c "PlenaryBustedFile tests/utils_spec.lua"
 - ✅ Newly created notebooks are valid JSON
 - ✅ Notebooks start with '{' (JSON object)
 - ✅ Notebooks don't contain jupytext header
+
+### performance_spec.lua (Performance & tmux Compatibility)
+
+**Covered:**
+- ✅ Kernel cache pre-warming function exists
+- ✅ Pre-warming is non-blocking (async)
+- ✅ tmux environment detection
+- ✅ Conservative image settings in tmux
+- ✅ Full image settings outside tmux
+- ✅ window_overlap_clear disabled in tmux
+
+**Critical Bug Tests:**
+- ✅ No math.huge for image dimensions (prevents crashes)
+- ✅ Comments document tmux fixes
+- ✅ Async kernel fetch uses jobstart
+- ✅ Kernelspecs are cached
 
 ## Test Patterns
 
@@ -250,10 +267,10 @@ jobs:
 
 Current test coverage (as of 2025-12-21):
 
-- **Total test files**: 5
-- **Total test cases**: 60+
-- **Coverage focus**: Critical bug fixes, race conditions, and core functionality
-- **Pending tests**: 6 (require advanced mocking or future improvements)
+- **Total test files**: 6
+- **Total test cases**: 70+
+- **Coverage focus**: Critical bug fixes, race conditions, performance, and tmux compatibility
+- **Pending tests**: 7 (require advanced mocking or future improvements)
 
 ## Contributing
 

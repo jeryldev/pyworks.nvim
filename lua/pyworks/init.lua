@@ -104,11 +104,21 @@ function M.configure_dependencies(opts)
 		-- The PATH update above is sufficient for jupytext CLI to work
 	end
 
-	-- Configure image.nvim with optimal settings
+	-- Configure image.nvim with optimal settings for matplotlib/molten
+	-- Key fixes for tmux + kitty:
+	-- 1. Bounded max dimensions to prevent rendering issues with large plots
+	-- 2. tmux_show_only_in_active_window = true to prevent passthrough issues
+	-- 3. window_overlap_clear_enabled = false when in tmux to avoid flicker
 	if not opts.skip_image then
 		local ok, image = pcall(require, "image")
 		if ok then
 			local backend = opts.image_backend or "kitty" -- Default to kitty
+			local in_tmux = vim.env.TMUX ~= nil
+
+			-- Use more conservative settings when in tmux to avoid crashes
+			local max_width_pct = in_tmux and 80 or 100
+			local max_height_pct = in_tmux and 80 or 100
+
 			image.setup({
 				backend = backend,
 				integrations = {
@@ -122,15 +132,27 @@ function M.configure_dependencies(opts)
 					html = { enabled = false },
 					css = { enabled = false },
 				},
-				max_width = 150,
-				max_height = 40,
-				max_height_window_percentage = math.huge,
-				max_width_window_percentage = math.huge,
-				window_overlap_clear_enabled = true,
+				-- Bounded dimensions to prevent issues with large matplotlib plots
+				-- Using percentage-based limits instead of math.huge
+				max_width = 100,
+				max_height = 30,
+				max_height_window_percentage = max_height_pct,
+				max_width_window_percentage = max_width_pct,
+				-- Disable overlap clearing in tmux to prevent infinite redraw loops
+				-- that can cause E132 maxfuncdepth errors
+				window_overlap_clear_enabled = not in_tmux,
 				window_overlap_clear_ft_ignore = { "cmp_menu", "cmp_docs", "" },
-				editor_only_render_when_focused = false,
-				tmux_show_only_in_active_window = false,
+				editor_only_render_when_focused = in_tmux, -- Only render when focused in tmux
+				tmux_show_only_in_active_window = true, -- Prevent passthrough issues
 			})
+
+			-- Notify about tmux mode if in tmux
+			if in_tmux then
+				local notifications = require("pyworks.core.notifications")
+				if notifications.get_config().debug_mode then
+					notifications.notify("📺 image.nvim: Using tmux-safe settings", vim.log.levels.DEBUG)
+				end
+			end
 		end
 	end
 end

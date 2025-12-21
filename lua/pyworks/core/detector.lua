@@ -154,8 +154,87 @@ function M.handle_notebook(filepath)
 	end
 end
 
--- Get available kernels dynamically
-local function get_available_kernels()
+-- Cache available kernels
+local cached_kernels = nil
+local kernel_cache_time = 0
+local kernel_fetch_in_progress = false
+
+-- Get available kernels asynchronously
+local function get_available_kernels_async(callback)
+	-- Return cached if fresh (within 60 seconds)
+	local now = vim.loop.now()
+	if cached_kernels and (now - kernel_cache_time) < 60000 then
+		callback(cached_kernels)
+		return
+	end
+
+	-- Prevent multiple concurrent fetches
+	if kernel_fetch_in_progress then
+		vim.defer_fn(function()
+			get_available_kernels_async(callback)
+		end, 100)
+		return
+	end
+
+	-- Check if jupyter is available before trying to run it
+	if vim.fn.executable("jupyter") ~= 1 then
+		callback({})
+		return
+	end
+
+	kernel_fetch_in_progress = true
+
+	local ok, _ = pcall(vim.fn.jobstart, { "jupyter", "kernelspec", "list", "--json" }, {
+		stdout_buffered = true,
+		on_stdout = function(_, data)
+			if not data or #data == 0 then
+				return
+			end
+
+			local result = table.concat(data, "\n")
+			local decode_ok, json_data = pcall(vim.json.decode, result)
+			if not decode_ok or not json_data or not json_data.kernelspecs then
+				kernel_fetch_in_progress = false
+				callback({})
+				return
+			end
+
+			local kernels = {}
+			for name, spec in pairs(json_data.kernelspecs) do
+				if spec.spec and spec.spec.language then
+					local lang = spec.spec.language:lower()
+					if not kernels[lang] then
+						kernels[lang] = name
+					end
+				end
+			end
+
+			cached_kernels = kernels
+			kernel_cache_time = vim.loop.now()
+			kernel_fetch_in_progress = false
+			callback(kernels)
+		end,
+		on_exit = function(_, exit_code)
+			kernel_fetch_in_progress = false
+			if exit_code ~= 0 then
+				callback(cached_kernels or {})
+			end
+		end,
+	})
+
+	-- Handle jobstart failure
+	if not ok then
+		kernel_fetch_in_progress = false
+		callback({})
+	end
+end
+
+-- Synchronous fallback for when we need immediate results
+local function get_available_kernels_sync()
+	if cached_kernels then
+		return cached_kernels
+	end
+
 	local result = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
 	if vim.v.shell_error ~= 0 then
 		return {}
@@ -170,19 +249,104 @@ local function get_available_kernels()
 	for name, spec in pairs(data.kernelspecs) do
 		if spec.spec and spec.spec.language then
 			local lang = spec.spec.language:lower()
-			-- Store the actual kernel name for each language
 			if not kernels[lang] then
 				kernels[lang] = name
 			end
 		end
 	end
 
+	cached_kernels = kernels
+	kernel_cache_time = vim.loop.now()
 	return kernels
 end
 
--- Cache available kernels
-local cached_kernels = nil
-local kernel_cache_time = 0
+-- Pre-warm kernel cache on startup (called from VimEnter)
+function M.prewarm_kernel_cache()
+	get_available_kernels_async(function(kernels)
+		if kernels and next(kernels) then
+			local count = 0
+			for _ in pairs(kernels) do
+				count = count + 1
+			end
+			-- Silent pre-warm, only show in debug mode
+			local notifications = require("pyworks.core.notifications")
+			if notifications.get_config().debug_mode then
+				notifications.notify(
+					string.format("🔄 Pre-warmed kernel cache: %d kernels found", count),
+					vim.log.levels.DEBUG
+				)
+			end
+		end
+	end)
+end
+
+-- Cached kernelspecs data (full spec info, not just names)
+local cached_kernelspecs = nil
+local kernelspecs_cache_time = 0
+
+-- Get full kernelspecs asynchronously (includes argv for Python path matching)
+local function get_kernelspecs_async(callback)
+	local now = vim.loop.now()
+	if cached_kernelspecs and (now - kernelspecs_cache_time) < 60000 then
+		callback(cached_kernelspecs)
+		return
+	end
+
+	-- Check if jupyter is available
+	if vim.fn.executable("jupyter") ~= 1 then
+		callback({})
+		return
+	end
+
+	local ok, _ = pcall(vim.fn.jobstart, { "jupyter", "kernelspec", "list", "--json" }, {
+		stdout_buffered = true,
+		on_stdout = function(_, data)
+			if not data or #data == 0 then
+				return
+			end
+
+			local result = table.concat(data, "\n")
+			local decode_ok, json_data = pcall(vim.json.decode, result)
+			if decode_ok and json_data and json_data.kernelspecs then
+				cached_kernelspecs = json_data.kernelspecs
+				kernelspecs_cache_time = vim.loop.now()
+				callback(cached_kernelspecs)
+			else
+				callback(cached_kernelspecs or {})
+			end
+		end,
+		on_exit = function(_, exit_code)
+			if exit_code ~= 0 then
+				callback(cached_kernelspecs or {})
+			end
+		end,
+	})
+
+	if not ok then
+		callback({})
+	end
+end
+
+-- Synchronous kernelspecs fetch (uses cache if available)
+local function get_kernelspecs_sync()
+	if cached_kernelspecs then
+		return cached_kernelspecs
+	end
+
+	local result = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
+	if vim.v.shell_error ~= 0 then
+		return {}
+	end
+
+	local ok, data = pcall(vim.json.decode, result)
+	if ok and data and data.kernelspecs then
+		cached_kernelspecs = data.kernelspecs
+		kernelspecs_cache_time = vim.loop.now()
+		return cached_kernelspecs
+	end
+
+	return {}
+end
 
 local function get_kernel_for_language(language, filepath)
 	-- For Python, we need to match the kernel to the project's venv
@@ -229,67 +393,64 @@ local function get_kernel_for_language(language, filepath)
 			)
 		end
 
-		-- Get all available kernels
-		local all_kernels = get_available_kernels()
+		-- Use cached kernelspecs (pre-warmed on VimEnter or from previous calls)
+		-- This avoids blocking on every file open
+		local kernelspecs = get_kernelspecs_sync()
 
 		-- Find a kernel that uses this project's Python
-		local result = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
-		if vim.v.shell_error == 0 then
-			local ok, data = pcall(vim.json.decode, result)
-			if ok and data.kernelspecs then
-				for name, spec in pairs(data.kernelspecs) do
-					if spec.spec and spec.spec.language and spec.spec.language:lower() == "python" then
-						-- Check if this kernel uses our project's Python
-						if spec.spec.argv and spec.spec.argv[1] then
-							local kernel_python = spec.spec.argv[1]
-							-- DON'T resolve symlinks - compare the actual paths
-							-- vim.fn.resolve() is causing issues with truncated paths
-							local kernel_python_to_compare = kernel_python
-							local venv_python_to_compare = python_path
+		if kernelspecs and next(kernelspecs) then
+			for name, spec in pairs(kernelspecs) do
+				if spec.spec and spec.spec.language and spec.spec.language:lower() == "python" then
+					-- Check if this kernel uses our project's Python
+					if spec.spec.argv and spec.spec.argv[1] then
+						local kernel_python = spec.spec.argv[1]
+						-- DON'T resolve symlinks - compare the actual paths
+						-- vim.fn.resolve() is causing issues with truncated paths
+						local kernel_python_to_compare = kernel_python
+						local venv_python_to_compare = python_path
 
-							-- Only show debug comparison in debug mode
+						-- Only show debug comparison in debug mode
+						if notifications.get_config().debug_mode then
+							notifications.notify(
+								string.format("🔍 Kernel '%s' uses: %s", name, kernel_python_to_compare),
+								vim.log.levels.DEBUG
+							)
+							notifications.notify(
+								string.format("🔍 Project expects: %s", venv_python_to_compare),
+								vim.log.levels.DEBUG
+							)
+						end
+
+						-- Only match if kernel uses EXACTLY our project's Python
+						local is_exact_match = (kernel_python_to_compare == venv_python_to_compare)
+						if is_exact_match then
+							-- Found an exact match!
+							notifications.notify(
+								string.format("✅ Found exact matching kernel '%s' -> %s", name, kernel_python),
+								vim.log.levels.INFO,
+								{ force = true } -- Force show even when silent
+							)
+							return name
+						elseif kernel_python:match("^" .. vim.pesc(venv_path)) then
+							-- Kernel is from our exact venv directory
+							notifications.notify(
+								string.format("✅ Found venv kernel '%s' -> %s", name, kernel_python),
+								vim.log.levels.INFO,
+								{ force = true } -- Force show even when silent
+							)
+							return name
+						else
+							-- Log why this kernel doesn't match
 							if notifications.get_config().debug_mode then
 								notifications.notify(
-									string.format("🔍 Kernel '%s' uses: %s", name, kernel_python_to_compare),
+									string.format(
+										"❌ Kernel '%s' uses %s, not %s",
+										name,
+										kernel_python_to_compare,
+										venv_python_to_compare
+									),
 									vim.log.levels.DEBUG
 								)
-								notifications.notify(
-									string.format("🔍 Project expects: %s", venv_python_to_compare),
-									vim.log.levels.DEBUG
-								)
-							end
-
-							-- Only match if kernel uses EXACTLY our project's Python
-							local is_exact_match = (kernel_python_to_compare == venv_python_to_compare)
-							if is_exact_match then
-								-- Found an exact match!
-								notifications.notify(
-									string.format("✅ Found exact matching kernel '%s' -> %s", name, kernel_python),
-									vim.log.levels.INFO,
-									{ force = true } -- Force show even when silent
-								)
-								return name
-							elseif kernel_python:match("^" .. vim.pesc(venv_path)) then
-								-- Kernel is from our exact venv directory
-								notifications.notify(
-									string.format("✅ Found venv kernel '%s' -> %s", name, kernel_python),
-									vim.log.levels.INFO,
-									{ force = true } -- Force show even when silent
-								)
-								return name
-							else
-								-- Log why this kernel doesn't match
-								if notifications.get_config().debug_mode then
-									notifications.notify(
-										string.format(
-											"❌ Kernel '%s' uses %s, not %s",
-											name,
-											kernel_python_to_compare,
-											venv_python_to_compare
-										),
-										vim.log.levels.DEBUG
-									)
-								end
 							end
 						end
 					end
