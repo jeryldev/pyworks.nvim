@@ -271,4 +271,135 @@ function M.setup_pairing(filepath)
 	})
 end
 
+-- Check if jupytext CLI is available in PATH or common venv locations
+function M.find_jupytext_cli()
+	-- Check if already in PATH
+	if vim.fn.executable("jupytext") == 1 then
+		return "jupytext"
+	end
+
+	-- Check common venv locations
+	local venv_paths = {
+		vim.fn.getcwd() .. "/.venv/bin/jupytext",
+		vim.fn.expand("~") .. "/.local/bin/jupytext",
+		vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/.venv/bin/jupytext",
+	}
+
+	for _, path in ipairs(venv_paths) do
+		if vim.fn.executable(path) == 1 then
+			-- Add directory to PATH
+			local dir = vim.fn.fnamemodify(path, ":h")
+			vim.env.PATH = dir .. ":" .. vim.env.PATH
+			return path
+		end
+	end
+
+	return nil
+end
+
+-- Setup fallback handler for .ipynb files when jupytext CLI is not available
+-- Shows notebooks as read-only JSON with helpful messages guiding users to install jupytext
+function M.setup_fallback_handler()
+	-- Clear jupytext.nvim's autocmds to prevent errors
+	pcall(vim.api.nvim_clear_autocmds, {
+		group = "jupytext.nvim",
+		pattern = "*.ipynb",
+	})
+
+	vim.api.nvim_create_autocmd("BufReadCmd", {
+		group = vim.api.nvim_create_augroup("PyworksNotebookFallback", { clear = true }),
+		pattern = "*.ipynb",
+		callback = function(ev)
+			-- Prevent other handlers from running
+			pcall(vim.api.nvim_buf_set_var, ev.buf, "jupytext_handled", true)
+
+			-- Get the filepath
+			local filepath = vim.api.nvim_buf_get_name(ev.buf)
+			if filepath == "" then
+				filepath = ev.match or ev.file
+			end
+
+			-- Make absolute if needed
+			if not filepath:match("^/") then
+				local cwd = vim.fn.getcwd()
+				if cwd and cwd ~= "" then
+					filepath = cwd .. "/" .. filepath
+				else
+					filepath = vim.fn.expand(filepath)
+				end
+			end
+
+			-- Safely load the file
+			local ok, content = pcall(vim.fn.readfile, filepath)
+			if not ok then
+				vim.api.nvim_buf_set_lines(ev.buf, 0, -1, false, {
+					"Error: Could not read notebook file",
+					"",
+					"File: " .. filepath,
+					"",
+					"Possible reasons:",
+					"- File does not exist",
+					"- Permission denied",
+					"- Invalid path",
+				})
+				vim.bo[ev.buf].filetype = "text"
+				vim.bo[ev.buf].modifiable = false
+
+				vim.schedule(function()
+					notifications.notify("Could not read notebook file", vim.log.levels.ERROR)
+					notifications.notify("Check the file path and permissions", vim.log.levels.INFO)
+				end)
+			else
+				-- Successfully read file, show as JSON
+				vim.api.nvim_buf_set_lines(ev.buf, 0, -1, false, content)
+				vim.bo[ev.buf].filetype = "json"
+				vim.bo[ev.buf].modifiable = false
+
+				vim.schedule(function()
+					notifications.notify("Notebook opened in JSON view (jupytext CLI not installed)", vim.log.levels.WARN)
+					notifications.notify("Run :PyworksSetup from any .py file to install jupytext", vim.log.levels.INFO)
+				end)
+			end
+
+			-- Mark as loaded to prevent re-processing
+			pcall(vim.api.nvim_buf_set_var, ev.buf, "pyworks_notebook_loaded", true)
+			vim.cmd.setlocal("buftype=nofile")
+		end,
+	})
+end
+
+-- Configure jupytext.nvim with optimal settings
+-- Returns true if configured successfully, false if fallback is needed
+function M.configure_jupytext_nvim()
+	local jupytext_cmd = M.find_jupytext_cli()
+
+	if not jupytext_cmd then
+		-- No jupytext CLI available, setup fallback
+		M.setup_fallback_handler()
+		return false
+	end
+
+	-- jupytext CLI is available, configure jupytext.nvim
+	local ok, jupytext = pcall(require, "jupytext")
+	if not ok then
+		-- jupytext.nvim not installed, but CLI is available
+		-- This shouldn't happen if dependencies are correct
+		return false
+	end
+
+	jupytext.setup({
+		style = "percent",
+		output_extension = "auto",
+		force_ft = nil,
+		jupytext_command = jupytext_cmd,
+		custom_language_formatting = {
+			python = { extension = "py", style = "percent", comment = "#" },
+			julia = { extension = "jl", style = "percent", comment = "#" },
+			r = { extension = "R", style = "percent", comment = "#" },
+		},
+	})
+
+	return true
+end
+
 return M

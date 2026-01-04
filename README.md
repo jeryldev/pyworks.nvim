@@ -40,12 +40,9 @@ return {
     dependencies = {
       {
         "GCBallesteros/jupytext.nvim",
-        config = true,
+        config = false, -- Let pyworks handle jupytext configuration
       },
-      {
-        "benlubas/molten-nvim",
-        build = ":UpdateRemotePlugins",
-      },
+      "benlubas/molten-nvim",
       "3rd/image.nvim",
     },
     config = function()
@@ -61,6 +58,11 @@ return {
   },
 }
 ```
+
+Pyworks automatically:
+- **Detects jupytext CLI** - Checks PATH and common venv locations
+- **Configures jupytext.nvim** - Sets up percent-style cells (`# %%`) for Python, Julia, and R
+- **Provides graceful fallback** - If jupytext CLI isn't installed, notebooks open as read-only JSON with helpful messages guiding you to run `:PyworksSetup`
 
 ### Terminal Requirements for Images
 
