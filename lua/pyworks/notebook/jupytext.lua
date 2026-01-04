@@ -356,7 +356,10 @@ function M.setup_fallback_handler()
 				vim.bo[ev.buf].modifiable = false
 
 				vim.schedule(function()
-					notifications.notify("Notebook opened in JSON view (jupytext CLI not installed)", vim.log.levels.WARN)
+					notifications.notify(
+						"Notebook opened in JSON view (jupytext CLI not installed)",
+						vim.log.levels.WARN
+					)
 					notifications.notify("Run :PyworksSetup from any .py file to install jupytext", vim.log.levels.INFO)
 				end)
 			end
