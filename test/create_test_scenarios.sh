@@ -296,104 +296,34 @@ EOF
 echo '{"cells": [], "metadata": {"kernelspec": {"language": "python"}}}' >"$BASE_DIR/25_fastapi_ml/ml/notebooks/training/model_v2.ipynb"
 
 # ==============================================================================
-# JULIA SCENARIOS
-# ==============================================================================
-
-echo "🔷 Creating Julia scenarios..."
-
-# 3.1 Julia with Project.toml
-mkdir -p "$BASE_DIR/31_julia_project/src"
-cat >"$BASE_DIR/31_julia_project/Project.toml" <<'EOF'
-name = "MyPackage"
-uuid = "12345678-1234-5678-1234-567812345678"
-version = "0.1.0"
-
-[deps]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-EOF
-cat >"$BASE_DIR/31_julia_project/src/analysis.jl" <<'EOF'
-using DataFrames
-println("Julia project")
-EOF
-
-# 3.4 Julia notebook
-mkdir -p "$BASE_DIR/34_julia_notebook"
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "julia", "name": "julia-1.9"}}}' >"$BASE_DIR/34_julia_notebook/compute.ipynb"
-
-# ==============================================================================
-# R SCENARIOS
-# ==============================================================================
-
-echo "📊 Creating R scenarios..."
-
-# 4.1 R with renv
-mkdir -p "$BASE_DIR/41_r_renv_project"
-cat >"$BASE_DIR/41_r_renv_project/renv.lock" <<'EOF'
-{
-  "R": {
-    "Version": "4.3.0",
-    "Repositories": []
-  },
-  "Packages": {
-    "ggplot2": {
-      "Package": "ggplot2",
-      "Version": "3.4.0"
-    }
-  }
-}
-EOF
-cat >"$BASE_DIR/41_r_renv_project/analysis.R" <<'EOF'
-library(ggplot2)
-print("R with renv")
-EOF
-
-# 4.4 R notebook
-mkdir -p "$BASE_DIR/44_r_notebook"
-echo '{"cells": [], "metadata": {"kernelspec": {"language": "R", "name": "ir"}}}' >"$BASE_DIR/44_r_notebook/stats.ipynb"
-
-# ==============================================================================
 # EDGE CASES
 # ==============================================================================
 
 echo "🔧 Creating edge cases..."
 
-# 5.1 Multiple markers (should prioritize .venv)
-mkdir -p "$BASE_DIR/51_multiple_markers/.venv/bin"
-touch "$BASE_DIR/51_multiple_markers/.venv/bin/python"
-cat >"$BASE_DIR/51_multiple_markers/manage.py" <<'EOF'
+# 3.1 Multiple markers (should prioritize .venv)
+mkdir -p "$BASE_DIR/31_multiple_markers/.venv/bin"
+touch "$BASE_DIR/31_multiple_markers/.venv/bin/python"
+cat >"$BASE_DIR/31_multiple_markers/manage.py" <<'EOF'
 # Django manage
 EOF
-cat >"$BASE_DIR/51_multiple_markers/requirements.txt" <<'EOF'
+cat >"$BASE_DIR/31_multiple_markers/requirements.txt" <<'EOF'
 django==4.2.0
 EOF
-cat >"$BASE_DIR/51_multiple_markers/pyproject.toml" <<'EOF'
+cat >"$BASE_DIR/31_multiple_markers/pyproject.toml" <<'EOF'
 [tool.poetry]
 name = "multi"
 EOF
-cat >"$BASE_DIR/51_multiple_markers/test.py" <<'EOF'
+cat >"$BASE_DIR/31_multiple_markers/test.py" <<'EOF'
 # Should use .venv (highest priority)
 print("Multiple markers")
 EOF
 
-# 5.5 Mixed language project
-mkdir -p "$BASE_DIR/55_mixed_language/python"
-mkdir -p "$BASE_DIR/55_mixed_language/julia"
-mkdir -p "$BASE_DIR/55_mixed_language/r"
-cat >"$BASE_DIR/55_mixed_language/requirements.txt" <<'EOF'
-numpy==1.24.0
-EOF
-cat >"$BASE_DIR/55_mixed_language/Project.toml" <<'EOF'
-name = "JuliaPart"
-EOF
-cat >"$BASE_DIR/55_mixed_language/python/analysis.py" <<'EOF'
-import numpy as np
-EOF
-cat >"$BASE_DIR/55_mixed_language/julia/compute.jl" <<'EOF'
-using LinearAlgebra
-EOF
-cat >"$BASE_DIR/55_mixed_language/r/stats.R" <<'EOF'
-library(stats)
+# 3.2 Git repository as fallback
+mkdir -p "$BASE_DIR/32_git_only/.git"
+cat >"$BASE_DIR/32_git_only/script.py" <<'EOF'
+# Should use .git as last resort for project root
+print("Git only project")
 EOF
 
 echo "✅ Test scenarios created successfully!"

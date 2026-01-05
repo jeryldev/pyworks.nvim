@@ -1,8 +1,8 @@
--- pyworks.nvim - Zero-config multi-language support for Python, Julia, and R
+-- pyworks.nvim - Zero-config Python notebook support
 -- Version: 3.0.0
 --
 -- Features:
--- - Automatic environment setup for Python, Julia, and R
+-- - Automatic environment setup for Python
 -- - Smart package detection and installation
 -- - Jupyter notebook support with automatic kernel management
 -- - Zero configuration required - just open files and start working
@@ -20,12 +20,6 @@ local default_config = {
 		preferred_venv_name = ".venv",
 		auto_install_essentials = true,
 		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
-	},
-	julia = {
-		auto_install_ijulia = true,
-	},
-	r = {
-		auto_install_irkernel = true,
 	},
 	cache = {
 		-- Cache TTL overrides (in seconds)
@@ -210,72 +204,46 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 	local ft = vim.bo.filetype
 
 	if ext == "py" or ft == "python" or ext == "ipynb" then
-		-- For Python files, ensure environment and create venv if needed
 		local python = require("pyworks.languages.python")
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
 		if ok then
 			vim.notify("✅ Python environment setup complete", vim.log.levels.INFO)
-			-- Re-run detection to set up everything properly
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)
 			end, 500)
 		end
-	elseif ext == "jl" or ft == "julia" then
-		local julia = require("pyworks.languages.julia")
-		julia.handle_file(filepath, false)
-		vim.notify("✅ Julia environment checked", vim.log.levels.INFO)
-	elseif ext == "R" or ft == "r" then
-		local r = require("pyworks.languages.r")
-		r.handle_file(filepath, false)
-		vim.notify("✅ R environment checked", vim.log.levels.INFO)
 	else
-		vim.notify("ℹ️ No setup needed for this file type", vim.log.levels.INFO)
+		vim.notify("ℹ️ Pyworks only supports Python files", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Manually trigger Pyworks environment setup for current file",
 })
 
--- Command to install missing packages
-vim.api.nvim_create_user_command("PyworksInstall", function()
+-- Command to sync (install missing) packages
+vim.api.nvim_create_user_command("PyworksSync", function()
 	local ft = vim.bo.filetype
 	if ft == "python" then
 		local python = require("pyworks.languages.python")
-		error_handler.protected_call(python.install_missing_packages, "Package installation failed")
-	elseif ft == "julia" then
-		local julia = require("pyworks.languages.julia")
-		error_handler.protected_call(julia.install_missing_packages, "Package installation failed")
-	elseif ft == "r" then
-		local r = require("pyworks.languages.r")
-		error_handler.protected_call(r.install_missing_packages, "Package installation failed")
+		error_handler.protected_call(python.install_missing_packages, "Package sync failed")
 	else
-		vim.notify("ℹ️ No missing packages detected for this file type", vim.log.levels.INFO)
+		vim.notify("Pyworks only supports Python files", vim.log.levels.INFO)
 	end
 end, {
-	desc = "Install missing packages for current file",
+	desc = "Sync packages - install missing packages detected from imports",
 })
 
 -- Command to show package status
 vim.api.nvim_create_user_command("PyworksStatus", function()
 	local packages = require("pyworks.core.packages")
 	local ft = vim.bo.filetype
-	local language = nil
 
 	if ft == "python" then
-		language = "python"
-	elseif ft == "julia" then
-		language = "julia"
-	elseif ft == "r" then
-		language = "r"
-	end
-
-	if language then
-		local result = packages.analyze_buffer(language)
+		local result = packages.analyze_buffer("python")
 
 		vim.notify(
 			string.format(
-				"[%s] Imports: %d | Installed: %d | Missing: %d",
-				language:gsub("^%l", string.upper),
+				"[Python] Imports: %d | Installed: %d | Missing: %d",
 				#result.imports,
 				#result.installed,
 				#result.missing
@@ -287,40 +255,19 @@ vim.api.nvim_create_user_command("PyworksStatus", function()
 			vim.notify("Missing packages: " .. table.concat(result.missing, ", "), vim.log.levels.WARN)
 		end
 	else
-		vim.notify("Pyworks: Not a supported file type", vim.log.levels.INFO)
+		vim.notify("Pyworks: Not a Python file", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Show package status for current file",
 })
 
--- Command to clear cache
-vim.api.nvim_create_user_command("PyworksClearCache", function()
-	local cache = require("pyworks.core.cache")
-	cache.clear()
-	vim.notify("Pyworks cache cleared", vim.log.levels.INFO)
-end, {
-	desc = "Clear Pyworks cache",
-})
-
--- Command to show cache statistics
-vim.api.nvim_create_user_command("PyworksCacheStats", function()
-	local cache = require("pyworks.core.cache")
-	local stats = cache.stats()
-	vim.notify(
-		string.format("Cache: %d total | %d active | %d expired", stats.total, stats.active, stats.expired),
-		vim.log.levels.INFO
-	)
-end, {
-	desc = "Show Pyworks cache statistics",
-})
-
--- Python-specific package management commands
-vim.api.nvim_create_user_command("PyworksInstallPython", function(opts)
+-- Package management commands
+vim.api.nvim_create_user_command("PyworksAdd", function(opts)
 	local python = require("pyworks.languages.python")
 	if opts.args and opts.args ~= "" then
 		python.install_python_packages(opts.args)
 	else
-		vim.ui.input({ prompt = "Python packages to install (space/comma separated): " }, function(input)
+		vim.ui.input({ prompt = "Packages to add (space/comma separated): " }, function(input)
 			if input and input ~= "" then
 				python.install_python_packages(input)
 			end
@@ -328,19 +275,18 @@ vim.api.nvim_create_user_command("PyworksInstallPython", function(opts)
 	end
 end, {
 	nargs = "*",
-	desc = "Install Python packages in project virtual environment",
+	desc = "Add packages to project virtual environment",
 	complete = function()
-		-- Suggest common packages
 		return { "numpy", "pandas", "matplotlib", "requests", "pytest", "black", "flake8", "mypy" }
 	end,
 })
 
-vim.api.nvim_create_user_command("PyworksUninstallPython", function(opts)
+vim.api.nvim_create_user_command("PyworksRemove", function(opts)
 	local python = require("pyworks.languages.python")
 	if opts.args and opts.args ~= "" then
 		python.uninstall_python_packages(opts.args)
 	else
-		vim.ui.input({ prompt = "Python packages to uninstall (space/comma separated): " }, function(input)
+		vim.ui.input({ prompt = "Packages to remove (space/comma separated): " }, function(input)
 			if input and input ~= "" then
 				python.uninstall_python_packages(input)
 			end
@@ -348,22 +294,53 @@ vim.api.nvim_create_user_command("PyworksUninstallPython", function(opts)
 	end
 end, {
 	nargs = "*",
-	desc = "Uninstall Python packages from project virtual environment",
+	desc = "Remove packages from project virtual environment",
 })
 
-vim.api.nvim_create_user_command("PyworksListPython", function()
+vim.api.nvim_create_user_command("PyworksList", function()
 	local python = require("pyworks.languages.python")
 	python.list_python_packages()
 end, {
-	desc = "List installed Python packages in project virtual environment",
+	desc = "List installed packages in project virtual environment",
 })
 
--- Command to manually install/check dependencies
-vim.api.nvim_create_user_command("PyworksInstallDependencies", function()
-	local deps = require("pyworks.dependencies")
-	deps.install_dependencies()
+vim.api.nvim_create_user_command("PyworksHelp", function()
+	local help = {
+		"=== Pyworks Commands ===",
+		"",
+		"NOTEBOOK CREATION",
+		"  :PyworksNewPython [name]         Create Python file with cell markers",
+		"  :PyworksNewPythonNotebook [name] Create Jupyter notebook (.ipynb)",
+		"",
+		"ENVIRONMENT",
+		"  :PyworksSetup                    Create venv and install essentials",
+		"  :PyworksStatus                   Show package status (imports/installed/missing)",
+		"  :PyworksDiagnostics              Run diagnostics (venv, plugins, cache)",
+		"",
+		"PACKAGE MANAGEMENT",
+		"  :PyworksSync                     Install missing packages from imports",
+		"  :PyworksAdd [packages]           Add packages to venv",
+		"  :PyworksRemove [packages]        Remove packages from venv",
+		"  :PyworksList                     List installed packages",
+		"",
+		"KEYMAPS",
+		"  <leader>ps                       Show package status",
+		"  <leader>jl                       Run current line",
+		"  <leader>jc                       Run cell and move to next",
+		"  <leader>je                       Re-run current cell",
+		"",
+		"For full documentation: :help pyworks",
+	}
+
+	vim.cmd("new")
+	local buf = vim.api.nvim_get_current_buf()
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, help)
+	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+	vim.api.nvim_buf_set_name(buf, "Pyworks Help")
+	vim.api.nvim_buf_set_option(buf, "modifiable", false)
 end, {
-	desc = "Check and configure all notebook dependencies (molten, jupytext, image)",
+	desc = "Show Pyworks commands and keymaps",
 })
 
 -- Export configuration for other modules
@@ -384,40 +361,6 @@ function M.health()
 	else
 		health.warn("No Python virtual environment found", {
 			"Will be created automatically when you open a Python file",
-		})
-	end
-
-	-- Check Julia
-	local julia = require("pyworks.languages.julia")
-	if julia.has_julia() then
-		health.ok("Julia installation found")
-		if julia.has_ijulia() then
-			health.ok("IJulia kernel installed")
-		else
-			health.warn("IJulia kernel not installed", {
-				"Will be prompted to install when you open a Julia notebook",
-			})
-		end
-	else
-		health.warn("Julia not found", {
-			"Install Julia from https://julialang.org",
-		})
-	end
-
-	-- Check R
-	local r = require("pyworks.languages.r")
-	if r.has_r() then
-		health.ok("R installation found")
-		if r.has_irkernel() then
-			health.ok("IRkernel installed")
-		else
-			health.warn("IRkernel not installed", {
-				"Will be prompted to install when you open an R notebook",
-			})
-		end
-	else
-		health.warn("R not found", {
-			"Install R from https://www.r-project.org",
 		})
 	end
 

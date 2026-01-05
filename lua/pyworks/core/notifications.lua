@@ -72,26 +72,19 @@ function M.notify(message, level, options)
 	-- Determine if we should show the notification
 	local should_show = false
 
-	-- Check force flag first (highest priority)
-	if options.force then
+	-- Check force/always flags first (highest priority)
+	if options.force or options.always then
 		should_show = true
 	elseif options.error then
-		-- Always show errors
 		should_show = true
 		level = vim.log.levels.ERROR
 	elseif options.action_required then
-		-- Always show when action is required
 		should_show = true
 		level = vim.log.levels.WARN
 	elseif options.first_time then
-		-- Show if verbose first time is enabled
 		should_show = config.verbose_first_time
 	elseif options.progress then
-		-- Show if progress notifications are enabled
 		should_show = config.show_progress
-	elseif options.always then
-		-- Force show
-		should_show = true
 	elseif config.silent_when_ready then
 		-- Silent mode when everything is ready
 		should_show = false

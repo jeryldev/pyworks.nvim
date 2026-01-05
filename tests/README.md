@@ -65,7 +65,7 @@ nvim --headless -c "PlenaryBustedFile tests/utils_spec.lua"
 ### detector_spec.lua (Kernel Management)
 
 **Covered:**
-- ✅ File routing (.py, .ipynb, .jl, .R)
+- ✅ File routing (.py, .ipynb)
 - ✅ Invalid file path handling
 - ✅ Notebook language detection from metadata
 - ✅ Malformed JSON handling

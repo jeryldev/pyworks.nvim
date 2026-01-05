@@ -703,14 +703,14 @@ function M.install_python_packages(packages_str)
 	end
 
 	-- Parse packages string (space or comma separated)
-	local packages = {}
+	local pkg_list = {}
 	for pkg in packages_str:gmatch("[^,%s]+") do
-		table.insert(packages, pkg)
+		table.insert(pkg_list, pkg)
 	end
 
 	-- Validate packages
-	packages = error_handler.validate_packages(packages, "Python")
-	if not packages then
+	pkg_list = error_handler.validate_packages(pkg_list, "Python")
+	if not pkg_list then
 		return
 	end
 
@@ -724,10 +724,10 @@ function M.install_python_packages(packages_str)
 	end
 
 	notifications.notify(
-		string.format("Installing Python packages: %s", table.concat(packages, ", ")),
+		string.format("Installing Python packages: %s", table.concat(pkg_list, ", ")),
 		vim.log.levels.INFO
 	)
-	M.install_packages(packages, filepath)
+	M.install_packages(pkg_list, filepath)
 end
 
 -- Uninstall Python packages (user command)
@@ -745,14 +745,14 @@ function M.uninstall_python_packages(packages_str)
 	end
 
 	-- Parse packages string
-	local packages = {}
+	local pkg_list = {}
 	for pkg in packages_str:gmatch("[^,%s]+") do
-		table.insert(packages, pkg)
+		table.insert(pkg_list, pkg)
 	end
 
 	-- Validate packages
-	packages = error_handler.validate_packages(packages, "Python")
-	if not packages then
+	pkg_list = error_handler.validate_packages(pkg_list, "Python")
+	if not pkg_list then
 		return
 	end
 
@@ -761,7 +761,7 @@ function M.uninstall_python_packages(packages_str)
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- Build uninstall command
-	local packages_str_clean = table.concat(packages, " ")
+	local packages_str_clean = table.concat(pkg_list, " ")
 	local cmd
 	local is_uv = package_manager:match("^uv")
 	if is_uv then

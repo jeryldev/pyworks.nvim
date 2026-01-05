@@ -20,13 +20,9 @@ local function is_pyworks_project(filepath)
 	-- Check for common project markers
 	local markers = {
 		".venv", -- Python virtual environment
-		"Project.toml", -- Julia project
-		"renv.lock", -- R project with renv
-		".Rproj", -- RStudio project
 		"requirements.txt", -- Python requirements
 		"setup.py", -- Python package
 		"pyproject.toml", -- Modern Python project
-		"Manifest.toml", -- Julia manifest
 	}
 
 	-- Use the file's directory, not cwd!
@@ -54,7 +50,7 @@ end
 -- Set up autocmds for file detection
 vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 	group = augroup,
-	pattern = { "*.py", "*.jl", "*.R" }, -- Removed *.ipynb to let jupytext handle it first
+	pattern = { "*.py" }, -- Removed *.ipynb to let jupytext handle it first
 	callback = function(ev)
 		-- Get the actual buffer number and its full path
 		local bufnr = ev.buf
@@ -94,7 +90,7 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 -- Re-scan on save for new imports
 vim.api.nvim_create_autocmd("BufWritePost", {
 	group = augroup,
-	pattern = { "*.py", "*.jl", "*.R", "*.ipynb" },
+	pattern = { "*.py", "*.ipynb" },
 	callback = function(ev)
 		-- Only run in project directories (check the file's location)
 		if not is_pyworks_project(ev.file) then
@@ -112,7 +108,7 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 -- Set up keymaps for package installation and cell execution
 vim.api.nvim_create_autocmd("FileType", {
 	group = augroup,
-	pattern = { "python", "julia", "r" },
+	pattern = { "python" },
 	callback = function(ev)
 		-- Only set up keymaps in project directories (check the file's location)
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)
@@ -126,17 +122,8 @@ vim.api.nvim_create_autocmd("FileType", {
 
 		-- Package installation keymap
 		vim.keymap.set("n", "<leader>pi", function()
-			local ft = vim.bo.filetype
-			if ft == "python" then
-				local python = require("pyworks.languages.python")
-				python.install_missing_packages()
-			elseif ft == "julia" then
-				local julia = require("pyworks.languages.julia")
-				julia.install_missing_packages()
-			elseif ft == "r" then
-				local r = require("pyworks.languages.r")
-				r.install_missing_packages()
-			end
+			local python = require("pyworks.languages.python")
+			python.install_missing_packages()
 		end, { buffer = true, desc = "Pyworks: Install missing packages" })
 
 		-- Set up cell execution keymaps for Molten
@@ -150,7 +137,6 @@ vim.api.nvim_create_autocmd("FileType", {
 
 		-- For notebooks (.ipynb files converted by jupytext), trigger auto-initialization
 		-- This is needed because jupytext changes the filetype after conversion
-		local filepath = vim.api.nvim_buf_get_name(ev.buf)
 		if filepath:match("%.ipynb$") then
 			-- Check if jupytext successfully converted the file
 			local first_line = vim.api.nvim_buf_get_lines(ev.buf, 0, 1, false)[1] or ""
@@ -175,15 +161,7 @@ vim.api.nvim_create_autocmd("FileType", {
 			-- Jupytext worked, handle the notebook
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
-				-- Trigger auto-initialization based on the filetype
-				local ft = vim.bo[ev.buf].filetype
-				if ft == "python" then
-					detector.handle_python_notebook(filepath)
-				elseif ft == "julia" then
-					detector.handle_julia_notebook(filepath)
-				elseif ft == "r" then
-					detector.handle_r_notebook(filepath)
-				end
+				detector.handle_python_notebook(filepath)
 			end, 200) -- Delay to ensure everything is ready
 		end
 	end,

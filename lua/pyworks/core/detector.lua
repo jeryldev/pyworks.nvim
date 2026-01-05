@@ -47,16 +47,9 @@ local function detect_notebook_language(filepath)
 		end
 	end
 
-	-- Normalize language names
-	if language == "r" then
-		language = "r"
-	elseif language == "julia" then
-		language = "julia"
-	else
-		language = "python" -- Default for unknown
-	end
+	-- Pyworks only supports Python (return python for all notebooks)
+	language = "python"
 
-	-- Cache the result
 	cache.set("notebook_lang_" .. filepath, language)
 
 	return language
@@ -82,7 +75,6 @@ function M.on_file_open(filepath)
 	state.set("processing_" .. filepath, true)
 
 	-- Always show what file we're processing
-	local notifications = require("pyworks.core.notifications")
 	notifications.notify(
 		string.format("🔍 Processing: %s", vim.fn.fnamemodify(filepath, ":t")),
 		vim.log.levels.INFO,
@@ -94,7 +86,6 @@ function M.on_file_open(filepath)
 	local ft = vim.bo.filetype
 
 	-- Show that detection is happening
-	local notifications = require("pyworks.core.notifications")
 	if notifications.get_config().debug_mode then
 		notifications.notify(
 			string.format("[Detector] Processing %s (ext: %s, ft: %s)", filepath, ext, ft),
@@ -102,15 +93,11 @@ function M.on_file_open(filepath)
 		)
 	end
 
-	-- Route to appropriate handler
+	-- Route to appropriate handler (Python only)
 	if ext == "ipynb" then
 		M.handle_notebook(filepath)
 	elseif ext == "py" or ft == "python" then
 		M.handle_python(filepath)
-	elseif ext == "jl" or ft == "julia" then
-		M.handle_julia(filepath)
-	elseif ext == "R" or ft == "r" then
-		M.handle_r(filepath)
 	end
 
 	-- Clear processing flag after a delay
@@ -141,17 +128,8 @@ function M.handle_notebook(filepath)
 		return
 	end
 
-	-- Step 2: Detect notebook language
-	local language = detect_notebook_language(filepath)
-
-	-- Step 3: Route to language-specific handler
-	if language == "julia" then
-		M.handle_julia_notebook(filepath)
-	elseif language == "r" then
-		M.handle_r_notebook(filepath)
-	else
-		M.handle_python_notebook(filepath)
-	end
+	-- Handle as Python notebook (pyworks only supports Python)
+	M.handle_python_notebook(filepath)
 end
 
 -- Get available kernels dynamically
@@ -191,7 +169,6 @@ local function get_kernel_for_language(language, filepath)
 		local project_dir, venv_path = utils.get_project_paths(filepath)
 
 		-- Debug logging (only if debug mode)
-		local notifications = require("pyworks.core.notifications")
 		if notifications.get_config().debug_mode then
 			notifications.notify(
 				string.format("Kernel selection: File=%s, Project=%s", filepath, project_dir),
@@ -298,7 +275,6 @@ local function get_kernel_for_language(language, filepath)
 		end
 
 		-- No matching kernel found - we should create one
-		local notifications = require("pyworks.core.notifications")
 		notifications.notify(string.format("📦 No kernel found for %s", project_dir), vim.log.levels.INFO)
 
 		-- Create a kernel name based on the full path to ensure uniqueness
@@ -356,7 +332,7 @@ local function get_kernel_for_language(language, filepath)
 			return nil
 		end
 	else
-		-- For Julia and R, use the original logic
+		-- Fallback: generic kernel lookup when no filepath provided
 		-- Refresh cache if older than 60 seconds
 		local now = vim.loop.now()
 		if not cached_kernels or (now - kernel_cache_time) > 60000 then
@@ -368,7 +344,6 @@ local function get_kernel_for_language(language, filepath)
 		local lang = language:lower()
 		local kernel = cached_kernels[lang]
 		if kernel then
-			local notifications = require("pyworks.core.notifications")
 			notifications.notify(string.format("🎯 Using %s kernel: %s", language, kernel), vim.log.levels.INFO)
 		end
 		return kernel
@@ -379,7 +354,6 @@ end
 local function auto_init_molten(language, filepath)
 	-- Check if Molten is available
 	if vim.fn.exists(":MoltenInit") ~= 2 then
-		local notifications = require("pyworks.core.notifications")
 		notifications.notify("Molten not available - install with :Lazy load molten-nvim", vim.log.levels.WARN)
 		return
 	end
@@ -392,7 +366,6 @@ local function auto_init_molten(language, filepath)
 	vim.b[bufnr].molten_init_attempted = true
 
 	-- Show we're attempting initialization
-	local notifications = require("pyworks.core.notifications")
 	notifications.notify(string.format("Setting up %s kernel for execution...", language), vim.log.levels.INFO)
 
 	-- Get the actual kernel name for this language and project
@@ -411,7 +384,6 @@ local function auto_init_molten(language, filepath)
 				vim.b[bufnr].molten_initialized = true
 
 				-- Show clear notification that kernel is ready
-				local notifications = require("pyworks.core.notifications")
 				notifications.notify(
 					string.format("✅ Molten ready with %s kernel - Use <leader>jl to run code", kernel),
 					vim.log.levels.INFO
@@ -419,7 +391,6 @@ local function auto_init_molten(language, filepath)
 			else
 				-- If initialization failed, try again later or let user do it manually
 				vim.b[bufnr].molten_init_attempted = false -- Allow retry
-				local notifications = require("pyworks.core.notifications")
 				notifications.notify(
 					string.format(
 						"Failed to auto-initialize kernel for %s. Press <leader>mi to initialize manually",
@@ -430,16 +401,9 @@ local function auto_init_molten(language, filepath)
 			end
 		end, 200) -- Reduced to 200ms - just enough for buffer to settle
 	else
-		-- No kernel found for this language
+		-- No kernel found
 		vim.b[bufnr].molten_init_attempted = false -- Allow retry
-		local notifications = require("pyworks.core.notifications")
-		if language == "julia" then
-			notifications.notify("Julia kernel not found. Ensure IJulia is installed.", vim.log.levels.WARN)
-		elseif language == "r" then
-			notifications.notify("R kernel not found. Ensure IRkernel is installed.", vim.log.levels.WARN)
-		else
-			notifications.notify(string.format("No kernel found for %s", language), vim.log.levels.WARN)
-		end
+		notifications.notify("Python kernel not found. Run :PyworksSetup to configure.", vim.log.levels.WARN)
 	end
 end
 
@@ -452,7 +416,6 @@ function M.handle_python(filepath)
 	-- Show detailed project and venv detection
 	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
-	local notifications = require("pyworks.core.notifications")
 
 	-- Get relative paths for cleaner display
 	local file_rel = vim.fn.fnamemodify(filepath, ":~:.")
@@ -500,7 +463,6 @@ function M.handle_python_notebook(filepath)
 	-- Show detailed project and venv detection for notebooks
 	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
-	local notifications = require("pyworks.core.notifications")
 
 	-- Get relative paths for cleaner display
 	local file_rel = vim.fn.fnamemodify(filepath, ":~:.")
@@ -537,146 +499,14 @@ function M.handle_python_notebook(filepath)
 	auto_init_molten("python", filepath)
 end
 
--- Julia file handler
-function M.handle_julia(filepath)
-	-- Show project detection in a single notification
-	local notifications = require("pyworks.core.notifications")
-	local project_dir = vim.fn.fnamemodify(filepath, ":h")
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-
-	-- Check for Project.toml
-	if vim.fn.filereadable(project_dir .. "/Project.toml") == 1 then
-		notifications.notify(
-			string.format("🔶 Julia (%s): Using Project.toml", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	else
-		notifications.notify(
-			string.format("🔶 Julia (%s): No Project.toml", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	end
-
-	local julia = require("pyworks.languages.julia")
-	julia.handle_file(filepath, false)
-	auto_init_molten("julia", filepath)
-end
-
--- Julia notebook handler
-function M.handle_julia_notebook(filepath)
-	-- Show project detection in a single notification
-	local notifications = require("pyworks.core.notifications")
-	local project_dir = vim.fn.fnamemodify(filepath, ":h")
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-
-	-- Check for Project.toml
-	if vim.fn.filereadable(project_dir .. "/Project.toml") == 1 then
-		notifications.notify(
-			string.format("📓 Julia Notebook (%s): Using Project.toml", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	else
-		notifications.notify(
-			string.format("📓 Julia Notebook (%s): No Project.toml", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	end
-
-	local julia = require("pyworks.languages.julia")
-	julia.handle_file(filepath, true)
-	auto_init_molten("julia", filepath)
-end
-
--- R file handler
-function M.handle_r(filepath)
-	-- Show project detection in a single notification
-	local notifications = require("pyworks.core.notifications")
-	local project_dir = vim.fn.fnamemodify(filepath, ":h")
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-
-	-- Check for renv or .Rproj
-	if vim.fn.filereadable(project_dir .. "/renv.lock") == 1 then
-		notifications.notify(
-			string.format("📦 R (%s): Using renv", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	elseif vim.fn.glob(project_dir .. "/*.Rproj") ~= "" then
-		notifications.notify(
-			string.format("📦 R (%s): Using .Rproj", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	else
-		notifications.notify(
-			string.format("📦 R (%s): No project file", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	end
-
-	local r = require("pyworks.languages.r")
-	r.handle_file(filepath, false)
-	auto_init_molten("r", filepath)
-end
-
--- R notebook handler
-function M.handle_r_notebook(filepath)
-	-- Show project detection in a single notification
-	local notifications = require("pyworks.core.notifications")
-	local project_dir = vim.fn.fnamemodify(filepath, ":h")
-	local project_name = vim.fn.fnamemodify(project_dir, ":t")
-
-	-- Check for renv or .Rproj
-	if vim.fn.filereadable(project_dir .. "/renv.lock") == 1 then
-		notifications.notify(
-			string.format("📓 R Notebook (%s): Using renv", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	elseif vim.fn.glob(project_dir .. "/*.Rproj") ~= "" then
-		notifications.notify(
-			string.format("📓 R Notebook (%s): Using .Rproj", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	else
-		notifications.notify(
-			string.format("📓 R Notebook (%s): No project file", project_name),
-			vim.log.levels.INFO,
-			{ force = true }
-		)
-	end
-
-	local r = require("pyworks.languages.r")
-	r.handle_file(filepath, true)
-	auto_init_molten("r", filepath)
-end
-
 -- Re-scan imports on file save
 function M.rescan_imports(filepath)
-	-- Determine language from file type
 	local ext = vim.fn.fnamemodify(filepath, ":e")
 	local ft = vim.bo.filetype
 
-	local language = nil
-	if ext == "ipynb" then
-		language = detect_notebook_language(filepath)
-	elseif ext == "py" or ft == "python" then
-		language = "python"
-	elseif ext == "jl" or ft == "julia" then
-		language = "julia"
-	elseif ext == "R" or ft == "r" then
-		language = "r"
-	end
-
-	if language then
+	if ext == "ipynb" or ext == "py" or ft == "python" then
 		local packages = require("pyworks.core.packages")
-		packages.rescan_for_language(filepath, language)
+		packages.rescan_for_language(filepath, "python")
 	end
 end
 

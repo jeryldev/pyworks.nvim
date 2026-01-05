@@ -228,8 +228,6 @@ function M.find_project_root(start_dir)
 		"tox.ini", -- Testing config (often at root)
 		".dvcignore", -- DVC project
 		"uv.lock", -- UV lock file
-		"Project.toml", -- Julia project
-		"Manifest.toml", -- Julia manifest
 		".git", -- Git repository (lower priority)
 	}
 

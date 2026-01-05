@@ -45,27 +45,12 @@
 - **2.9 MLflow experiment notebooks**: experiments/train.ipynb → finds MLflow root
 - **2.10 Conda environment notebooks**: Uses conda environment.yml location
 
-### 3. Julia Files (.jl)
+### 3. Edge Cases
 
-- **3.1 Julia file with Project.toml**: Uses Julia project
-- **3.2 Julia file with Manifest.toml**: Uses Julia manifest
-- **3.3 Standalone Julia file**: No venv (Julia manages deps differently)
-- **3.4 Julia notebook**: Detects Julia from notebook metadata
-
-### 4. R Files (.R)
-
-- **4.1 R file with renv.lock**: Uses renv
-- **4.2 R file with .Rproj**: Uses RStudio project
-- **4.3 Standalone R file**: No venv (R manages deps differently)
-- **4.4 R notebook**: Detects R from notebook metadata
-
-### 5. Edge Cases
-
-- **5.1 Multiple markers**: Prioritizes .venv > pyproject.toml > manage.py > requirements.txt
-- **5.2 Git repository**: Uses .git as last resort for project root
-- **5.3 Symlinked files**: Resolves to actual file location
-- **5.4 No markers at all**: Uses file's immediate directory
-- **5.5 Mixed language project**: Each language uses its own environment system
+- **3.1 Multiple markers**: Prioritizes .venv > pyproject.toml > manage.py > requirements.txt
+- **3.2 Git repository**: Uses .git as last resort for project root
+- **3.3 Symlinked files**: Resolves to actual file location
+- **3.4 No markers at all**: Uses file's immediate directory
 
 ## Project Type Detection Priority
 
@@ -84,9 +69,7 @@
 13. `tox.ini` - Testing project
 14. `.dvcignore` - DVC project
 15. `uv.lock` - UV project
-16. `Project.toml` - Julia project
-17. `Manifest.toml` - Julia manifest
-18. `.git/` - Git repository (lowest priority)
+16. `.git/` - Git repository (lowest priority)
 
 ## Expected Behaviors
 

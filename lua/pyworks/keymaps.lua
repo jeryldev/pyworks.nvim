@@ -1,12 +1,8 @@
 -- Keymaps for pyworks.nvim
--- Cell execution with Molten integration for ALL 6 scenarios:
+-- Cell execution with Molten integration for Python:
 -- 1. Python files (.py) with python3 kernel
--- 2. Julia files (.jl) with julia kernel
--- 3. R files (.R) with ir kernel
--- 4. Python notebooks (.ipynb) with python3 kernel
--- 5. Julia notebooks (.ipynb) with julia kernel
--- 6. R notebooks (.ipynb) with ir kernel
--- ALL use Molten + image.nvim for execution and display
+-- 2. Python notebooks (.ipynb) with python3 kernel
+-- Uses Molten + image.nvim for execution and display
 
 local M = {}
 
@@ -528,7 +524,7 @@ function M.setup_buffer_keymaps()
 
 	-- Cell navigation (works with or without Molten)
 	vim.keymap.set("n", "<leader>j]", function()
-		-- Search for next cell marker (# %% for Python/Julia/R notebooks)
+		-- Search for next cell marker (# %% for Python notebooks)
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)

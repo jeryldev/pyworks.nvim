@@ -47,7 +47,7 @@ function M.check()
 			health.ok(status:gsub("^✅ ", ""))
 		else
 			health.error(status:gsub("^❌ ", ""), {
-				"Run :PyworksInstallDependencies to auto-install",
+				"Run :PyworksDiagnostics for detailed status",
 				"Or manually install the missing dependency",
 			})
 		end
@@ -83,44 +83,6 @@ function M.check()
 		health.warn("Python not found", {
 			"Install Python 3.8 or later",
 			"Visit https://www.python.org/downloads/",
-		})
-	end
-
-	-- Check Julia
-	local julia = require("pyworks.languages.julia")
-	if julia.has_julia() then
-		health.ok("Julia executable found")
-
-		if julia.has_ijulia() then
-			health.ok("IJulia kernel installed")
-		else
-			health.info("IJulia kernel not installed", {
-				"Will prompt to install when you open a Julia notebook",
-			})
-		end
-	else
-		health.info("Julia not found", {
-			"Install Julia from https://julialang.org/downloads/",
-			"Julia support is optional",
-		})
-	end
-
-	-- Check R
-	local r = require("pyworks.languages.r")
-	if r.has_r() then
-		health.ok("R executable found")
-
-		if r.has_irkernel() then
-			health.ok("IRkernel installed")
-		else
-			health.info("IRkernel not installed", {
-				"Will prompt to install when you open an R notebook",
-			})
-		end
-	else
-		health.info("R not found", {
-			"Install R from https://www.r-project.org/",
-			"R support is optional",
 		})
 	end
 

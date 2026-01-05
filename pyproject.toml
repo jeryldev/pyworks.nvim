@@ -1,7 +1,7 @@
 [project]
 name = "pyworks.nvim"
 version = "1.0.0"
-description = "Neovim plugin for interactive Python/Julia/R notebooks"
+description = "Neovim plugin for interactive Python notebooks"
 
 [tool.ruff]
 # Python version target

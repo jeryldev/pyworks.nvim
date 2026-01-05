@@ -48,15 +48,8 @@ This folder contains comprehensive test scenarios for pyworks.nvim's smart detec
 - `24_django_notebooks` - Django + deeply nested notebooks
 - `25_fastapi_ml` - FastAPI + ML notebooks
 
-### Other Languages
-- `31_julia_project` - Julia with Project.toml
-- `34_julia_notebook` - Julia notebook
-- `41_r_renv_project` - R with renv.lock
-- `44_r_notebook` - R notebook
-
 ### Edge Cases
 - `51_multiple_markers` - Multiple project markers (tests priority)
-- `55_mixed_language` - Python + Julia + R in same project
 
 ## Expected Behaviors
 

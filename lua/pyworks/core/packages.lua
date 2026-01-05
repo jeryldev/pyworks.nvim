@@ -34,12 +34,6 @@ local package_mappings = {
 		["apt"] = "python-apt",
 		["cairo"] = "pycairo",
 	},
-	julia = {
-		-- Julia packages usually match their import names
-	},
-	r = {
-		-- R packages usually match their library names
-	},
 }
 
 -- Map import to package name
@@ -71,66 +65,6 @@ local function extract_python_imports(content)
 				-- Take only the root package
 				local root = pkg:match("^([^%.]+)")
 				imports[root] = true
-			end
-		end
-	end
-
-	return vim.tbl_keys(imports)
-end
-
--- Extract imports from Julia file
-local function extract_julia_imports(content)
-	local imports = {}
-
-	for line in content:gmatch("[^\r\n]+") do
-		-- Skip comments
-		if not line:match("^%s*#") then
-			-- Match: using Package, Package2
-			local using_line = line:match("^%s*using%s+(.*)")
-			if using_line then
-				for pkg in using_line:gmatch("([%w_]+)") do
-					imports[pkg] = true
-				end
-			end
-
-			-- Match: import Package, Package2
-			local import_line = line:match("^%s*import%s+(.*)")
-			if import_line then
-				for pkg in import_line:gmatch("([%w_]+)") do
-					imports[pkg] = true
-				end
-			end
-		end
-	end
-
-	return vim.tbl_keys(imports)
-end
-
--- Extract imports from R file
-local function extract_r_imports(content)
-	local imports = {}
-
-	for line in content:gmatch("[^\r\n]+") do
-		-- Skip comments
-		if not line:match("^%s*#") then
-			-- Match: library(package) or library("package")
-			local pkg = line:match("library%s*%([\"']?([%w_%.]+)[\"']?%)")
-			if pkg then
-				imports[pkg] = true
-			end
-
-			-- Match: require(package) or require("package")
-			pkg = line:match("require%s*%([\"']?([%w_%.]+)[\"']?%)")
-			if pkg then
-				imports[pkg] = true
-			end
-
-			-- Match: pacman::p_load(package1, package2)
-			local p_load = line:match("p_load%s*%((.*)%)")
-			if p_load then
-				for pkg in p_load:gmatch("[\"']?([%w_%.]+)[\"']?") do
-					imports[pkg] = true
-				end
 			end
 		end
 	end
@@ -185,14 +119,10 @@ function M.scan_imports(filepath, language)
 		file:close()
 	end
 
-	-- Extract imports based on language
+	-- Extract imports (Python only)
 	local imports = {}
 	if language == "python" then
 		imports = extract_python_imports(content)
-	elseif language == "julia" then
-		imports = extract_julia_imports(content)
-	elseif language == "r" then
-		imports = extract_r_imports(content)
 	end
 
 	-- Cache the result
@@ -214,16 +144,9 @@ function M.get_installed_packages(language, filepath)
 
 	if language == "python" then
 		local python = require("pyworks.languages.python")
-		installed = python.get_installed_packages(filepath) -- Pass filepath!
-	elseif language == "julia" then
-		local julia = require("pyworks.languages.julia")
-		installed = julia.get_installed_packages(filepath) -- Pass filepath!
-	elseif language == "r" then
-		local r = require("pyworks.languages.r")
-		installed = r.get_installed_packages(filepath) -- Pass filepath!
+		installed = python.get_installed_packages(filepath)
 	end
 
-	-- Cache the result
 	cache.set(cache_key, installed)
 
 	return installed
@@ -347,7 +270,6 @@ function M.is_stdlib(module_name, language)
 			errno = true,
 			ctypes = true,
 			struct = true,
-			codecs = true,
 			unicodedata = true,
 			locale = true,
 			gettext = true,
@@ -363,63 +285,20 @@ function M.is_stdlib(module_name, language)
 			builtins = true,
 		}
 		return stdlib[module_name] == true
-	elseif language == "julia" then
-		-- Julia base modules
-		local stdlib = {
-			Base = true,
-			Core = true,
-			Main = true,
-			LinearAlgebra = true,
-			Statistics = true,
-			Random = true,
-			Dates = true,
-			Printf = true,
-			Unicode = true,
-			Test = true,
-			Pkg = true,
-			REPL = true,
-		}
-		return stdlib[module_name] == true
-	elseif language == "r" then
-		-- R base packages
-		local base = {
-			base = true,
-			utils = true,
-			stats = true,
-			graphics = true,
-			grDevices = true,
-			methods = true,
-			datasets = true,
-			grid = true,
-			splines = true,
-			stats4 = true,
-			tcltk = true,
-			tools = true,
-			parallel = true,
-			compiler = true,
-		}
-		return base[module_name] == true
 	end
 
 	return false
 end
 
--- Install packages for a language
+-- Install packages (Python only)
 function M.install_packages(packages, language)
 	if #packages == 0 then
 		return
 	end
 
-	-- Delegate to language-specific installer
 	if language == "python" then
 		local python = require("pyworks.languages.python")
 		python.install_packages(packages)
-	elseif language == "julia" then
-		local julia = require("pyworks.languages.julia")
-		julia.install_packages(packages)
-	elseif language == "r" then
-		local r = require("pyworks.languages.r")
-		r.install_packages(packages)
 	end
 end
 

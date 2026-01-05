@@ -178,21 +178,13 @@ describe("detector", function()
 
 		it("should detect language from file extension", function()
 			local py_file = vim.fn.tempname() .. ".py"
-			local jl_file = vim.fn.tempname() .. ".jl"
-			local r_file = vim.fn.tempname() .. ".R"
 
 			vim.fn.writefile({ "" }, py_file)
-			vim.fn.writefile({ "" }, jl_file)
-			vim.fn.writefile({ "" }, r_file)
 
-			-- These should not crash
+			-- This should not crash
 			detector.on_file_open(py_file)
-			detector.on_file_open(jl_file)
-			detector.on_file_open(r_file)
 
 			vim.fn.delete(py_file)
-			vim.fn.delete(jl_file)
-			vim.fn.delete(r_file)
 		end)
 	end)
 

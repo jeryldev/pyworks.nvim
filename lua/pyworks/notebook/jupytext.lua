@@ -397,8 +397,6 @@ function M.configure_jupytext_nvim()
 		jupytext_command = jupytext_cmd,
 		custom_language_formatting = {
 			python = { extension = "py", style = "percent", comment = "#" },
-			julia = { extension = "jl", style = "percent", comment = "#" },
-			r = { extension = "R", style = "percent", comment = "#" },
 		},
 	})
 

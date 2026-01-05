@@ -39,11 +39,11 @@ function M.handle_notebook_open(filepath)
 		vim.bo.filetype = "json"
 
 		-- Show clear instructions
-		vim.notify(string.format("📓 Notebook requires jupytext to view properly"), vim.log.levels.WARN)
+		vim.notify("📓 Notebook requires jupytext to view properly", vim.log.levels.WARN)
 		vim.notify(string.format("📍 Project: %s (%s)", project_rel, project_type), vim.log.levels.INFO)
 
 		if vim.fn.isdirectory(venv_path) == 0 then
-			vim.notify(string.format("🔧 Run :PyworksSetup to create venv and install jupytext"), vim.log.levels.INFO)
+			vim.notify("🔧 Run :PyworksSetup to create venv and install jupytext", vim.log.levels.INFO)
 		else
 			vim.notify(string.format("🔧 Run: %s/bin/pip install jupytext", venv_path), vim.log.levels.INFO)
 		end

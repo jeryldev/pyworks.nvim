@@ -1,8 +1,8 @@
 # pyworks.nvim
 
-**Zero-configuration Python development for Neovim with Jupyter-like notebook support**
+**Zero-configuration Python notebook development for Neovim**
 
-A Neovim plugin that provides automatic environment setup, package detection, and code execution for Python projects - primarily focused on Python and Python notebooks.
+A Neovim plugin that provides automatic environment setup, package detection, and code execution for Python projects and Jupyter notebooks.
 
 > ⚠️ **Active Development**: This plugin is under active development and may introduce breaking changes between versions. Check the [CHANGELOG](CHANGELOG.md) for migration guides when updating.
 
@@ -17,8 +17,6 @@ A Neovim plugin that provides automatic environment setup, package detection, an
 - **Cell Folding & Numbering** - Collapse/expand cells and see cell numbers inline
 - **Execution Status Tracking** - Cell numbers turn green when executed, red when unrun
 - **Project-Based Activation** - Only runs in actual project directories
-
-> **Note**: While pyworks.nvim includes experimental support for Julia and R, the primary focus is on Python and Python notebooks.
 
 ## Requirements
 
@@ -61,7 +59,7 @@ return {
 
 Pyworks automatically:
 - **Detects jupytext CLI** - Checks PATH and common venv locations
-- **Configures jupytext.nvim** - Sets up percent-style cells (`# %%`) for Python, Julia, and R
+- **Configures jupytext.nvim** - Sets up percent-style cells (`# %%`) for Python
 - **Provides graceful fallback** - If jupytext CLI isn't installed, notebooks open as read-only JSON with helpful messages guiding you to run `:PyworksSetup`
 
 ### Terminal Requirements for Images
@@ -115,7 +113,7 @@ For inline plot/image display:
 5. **Package management**:
    - Missing packages detected automatically
    - Press `<leader>pi` to install missing packages
-   - Or use `:PyworksInstallPython numpy pandas matplotlib`
+   - Or use `:PyworksAdd numpy pandas matplotlib`
 
 ## Key Bindings
 
@@ -198,25 +196,23 @@ For inline plot/image display:
 | `:PyworksNewPython [name]`         | Create Python file with cells      |
 | `:PyworksNewPythonNotebook [name]` | Create Python Jupyter notebook     |
 
-> Note: Julia and R notebook creation commands are experimental.
-
 ### Environment Management
 
 | Command               | Description                                  |
 | --------------------- | -------------------------------------------- |
-| `:PyworksSetup`       | Manually trigger environment setup           |
+| `:PyworksSetup`       | Create venv and install essential packages   |
 | `:PyworksStatus`      | Show package status (imports/installed/missing) |
-| `:PyworksInstall`     | Install missing packages for current file    |
-| `:PyworksClearCache`  | Clear all cached data                        |
-| `:PyworksDiagnostics` | Run diagnostics to check environment setup   |
+| `:PyworksDiagnostics` | Run diagnostics (environment, plugins, cache) |
+| `:PyworksHelp`        | Show all commands and keymaps                |
 
-### Python Package Management
+### Package Management
 
-| Command                              | Description                  |
-| ------------------------------------ | ---------------------------- |
-| `:PyworksInstallPython <packages>`   | Install specific packages    |
-| `:PyworksUninstallPython <packages>` | Uninstall packages           |
-| `:PyworksListPython`                 | List all installed packages  |
+| Command                     | Description                              |
+| --------------------------- | ---------------------------------------- |
+| `:PyworksSync`              | Install missing packages from imports    |
+| `:PyworksAdd <packages>`    | Add packages to venv                     |
+| `:PyworksRemove <packages>` | Remove packages from venv                |
+| `:PyworksList`              | List all installed packages              |
 
 ## Configuration
 
@@ -259,8 +255,6 @@ require("pyworks").setup({
 Pyworks only activates in directories containing:
 - `.venv` (Python virtual environment)
 - `requirements.txt`, `setup.py`, `pyproject.toml` (Python project markers)
-- `Project.toml` (Julia - experimental)
-- `renv.lock`, `.Rproj` (R - experimental)
 
 ### Smart Package Management
 

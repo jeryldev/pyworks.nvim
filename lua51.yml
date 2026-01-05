@@ -1,0 +1,646 @@
+---
+globals:
+  _G:
+    property: new-fields
+  _VERSION:
+    property: read-only
+  arg:
+    property: new-fields
+  assert:
+    args:
+      - type: any
+      - required: A failed assertion without a message is unhelpful to users.
+        type: string
+  collectgarbage:
+    args:
+      - required: false
+        type:
+          - collect
+          - count
+          - restart
+          - setpause
+          - setstepmul
+          - step
+          - stop
+  coroutine.create:
+    args:
+      - type: function
+    must_use: true
+  coroutine.resume:
+    args:
+      - type:
+          display: coroutine
+      - required: false
+        type: "..."
+  coroutine.running:
+    args: []
+    must_use: true
+  coroutine.status:
+    args:
+      - type:
+          display: coroutine
+    must_use: true
+  coroutine.wrap:
+    args:
+      - type: function
+  coroutine.yield:
+    args:
+      - required: false
+        type: "..."
+  debug.debug:
+    args: []
+  debug.getfenv:
+    args:
+      - type: function
+    must_use: true
+  debug.gethook:
+    args:
+      - required: false
+        type: any
+    must_use: true
+  debug.getinfo:
+    args:
+      - type: any
+      - required: false
+        type: any
+      - required: false
+        type: any
+    must_use: true
+  debug.getlocal:
+    args:
+      - type: any
+      - type: any
+      - required: false
+        type: any
+    must_use: true
+  debug.getmetatable:
+    args:
+      - type: any
+    must_use: true
+  debug.getregistry:
+    args: []
+    must_use: true
+  debug.getupvalue:
+    args:
+      - type: function
+      - type: number
+    must_use: true
+  debug.setfenv:
+    args:
+      - type: any
+      - type: table
+  debug.sethook:
+    args:
+      - type: any
+      - type: any
+      - required: false
+        type: any
+      - required: false
+        type: any
+  debug.setlocal:
+    args:
+      - type: any
+      - type: any
+      - type: any
+      - required: false
+        type: any
+  debug.setmetatable:
+    args:
+      - type: any
+      - type: table
+  debug.setupvalue:
+    args:
+      - type: function
+      - type: number
+      - type: string
+  debug.traceback:
+    args:
+      - required: false
+        type: any
+      - required: false
+        type: any
+      - required: false
+        type: any
+    must_use: true
+  dofile:
+    args:
+      - required: false
+        type: string
+  error:
+    args:
+      - required: Erroring without a message is unhelpful to users.
+        type: string
+      - required: false
+        type: number
+  getfenv:
+    args:
+      - required: false
+        type: any
+    must_use: true
+  getmetatable:
+    args:
+      - type: table
+    must_use: true
+  io.close:
+    args:
+      - required: false
+        type:
+          display: file
+  io.flush:
+    args: []
+  io.input:
+    args:
+      - required: false
+        type:
+          display: file
+  io.lines:
+    args:
+      - type: string
+  io.open:
+    args:
+      - type: string
+      - required: false
+        type:
+          - r
+          - rb
+          - w
+          - wb
+          - a
+          - ab
+          - r+
+          - rb+
+          - w+
+          - wb+
+          - a+
+          - ab+
+  io.output:
+    args:
+      - required: false
+        type:
+          display: file
+  io.popen:
+    args:
+      - type: string
+      - required: false
+        type:
+          - r
+          - rb
+          - w
+          - wb
+          - a
+          - ab
+          - r+
+          - rb+
+          - w+
+          - wb+
+          - a+
+          - ab+
+  io.read:
+    args:
+      - type: "..."
+  io.stderr:
+    property: read-only
+  io.stdin:
+    property: read-only
+  io.stdout:
+    property: read-only
+  io.tmpfile:
+    args: []
+  io.type:
+    args:
+      - type:
+          display: potentially file-like object
+  io.write:
+    args:
+      - type: "..."
+  ipairs:
+    args:
+      - type: table
+    must_use: true
+  load:
+    args:
+      - type: function
+      - required: false
+        type: string
+  loadfile:
+    args:
+      - required: false
+        type: string
+  loadstring:
+    args:
+      - type: string
+      - required: false
+        type: string
+  math.abs:
+    args:
+      - type: number
+    must_use: true
+  math.acos:
+    args:
+      - type: number
+    must_use: true
+  math.asin:
+    args:
+      - type: number
+    must_use: true
+  math.atan:
+    args:
+      - type: number
+    must_use: true
+  math.atan2:
+    args:
+      - type: number
+      - type: number
+    must_use: true
+  math.ceil:
+    args:
+      - type: number
+    must_use: true
+  math.cos:
+    args:
+      - type: number
+    must_use: true
+  math.cosh:
+    args:
+      - type: number
+    must_use: true
+  math.deg:
+    args:
+      - type: number
+    must_use: true
+  math.exp:
+    args:
+      - type: number
+    must_use: true
+  math.floor:
+    args:
+      - type: number
+    must_use: true
+  math.fmod:
+    args:
+      - type: number
+      - type: number
+    must_use: true
+  math.frexp:
+    args:
+      - type: number
+    must_use: true
+  math.huge:
+    property: read-only
+  math.ldexp:
+    args:
+      - type: number
+      - type: number
+    must_use: true
+  math.log:
+    args:
+      - type: number
+    must_use: true
+  math.log10:
+    args:
+      - type: number
+    must_use: true
+  math.max:
+    args:
+      - type: number
+      - required: use of max only makes sense with more than 1 parameter
+        type: "..."
+    must_use: true
+  math.min:
+    args:
+      - type: number
+      - required: use of min only makes sense with more than 1 parameter
+        type: "..."
+    must_use: true
+  math.modf:
+    args:
+      - type: number
+    must_use: true
+  math.pi:
+    property: read-only
+  math.pow:
+    args:
+      - type: number
+      - type: number
+    must_use: true
+  math.rad:
+    args:
+      - type: number
+    must_use: true
+  math.random:
+    args:
+      - required: false
+        type: number
+      - required: false
+        type: number
+    must_use: true
+  math.randomseed:
+    args:
+      - type: number
+  math.sin:
+    args:
+      - type: number
+    must_use: true
+  math.sinh:
+    args:
+      - type: number
+    must_use: true
+  math.sqrt:
+    args:
+      - type: number
+    must_use: true
+  math.tan:
+    args:
+      - type: number
+    must_use: true
+  math.tanh:
+    args:
+      - type: number
+    must_use: true
+  module:
+    args:
+      - type: string
+      - type: "..."
+  newproxy:
+    args:
+      - required: false
+        type: bool
+    must_use: true
+  next:
+    args:
+      - type: table
+      - required: false
+        type: number
+  os.clock:
+    args: []
+    must_use: true
+  os.date:
+    args:
+      - required: false
+        type: string
+      - required: false
+        type: number
+    must_use: true
+  os.difftime:
+    args:
+      - type: number
+      - type: number
+    must_use: true
+  os.execute:
+    args:
+      - required: false
+        type: string
+  os.exit:
+    args:
+      - required: false
+        type: number
+  os.getenv:
+    args:
+      - type: string
+  os.remove:
+    args:
+      - type: string
+  os.rename:
+    args:
+      - type: string
+      - type: string
+  os.setlocale:
+    args:
+      - type: string
+      - required: false
+        type:
+          - all
+          - collate
+          - ctype
+          - monetary
+          - numeric
+          - time
+  os.time:
+    args:
+      - required: false
+        type: table
+    must_use: true
+  os.tmpname:
+    args: []
+    must_use: true
+  package.cpath:
+    property: full-write
+  package.loaded:
+    property: new-fields
+  package.loaders:
+    property: new-fields
+  package.loadlib:
+    args:
+      - type: string
+      - type: string
+  package.path:
+    property: full-write
+  package.preload:
+    property: new-fields
+  package.seeall:
+    args:
+      - type: table
+  pairs:
+    args:
+      - type: table
+    must_use: true
+  pcall:
+    args:
+      - type: function
+      - required: false
+        type: "..."
+  print:
+    args:
+      - required: false
+        type: "..."
+  rawequal:
+    args:
+      - type: any
+      - type: any
+    must_use: true
+  rawget:
+    args:
+      - type: any
+      - type: any
+    must_use: true
+  rawset:
+    args:
+      - type: any
+      - type: any
+      - type: any
+  require:
+    args:
+      - type: string
+  select:
+    args:
+      - type: any
+      - type: "..."
+    must_use: true
+  setfenv:
+    args:
+      - type: any
+      - type: table
+  setmetatable:
+    args:
+      - type: table
+      - required: false
+        type: table
+  string.byte:
+    args:
+      - type: string
+      - required: false
+        type: number
+      - required: false
+        type: number
+  string.char:
+    args:
+      - required: string.char should be used with an argument despite it not throwing
+        type: number
+      - required: false
+        type: "..."
+    must_use: true
+  string.dump:
+    args:
+      - type: function
+    must_use: true
+  string.find:
+    args:
+      - type: string
+      - type: string
+      - required: false
+        type: number
+      - required: false
+        type: bool
+    must_use: true
+  string.format:
+    args:
+      - type: string
+      - required: string.format should only be used for strings that need formatting
+        type: "..."
+    must_use: true
+  string.gmatch:
+    args:
+      - type: string
+      - type: string
+    must_use: true
+  string.gsub:
+    args:
+      - type: string
+      - type: string
+      - type: any
+      - required: false
+        type: number
+    must_use: true
+  string.len:
+    args:
+      - type: string
+    must_use: true
+  string.lower:
+    args:
+      - type: string
+    must_use: true
+  string.match:
+    args:
+      - type: string
+      - type: string
+      - required: false
+        type: number
+    must_use: true
+  string.rep:
+    args:
+      - type: string
+      - type: number
+    must_use: true
+  string.reverse:
+    args:
+      - type: string
+    must_use: true
+  string.sub:
+    args:
+      - type: string
+      - type: number
+      - required: false
+        type: number
+    must_use: true
+  string.upper:
+    args:
+      - type: string
+    must_use: true
+  table.concat:
+    args:
+      - type: table
+      - required: false
+        type: string
+      - required: false
+        type: number
+      - required: false
+        type: number
+    must_use: true
+  table.foreach:
+    args:
+      - type: table
+      - type: function
+    deprecated:
+      message: use a for loop instead.
+  table.foreachi:
+    args:
+      - type: table
+      - type: function
+    deprecated:
+      message: use a for loop instead.
+  table.getn:
+    args:
+      - type: table
+      - type: number
+    deprecated:
+      message: "`table.getn` has been superseded by #."
+      replace:
+        - "#%1"
+    must_use: true
+  table.insert:
+    args:
+      - type: table
+        observes: write
+      - type: any
+      - required: false
+        type: any
+  table.maxn:
+    args:
+      - type: table
+    must_use: true
+  table.remove:
+    args:
+      - type: table
+      - required: false
+        type: number
+  table.sort:
+    args:
+      - type: table
+      - required: false
+        type: function
+  tonumber:
+    args:
+      - type: any
+      - required: false
+        type: number
+    must_use: true
+  tostring:
+    args:
+      - type: any
+    must_use: true
+  type:
+    args:
+      - type: any
+  unpack:
+    args:
+      - type: table
+      - required: false
+        type: number
+      - required: false
+        type: number
+    must_use: true
+  xpcall:
+    args:
+      - type: function
+      - required: false
+        type: "..."

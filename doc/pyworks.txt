@@ -1,4 +1,4 @@
-*pyworks.txt*  Zero-configuration Python development for Neovim
+*pyworks.txt*  Zero-configuration Python notebook development for Neovim
 
 ==============================================================================
 CONTENTS                                                    *pyworks-contents*
@@ -15,9 +15,9 @@ CONTENTS                                                    *pyworks-contents*
 ==============================================================================
 1. INTRODUCTION                                         *pyworks-introduction*
 
-Pyworks.nvim is a zero-configuration plugin for Python development in Neovim.
-It provides automatic environment setup, package detection, and Jupyter-like
-code execution - primarily focused on Python and Python notebooks.
+Pyworks.nvim is a zero-configuration plugin for Python notebook development
+in Neovim. It provides automatic environment setup, package detection, and
+Jupyter-like code execution for Python projects and notebooks.
 
 Key Features:
 - Zero configuration required
@@ -26,9 +26,6 @@ Key Features:
 - Jupyter notebook support via Molten
 - Inline plot display with image.nvim
 - Project-based activation
-
-Note: While pyworks includes experimental support for Julia and R, the
-primary focus is on Python and Python notebooks.
 
 ==============================================================================
 2. REQUIREMENTS                                         *pyworks-requirements*
@@ -53,12 +50,9 @@ With lazy.nvim, create ~/.config/nvim/lua/plugins/pyworks.lua:
         dependencies = {
           {
             "GCBallesteros/jupytext.nvim",
-            config = true,
+            config = false, -- Let pyworks handle jupytext configuration
           },
-          {
-            "benlubas/molten-nvim",
-            build = ":UpdateRemotePlugins",
-          },
+          "benlubas/molten-nvim",
           "3rd/image.nvim",
         },
         config = function()
@@ -128,7 +122,7 @@ TYPICAL WORKFLOW~
 6. Manage packages:
    - Missing packages detected automatically
    - |<leader>pi| - Install missing packages
-   - |:PyworksInstallPython| numpy pandas
+   - |:PyworksAdd| numpy pandas
 
 ==============================================================================
 5. KEY BINDINGS                                            *pyworks-keymaps*
@@ -191,39 +185,37 @@ NOTEBOOK CREATION~
 *:PyworksNewPythonNotebook* [name]
     Create Python Jupyter notebook (.ipynb)
 
-Note: Julia and R notebook creation commands exist but are experimental.
-
 ENVIRONMENT MANAGEMENT~
 
 *:PyworksSetup*
-    Manually trigger environment setup
+    Create venv and install essential packages
     Usually not needed as setup is automatic
 
 *:PyworksStatus*
     Show package status (imports/installed/missing)
 
-*:PyworksInstall*
-    Install missing packages detected in current file
-
-*:PyworksClearCache*
-    Clear all cached data
-
 *:PyworksDiagnostics*
-    Run environment diagnostics
-    Shows Python host, venv status, package manager
+    Run comprehensive diagnostics
+    Shows venv status, Python host, plugins, cache
 
-PYTHON PACKAGE MANAGEMENT~
+*:PyworksHelp*
+    Show all Pyworks commands and keymaps
 
-*:PyworksInstallPython* {packages}
-    Install Python packages in project virtual environment
-    Example: :PyworksInstallPython numpy pandas matplotlib
+PACKAGE MANAGEMENT~
 
-*:PyworksUninstallPython* {packages}
-    Uninstall Python packages
-    Example: :PyworksUninstallPython tensorflow
+*:PyworksSync*
+    Install missing packages detected from imports
 
-*:PyworksListPython*
-    List all installed Python packages
+*:PyworksAdd* {packages}
+    Add packages to project virtual environment
+    Example: :PyworksAdd numpy pandas matplotlib
+
+*:PyworksRemove* {packages}
+    Remove packages from virtual environment
+    Example: :PyworksRemove tensorflow
+
+*:PyworksList*
+    List all installed packages
     Press 'q' to close buffer
 
 ==============================================================================
@@ -257,8 +249,6 @@ PROJECT DETECTION~
 Pyworks only activates in directories containing:
 - .venv (Python virtual environment)
 - requirements.txt, setup.py, pyproject.toml (Python markers)
-- Project.toml (Julia - experimental)
-- renv.lock, .Rproj (R - experimental)
 
 ==============================================================================
 8. TROUBLESHOOTING                                  *pyworks-troubleshooting*
