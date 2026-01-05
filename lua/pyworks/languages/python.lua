@@ -808,14 +808,20 @@ function M.list_python_packages()
 		return
 	end
 
-	local pip_path = M.get_pip_path(filepath)
-	if not pip_path then
-		notifications.notify_error("pip not found in virtual environment")
-		return
+	-- Determine command based on package manager (uv or pip)
+	local cmd
+	if M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 1 then
+		local project_dir, _ = utils.get_project_paths(filepath)
+		cmd = string.format("cd %s && uv pip list", vim.fn.shellescape(project_dir))
+	else
+		local pip_path = M.get_pip_path(filepath)
+		if not pip_path then
+			notifications.notify_error("pip not found in virtual environment")
+			return
+		end
+		cmd = string.format("%s list", pip_path)
 	end
 
-	-- Run pip list
-	local cmd = string.format("%s list", pip_path)
 	local output = vim.fn.system(cmd)
 
 	if vim.v.shell_error == 0 then
