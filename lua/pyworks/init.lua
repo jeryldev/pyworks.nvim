@@ -9,6 +9,10 @@
 
 local M = {}
 
+-- Constants
+local PLUGIN_LOAD_DELAY_MS = 100 -- Delay to ensure plugins are loaded before configuration
+local POST_SETUP_DELAY_MS = 500 -- Delay after environment setup before detection
+
 -- Dependencies
 local dependencies = require("pyworks.dependencies")
 local error_handler = require("pyworks.core.error_handler")
@@ -159,7 +163,7 @@ function M.setup(opts)
 	-- Use defer_fn to ensure plugins are loaded
 	vim.defer_fn(function()
 		M.configure_dependencies(opts)
-	end, 100)
+	end, PLUGIN_LOAD_DELAY_MS)
 
 	-- Add helpful keymaps
 	if not opts.skip_keymaps then
@@ -225,7 +229,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)
-			end, 500)
+			end, POST_SETUP_DELAY_MS)
 		end
 	else
 		vim.notify("ℹ️ Pyworks only supports Python files", vim.log.levels.INFO)

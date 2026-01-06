@@ -5,6 +5,10 @@ local M = {}
 
 local state = require("pyworks.core.state")
 
+-- Constants
+local HISTORY_TTL_SECONDS = 10 -- Time-to-live for notification deduplication
+local MAX_HISTORY_SIZE = 100 -- Maximum notifications to track (prevents unbounded growth)
+
 -- Configuration
 local config = {
 	verbose_first_time = true,
@@ -15,8 +19,6 @@ local config = {
 
 -- Track notification history to avoid duplicates
 local notification_history = {}
-local history_ttl = 10 -- seconds
-local max_history_size = 100 -- Prevent unbounded growth
 
 -- Check if this is first time for a given context
 local function is_first_time(context)
@@ -38,7 +40,7 @@ local function should_suppress(message)
 
 	for i = #notification_history, 1, -1 do
 		local entry = notification_history[i]
-		if now - entry.time > history_ttl * 1000 then
+		if now - entry.time > HISTORY_TTL_SECONDS * 1000 then
 			table.insert(to_remove, i)
 		elseif entry.message == message then
 			found_duplicate = true
@@ -55,7 +57,7 @@ local function should_suppress(message)
 	end
 
 	-- Enforce max size (remove oldest if at limit)
-	while #notification_history >= max_history_size do
+	while #notification_history >= MAX_HISTORY_SIZE do
 		table.remove(notification_history, 1)
 	end
 
