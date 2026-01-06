@@ -32,7 +32,7 @@ end
 
 -- Check if we should suppress duplicate notifications
 local function should_suppress(message)
-	local now = vim.loop.now()
+	local now = vim.uv.now()
 
 	-- Collect indices to remove (expired entries)
 	local to_remove = {}

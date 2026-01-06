@@ -40,6 +40,7 @@ end
 
 -- Get cached value if not expired
 function M.get(key)
+	vim.validate({ key = { key, "string" } })
 	local entry = cache[key]
 	if not entry then
 		return nil
@@ -94,6 +95,7 @@ end
 
 -- Set cache value with current timestamp
 function M.set(key, value)
+	vim.validate({ key = { key, "string" } })
 	-- Evict old entries if cache is full
 	evict_if_needed()
 
@@ -110,11 +112,13 @@ end
 
 -- Clear specific cache entry
 function M.invalidate(key)
+	vim.validate({ key = { key, "string" } })
 	cache[key] = nil
 end
 
 -- Clear all cache entries matching pattern (thread-safe)
 function M.invalidate_pattern(pattern)
+	vim.validate({ pattern = { pattern, "string" } })
 	-- Collect keys to delete first (safer than modifying during iteration)
 	local keys_to_delete = {}
 	for key, _ in pairs(cache) do
@@ -196,6 +200,7 @@ end
 
 -- Wrap a function with caching
 function M.cached(key, fn)
+	vim.validate({ key = { key, "string" }, fn = { fn, "function" } })
 	local cached_value = M.get(key)
 	if cached_value ~= nil then
 		return cached_value
@@ -212,24 +217,28 @@ end
 -- Periodic cleanup (optional)
 local cleanup_timer = nil
 function M.start_periodic_cleanup(interval_seconds)
+	vim.validate({ interval_seconds = { interval_seconds, "number", true } })
 	interval_seconds = interval_seconds or 300 -- 5 minutes default
 
-	if cleanup_timer then
-		cleanup_timer:stop()
-	end
+	M.stop_periodic_cleanup()
 
-	cleanup_timer = vim.loop.new_timer()
-	cleanup_timer:start(interval_seconds * 1000, interval_seconds * 1000, function()
-		vim.schedule(function()
-			M.cleanup()
-		end)
-	end)
+	cleanup_timer = vim.uv.new_timer()
+	if cleanup_timer then
+		cleanup_timer:start(
+			interval_seconds * 1000,
+			interval_seconds * 1000,
+			vim.schedule_wrap(function()
+				M.cleanup()
+			end)
+		)
+	end
 end
 
--- Stop periodic cleanup
+-- Stop periodic cleanup and release timer resources
 function M.stop_periodic_cleanup()
 	if cleanup_timer then
 		cleanup_timer:stop()
+		cleanup_timer:close()
 		cleanup_timer = nil
 	end
 end

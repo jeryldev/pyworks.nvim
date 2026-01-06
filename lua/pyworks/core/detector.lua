@@ -358,7 +358,7 @@ local function get_kernel_for_language(language, filepath)
 	else
 		-- Fallback: generic kernel lookup when no filepath provided
 		-- Refresh cache if older than 60 seconds
-		local now = vim.loop.now()
+		local now = vim.uv.now()
 		if not cached_kernels or (now - kernel_cache_time) > 60000 then
 			cached_kernels = get_available_kernels()
 			kernel_cache_time = now

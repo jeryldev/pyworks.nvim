@@ -14,7 +14,7 @@ local data_cache = {}
 -- Get cached data or fetch it
 function M.get_cached(key, fetcher, ttl)
 	ttl = ttl or 5000 -- Default 5 second TTL
-	local now = vim.loop.hrtime() / 1e6
+	local now = vim.uv.hrtime() / 1e6
 	local entry = data_cache[key]
 
 	if entry and entry.result and (now - entry.timestamp) < ttl then
@@ -154,7 +154,7 @@ function M.get_project_paths(filepath)
 	local cache_key = project_dir
 
 	-- Cache for 5 seconds to avoid repeated calls
-	local now = vim.loop.hrtime()
+	local now = vim.uv.hrtime()
 	if cache.cwd == cache_key and cache.last_cwd_check and (now - cache.last_cwd_check) < 5e9 then
 		return cache.project_dir, cache.venv_path
 	end
@@ -273,6 +273,11 @@ local DEFAULT_TIMEOUT_MS = 30000 -- 30 seconds
 
 -- Async system call wrapper with timeout support
 function M.async_system_call(cmd, callback, options)
+	vim.validate({
+		cmd = { cmd, { "string", "table" } },
+		callback = { callback, "function" },
+		options = { options, "table", true },
+	})
 	options = options or {}
 	local stdout_data = {}
 	local stderr_data = {}
@@ -319,19 +324,22 @@ function M.async_system_call(cmd, callback, options)
 
 	-- Set up timeout timer
 	if timeout_ms > 0 then
-		timer = vim.loop.new_timer()
-		timer:start(timeout_ms, 0, function()
-			if not job_completed then
-				-- Kill the job
-				pcall(vim.fn.jobstop, job_id)
-				timer:stop()
-				timer:close()
-				timer = nil
-				vim.schedule(function()
+		timer = vim.uv.new_timer()
+		timer:start(
+			timeout_ms,
+			0,
+			vim.schedule_wrap(function()
+				if not job_completed then
+					pcall(vim.fn.jobstop, job_id)
+					if timer then
+						timer:stop()
+						timer:close()
+						timer = nil
+					end
 					callback(false, "", "Command timed out after " .. (timeout_ms / 1000) .. " seconds", -2)
-				end)
-			end
-		end)
+				end
+			end)
+		)
 	end
 
 	return job_id
@@ -429,6 +437,10 @@ end
 -- Safe vim.schedule wrapper with error handling
 -- Prevents silent failures in async operations
 function M.safe_schedule(fn, error_context)
+	vim.validate({
+		fn = { fn, "function" },
+		error_context = { error_context, "string", true },
+	})
 	vim.schedule(function()
 		local ok, err = pcall(fn)
 		if not ok then
@@ -451,7 +463,7 @@ function M.path_join(...)
 end
 
 function M.path_exists(path)
-	local stat = vim.loop.fs_stat(path)
+	local stat = vim.uv.fs_stat(path)
 	return stat ~= nil
 end
 

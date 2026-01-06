@@ -11,7 +11,7 @@ local state_file = vim.fn.stdpath("data") .. "/pyworks_state.json"
 
 -- Debounce timer for saves
 local save_timer = nil
-local SAVE_DEBOUNCE_MS = 500 -- Debounce multiple saves within 500ms
+local SAVE_DEBOUNCE_MS = 500
 
 -- Load state from disk
 local function load_persistent_state()
@@ -79,12 +79,25 @@ end
 local function schedule_save()
 	if save_timer then
 		save_timer:stop()
+		save_timer:close()
+		save_timer = nil
 	end
 
-	save_timer = vim.defer_fn(function()
-		save_persistent_state()
-		save_timer = nil
-	end, SAVE_DEBOUNCE_MS)
+	save_timer = vim.uv.new_timer()
+	if save_timer then
+		save_timer:start(
+			SAVE_DEBOUNCE_MS,
+			0,
+			vim.schedule_wrap(function()
+				save_persistent_state()
+				if save_timer then
+					save_timer:stop()
+					save_timer:close()
+					save_timer = nil
+				end
+			end)
+		)
+	end
 end
 
 -- Initialize state from disk
@@ -97,11 +110,13 @@ end
 
 -- Get state value
 function M.get(key)
+	vim.validate({ key = { key, "string" } })
 	return state[key]
 end
 
 -- Set state value
 function M.set(key, value)
+	vim.validate({ key = { key, "string" } })
 	state[key] = value
 
 	-- Schedule debounced save if it's a persistent key
@@ -112,11 +127,13 @@ end
 
 -- Check if key exists
 function M.has(key)
+	vim.validate({ key = { key, "string" } })
 	return state[key] ~= nil
 end
 
 -- Remove state value
 function M.remove(key)
+	vim.validate({ key = { key, "string" } })
 	state[key] = nil
 end
 
