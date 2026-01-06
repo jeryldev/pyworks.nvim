@@ -23,11 +23,14 @@ local default_ttl = {
 	environment_status = 30, -- 30 seconds
 }
 
--- Get TTL for a key type
+-- Get TTL for a key type (case-insensitive prefix matching)
 local function get_ttl(key)
-	-- Extract key type from the key
+	-- Normalize key to lowercase for consistent matching
+	local key_lower = key:lower()
+
+	-- Check exact prefix matches (more predictable than pattern matching)
 	for key_type, ttl in pairs(default_ttl) do
-		if key:match(key_type) then
+		if key_lower:sub(1, #key_type) == key_type then
 			return ttl
 		end
 	end
