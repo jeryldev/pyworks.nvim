@@ -568,15 +568,53 @@ function M.is_stdlib(module_name, language)
 	return false
 end
 
+-- Validate package name for safety (prevents shell injection)
+-- Package names should match PyPI naming: letters, numbers, hyphens, underscores, dots
+local function is_valid_package_name(name)
+	if not name or name == "" then
+		return false
+	end
+	-- PyPI package naming: alphanumeric, hyphens, underscores, dots, brackets for extras
+	-- Also allow version specifiers: ==, >=, <=, ~=, etc.
+	return name:match("^[a-zA-Z0-9_.%-]+[%[%]a-zA-Z0-9_.%-,]*[<>=!~]*[0-9.]*$") ~= nil
+end
+
+-- Filter packages to only valid names
+function M.validate_package_names(packages)
+	local valid = {}
+	local invalid = {}
+	for _, pkg in ipairs(packages) do
+		if is_valid_package_name(pkg) then
+			table.insert(valid, pkg)
+		else
+			table.insert(invalid, pkg)
+		end
+	end
+	return valid, invalid
+end
+
 -- Install packages (Python only)
 function M.install_packages(packages, language)
 	if #packages == 0 then
 		return
 	end
 
+	-- Validate package names before installation
+	local valid_packages, invalid_packages = M.validate_package_names(packages)
+	if #invalid_packages > 0 then
+		notifications.notify(
+			string.format("Skipping invalid package names: %s", table.concat(invalid_packages, ", ")),
+			vim.log.levels.WARN
+		)
+	end
+
+	if #valid_packages == 0 then
+		return
+	end
+
 	if language == "python" then
 		local python = require("pyworks.languages.python")
-		python.install_packages(packages)
+		python.install_packages(valid_packages)
 	end
 end
 
