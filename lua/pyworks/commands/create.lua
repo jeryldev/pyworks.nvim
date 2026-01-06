@@ -111,33 +111,19 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 	end
 end, { nargs = "?", desc = "Create new Python file with cells" })
 
--- Helper function to create .ipynb files
-local function create_ipynb_file(filename, language, kernel_info, imports)
-	-- Ensure .ipynb extension
-	if not filename:match("%.ipynb$") then
-		filename = filename .. ".ipynb"
+-- Generate unique cell ID (required in nbformat 4.5+)
+local function generate_cell_id()
+	local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	local id = ""
+	for _ = 1, 8 do
+		local idx = math.random(1, #chars)
+		id = id .. chars:sub(idx, idx)
 	end
+	return id
+end
 
-	-- Check if file already exists
-	if vim.fn.filereadable(filename) == 1 then
-		local choice = vim.fn.confirm("File '" .. filename .. "' already exists. Overwrite?", "&Yes\n&No", 2)
-		if choice ~= 1 then
-			return false
-		end
-	end
-
-	-- Generate unique cell IDs (required in nbformat 4.5+)
-	local function generate_cell_id()
-		local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-		local id = ""
-		for i = 1, 8 do
-			local idx = math.random(1, #chars)
-			id = id .. chars:sub(idx, idx)
-		end
-		return id
-	end
-
-	-- Create notebook JSON structure
+-- Create notebook JSON structure
+local function generate_notebook_json(kernel_info, imports)
 	local notebook = {
 		cells = {
 			{
@@ -162,18 +148,18 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		nbformat_minor = 5,
 	}
 
-	-- Try to encode JSON
 	local ok, json_str = pcall(vim.json.encode, notebook)
 	if not ok then
-		vim.notify("❌ Failed to create notebook structure: " .. (json_str or "unknown error"), vim.log.levels.ERROR)
-		return false
+		return nil, "Failed to create notebook structure: " .. (json_str or "unknown error")
 	end
+	return json_str, nil
+end
 
-	-- Write to file
+-- Write notebook JSON to file
+local function write_notebook_file(filename, json_str)
 	local file, err = io.open(filename, "w")
 	if not file then
-		vim.notify("❌ Failed to create file: " .. (err or "unknown error"), vim.log.levels.ERROR)
-		return false
+		return false, "Failed to create file: " .. (err or "unknown error")
 	end
 
 	local write_ok, write_err = pcall(function()
@@ -182,14 +168,17 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 	end)
 
 	if not write_ok then
-		vim.notify("❌ Failed to write notebook: " .. (write_err or "unknown error"), vim.log.levels.ERROR)
 		pcall(function()
 			file:close()
 		end)
-		return false
+		return false, "Failed to write notebook: " .. (write_err or "unknown error")
 	end
 
-	-- Check if jupytext is available before trying to open
+	return true, nil
+end
+
+-- Open notebook and verify jupytext conversion
+local function open_and_verify_notebook(filename, language)
 	if not jupytext.is_jupytext_installed() then
 		vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 		vim.notify("⚠️  jupytext not installed - cannot open .ipynb files in editor", vim.log.levels.WARN)
@@ -197,7 +186,6 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		return true
 	end
 
-	-- Open the file (jupytext is available)
 	local open_ok, open_err = pcall(vim.cmd, "edit " .. filename)
 	if not open_ok then
 		vim.notify("⚠️ Notebook created but failed to open: " .. (open_err or "unknown error"), vim.log.levels.WARN)
@@ -206,10 +194,8 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 	end
 
 	-- Check if jupytext conversion worked (buffer should NOT start with '{')
-	-- vim.cmd("edit") is synchronous, so we can check immediately
 	local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 	if first_line:match("^%s*{") then
-		-- Still JSON - jupytext didn't convert. Try forcing reload
 		jupytext.configure_jupytext_nvim()
 		vim.cmd("edit!")
 		local check_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
@@ -222,8 +208,35 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		position_cursor_at_first_cell()
 	end
 	vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
-
 	return true
+end
+
+-- Create .ipynb notebook file
+local function create_ipynb_file(filename, language, kernel_info, imports)
+	if not filename:match("%.ipynb$") then
+		filename = filename .. ".ipynb"
+	end
+
+	if vim.fn.filereadable(filename) == 1 then
+		local choice = vim.fn.confirm("File '" .. filename .. "' already exists. Overwrite?", "&Yes\n&No", 2)
+		if choice ~= 1 then
+			return false
+		end
+	end
+
+	local json_str, json_err = generate_notebook_json(kernel_info, imports)
+	if not json_str then
+		vim.notify("❌ " .. json_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	local write_ok, write_err = write_notebook_file(filename, json_str)
+	if not write_ok then
+		vim.notify("❌ " .. write_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	return open_and_verify_notebook(filename, language)
 end
 
 -- Helper to create notebook after environment is ready
