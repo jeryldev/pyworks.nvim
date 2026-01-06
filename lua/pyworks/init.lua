@@ -356,26 +356,36 @@ end, {
 vim.api.nvim_create_user_command("PyworksHelp", function()
 	local help = {
 		"",
-		"  NOTEBOOK CREATION",
-		"    :PyworksNewPython [name]         Create Python file with cell markers",
-		"    :PyworksNewPythonNotebook [name] Create Jupyter notebook (.ipynb)",
+		"  COMMANDS",
+		"    :PyworksNewPython [name]      Create Python file     :PyworksSetup        Create venv",
+		"    :PyworksNewPythonNotebook     Create .ipynb file     :PyworksStatus       Package status",
+		"    :PyworksAdd/Remove [pkg]      Add/remove packages    :PyworksList         List packages",
+		"    :PyworksSync                  Install missing        :PyworksDiagnostics  Run diagnostics",
 		"",
-		"  ENVIRONMENT",
-		"    :PyworksSetup                    Create venv and install essentials",
-		"    :PyworksStatus                   Show package status",
-		"    :PyworksDiagnostics              Run diagnostics (venv, plugins, cache)",
+		"  CELL EXECUTION                                  CELL NAVIGATION",
+		"    <leader>jl   Run current line                   <leader>j]   Next cell",
+		"    <leader>jr   Run selection (visual)             <leader>j[   Previous cell",
+		"    <leader>jc   Run cell + move to next            <leader>jv   Visual select cell",
+		"    <leader>je   Re-run current cell                <leader>jg   Go to cell N",
+		"    <leader>jR   Run all cells in buffer",
 		"",
-		"  PACKAGE MANAGEMENT",
-		"    :PyworksSync                     Install missing packages from imports",
-		"    :PyworksAdd [packages]           Add packages to venv",
-		"    :PyworksRemove [packages]        Remove packages from venv",
-		"    :PyworksList                     List installed packages",
+		"  CELL CREATION                                   CELL OPERATIONS",
+		"    <leader>ja   Insert code cell above             <leader>jt   Toggle code/markdown",
+		"    <leader>jb   Insert code cell below             <leader>jJ   Merge with cell below",
+		"    <leader>jma  Insert markdown above              <leader>js   Split cell at cursor",
+		"    <leader>jmb  Insert markdown below",
 		"",
-		"  KEYMAPS",
-		"    <leader>ps                       Show package status",
-		"    <leader>jl                       Run current line",
-		"    <leader>jc                       Run cell and move to next",
-		"    <leader>je                       Re-run current cell",
+		"  OUTPUT MANAGEMENT                               CELL FOLDING",
+		"    <leader>jd   Delete cell output                 <leader>jf   Toggle folding on/off",
+		"    <leader>jh   Hide output window                 <leader>jzc  Collapse all cells",
+		"    <leader>jo   Enter output window                <leader>jze  Expand all cells",
+		"    K            Show output or LSP hover           <leader>jn   Refresh cell numbers",
+		"",
+		"  KERNEL MANAGEMENT                               PACKAGE MANAGEMENT",
+		"    <leader>mi   Initialize kernel                  <leader>pi   Install missing packages",
+		"    <leader>mr   Restart kernel                     <leader>ps   Show package status",
+		"    <leader>mx   Interrupt execution",
+		"    <leader>mI   Show kernel info",
 		"",
 		"  Press q or <Esc> to close",
 		"",
@@ -388,9 +398,9 @@ vim.api.nvim_create_user_command("PyworksHelp", function()
 	vim.bo[buf].bufhidden = "wipe"
 	vim.bo[buf].modifiable = false
 
-	-- Fixed window size
+	-- Dynamic window size based on content
 	local width = 90
-	local height = 30
+	local height = #help
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)
 
