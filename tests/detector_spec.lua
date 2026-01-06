@@ -85,9 +85,10 @@ describe("detector", function()
 			local test_file = temp_project .. "/test.py"
 			vim.fn.writefile({ "import os" }, test_file)
 
-			-- Mock python module
+			-- Mock python module (must include all functions called by handle_python)
 			local handle_file_called = false
 			package.loaded["pyworks.languages.python"] = {
+				setup_python_host = function() end,
 				handle_file = function(filepath, is_notebook)
 					handle_file_called = true
 					assert.equals(test_file, filepath)
