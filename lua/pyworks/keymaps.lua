@@ -308,16 +308,23 @@ function M.setup_buffer_keymaps()
 						vim.cmd("normal! gg")
 
 						-- Search for the Nth cell marker
-						local found = 0
+						local cells_found = 0
 						for i = 1, cell_num do
 							local result = vim.fn.search("^# %%", "W")
 							if result == 0 then
 								-- Not enough cells, restore position
 								vim.fn.setpos(".", save_pos)
-								vim.notify("Only " .. found .. " cells found", vim.log.levels.WARN)
+								if cells_found == 0 then
+									vim.notify("No cells found in this file", vim.log.levels.WARN)
+								else
+									vim.notify(
+										string.format("Cell %d not found (only %d cells exist)", cell_num, cells_found),
+										vim.log.levels.WARN
+									)
+								end
 								return
 							end
-							found = i
+							cells_found = i
 						end
 
 						-- Move to the line after the cell marker
