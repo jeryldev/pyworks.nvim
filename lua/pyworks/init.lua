@@ -23,7 +23,7 @@ local default_config = {
 		use_uv = false,
 		preferred_venv_name = ".venv",
 		auto_install_essentials = true,
-		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
+		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
 	},
 	cache = {
 		-- Cache TTL overrides (in seconds)
