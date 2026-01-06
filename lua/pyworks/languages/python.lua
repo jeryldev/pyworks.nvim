@@ -84,8 +84,11 @@ end
 -- Now accepts optional filepath to get Python for that file's project
 function M.get_python_path(filepath)
 	if M.has_venv(filepath) then
-		local project_dir, venv_path = utils.get_project_paths(filepath)
-		return venv_path .. "/bin/python"
+		local _, venv_path = utils.get_project_paths(filepath)
+		local python_path = venv_path .. "/bin/python"
+		if vim.fn.executable(python_path) == 1 then
+			return python_path
+		end
 	end
 	return nil
 end
@@ -94,8 +97,11 @@ end
 -- Now accepts optional filepath to get pip for that file's project
 function M.get_pip_path(filepath)
 	if M.has_venv(filepath) then
-		local project_dir, venv_path = utils.get_project_paths(filepath)
-		return venv_path .. "/bin/pip"
+		local _, venv_path = utils.get_project_paths(filepath)
+		local pip_path = venv_path .. "/bin/pip"
+		if vim.fn.executable(pip_path) == 1 then
+			return pip_path
+		end
 	end
 	return nil
 end
