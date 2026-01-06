@@ -268,6 +268,8 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 								timer:stop()
 								timer:close()
 								vim.notify("✅ jupytext installed!", vim.log.levels.INFO)
+								-- Re-configure jupytext.nvim to update PATH with venv's bin directory
+								jupytext.configure_jupytext_nvim()
 								do_create_notebook(filename)
 							elseif attempts >= max_attempts then
 								timer:stop()
