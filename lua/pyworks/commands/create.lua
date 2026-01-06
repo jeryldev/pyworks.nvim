@@ -1,6 +1,8 @@
 -- Commands for creating new notebook files
 local M = {}
 
+local jupytext = require("pyworks.notebook.jupytext")
+
 -- Helper function to validate filename
 local function validate_filename(filename, extension)
 	-- Check for invalid characters
@@ -169,7 +171,15 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		return false
 	end
 
-	-- Open the file
+	-- Check if jupytext is available before trying to open
+	if not jupytext.is_jupytext_installed() then
+		vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
+		vim.notify("⚠️  jupytext not installed - cannot open .ipynb files in editor", vim.log.levels.WARN)
+		vim.notify("💡 Run :PyworksSetup to create a venv and install jupytext", vim.log.levels.INFO)
+		return true
+	end
+
+	-- Open the file (jupytext is available)
 	local open_ok, open_err = pcall(vim.cmd, "edit " .. filename)
 	if not open_ok then
 		vim.notify("⚠️ Notebook created but failed to open: " .. (open_err or "unknown error"), vim.log.levels.WARN)
