@@ -23,8 +23,10 @@ function M.is_jupytext_installed()
 		return false
 	end
 
-	local cmd = string.format("%s -c 'import jupytext' 2>/dev/null", python_path)
-	local result = vim.fn.system(cmd)
+	-- Use safe shell escaping for Python import check
+	local cmd =
+		string.format("%s -c %s 2>/dev/null", vim.fn.shellescape(python_path), vim.fn.shellescape("import jupytext"))
+	vim.fn.system(cmd)
 	local success = vim.v.shell_error == 0
 
 	-- Cache the result

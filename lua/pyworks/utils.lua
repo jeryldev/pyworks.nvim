@@ -354,11 +354,9 @@ end
 
 -- Check if command exists
 function M.command_exists(cmd)
-	local handle = io.popen("command -v " .. cmd .. " 2>/dev/null")
-	if handle then
-		local result = handle:read("*a")
-		handle:close()
-		return result ~= ""
+	-- Use vim.fn.executable for safety instead of shell command
+	if vim.fn.executable(cmd) == 1 then
+		return true
 	end
 	return false
 end

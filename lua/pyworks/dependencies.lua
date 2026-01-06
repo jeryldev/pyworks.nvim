@@ -59,14 +59,9 @@ function M.ensure_dependencies()
 				if not ok then
 					return false, "not configured"
 				end
-				-- Check if jupytext CLI is available
-				local handle = io.popen("which jupytext 2>&1")
-				if handle then
-					local result = handle:read("*a")
-					handle:close()
-					if result == "" or result:match("not found") then
-						return false, "CLI not found"
-					end
+				-- Check if jupytext CLI is available (use vim.fn.executable for safety)
+				if vim.fn.executable("jupytext") ~= 1 then
+					return false, "CLI not found"
 				end
 				return true
 			end,
@@ -84,16 +79,10 @@ function M.ensure_dependencies()
 						table.insert(actions_taken, "Jupytext: Configured for .ipynb files")
 					end
 				end
-				-- Check for jupytext CLI
-				local python_cmd = vim.g.python3_host_prog or "python3"
-				local handle = io.popen(python_cmd .. " -m pip show jupytext 2>&1")
-				if handle then
-					local result = handle:read("*a")
-					handle:close()
-					if result:match("not found") or result:match("No module") then
-						-- Will be installed by pyworks' essential packages
-						table.insert(actions_taken, "Jupytext CLI: Will auto-install with Python packages")
-					end
+				-- Check for jupytext CLI using safe executable check
+				if vim.fn.executable("jupytext") ~= 1 then
+					-- Will be installed by pyworks' essential packages
+					table.insert(actions_taken, "Jupytext CLI: Will auto-install with Python packages")
 				end
 				return true
 			end,
@@ -206,33 +195,30 @@ function M.register_molten()
 	-- Use the Python host that pyworks has configured
 	local python_cmd = vim.g.python3_host_prog or "python3"
 
-	-- Check if pynvim is available
-	local handle = io.popen(python_cmd .. " -c 'import pynvim' 2>&1")
-	if handle then
-		local result = handle:read("*a")
-		handle:close()
+	-- Check if pynvim is available using safe shell escape
+	local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import pynvim"))
+	vim.fn.system(cmd)
 
-		if result == "" then -- pynvim is installed
-			-- Check if we've already attempted registration this session
-			if not vim.g.pyworks_molten_registration_attempted then
-				vim.g.pyworks_molten_registration_attempted = true
-
-				vim.schedule(function()
-					-- Run UpdateRemotePlugins
-					local success, err = pcall(vim.cmd, "UpdateRemotePlugins")
-
-					if not success then
-						vim.notify("❌ Failed to register Molten: " .. tostring(err), vim.log.levels.ERROR)
-						return false
-					end
-				end)
-				return true
-			end
-		else
-			-- pynvim not installed - will be handled by pyworks essentials
-			return false
-		end
+	if vim.v.shell_error ~= 0 then
+		-- pynvim not installed - will be handled by pyworks essentials
+		return false
 	end
+
+	-- pynvim is installed - check if we've already attempted registration this session
+	if not vim.g.pyworks_molten_registration_attempted then
+		vim.g.pyworks_molten_registration_attempted = true
+
+		vim.schedule(function()
+			-- Run UpdateRemotePlugins
+			local success, err = pcall(vim.cmd, "UpdateRemotePlugins")
+
+			if not success then
+				vim.notify("❌ Failed to register Molten: " .. tostring(err), vim.log.levels.ERROR)
+			end
+		end)
+		return true
+	end
+
 	return false
 end
 
@@ -255,32 +241,24 @@ function M.check_health()
 		end
 	end
 
-	-- Check Python dependencies
+	-- Check Python dependencies using safe shell escaping
 	local python_cmd = vim.g.python3_host_prog or "python3"
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 	for _, dep in ipairs(python_deps) do
-		local handle = io.popen(string.format("%s -c 'import %s' 2>&1", python_cmd, dep))
-		if handle then
-			local result = handle:read("*a")
-			handle:close()
-			if result == "" then
-				table.insert(health, string.format("✅ Python %s: Installed", dep))
-			else
-				table.insert(health, string.format("❌ Python %s: Not installed", dep))
-			end
+		local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import " .. dep))
+		vim.fn.system(cmd)
+		if vim.v.shell_error == 0 then
+			table.insert(health, string.format("✅ Python %s: Installed", dep))
+		else
+			table.insert(health, string.format("❌ Python %s: Not installed", dep))
 		end
 	end
 
-	-- Check jupytext CLI
-	local handle = io.popen("which jupytext 2>&1")
-	if handle then
-		local result = handle:read("*a")
-		handle:close()
-		if result ~= "" and not result:match("not found") then
-			table.insert(health, "✅ Jupytext CLI: Available in PATH")
-		else
-			table.insert(health, "❌ Jupytext CLI: Not found in PATH")
-		end
+	-- Check jupytext CLI using safe executable check
+	if vim.fn.executable("jupytext") == 1 then
+		table.insert(health, "✅ Jupytext CLI: Available in PATH")
+	else
+		table.insert(health, "❌ Jupytext CLI: Not found in PATH")
 	end
 
 	return health

@@ -15,14 +15,8 @@ function M.check_jupytext_cli(filepath)
 		end
 	end
 
-	-- Fall back to system PATH check
-	local handle = io.popen("which jupytext 2>/dev/null")
-	if handle then
-		local result = handle:read("*a")
-		handle:close()
-		return result and result ~= ""
-	end
-	return false
+	-- Fall back to system PATH check using safe executable function
+	return vim.fn.executable("jupytext") == 1
 end
 
 -- Handle notebook opening with fallback

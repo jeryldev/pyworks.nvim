@@ -65,28 +65,21 @@ local function check_python_dependencies()
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 
 	for _, dep in ipairs(python_deps) do
-		local handle = io.popen(string.format("%s -c 'import %s' 2>&1", python_cmd, dep))
-		if handle then
-			local result = handle:read("*a")
-			handle:close()
-			if result == "" then
-				table.insert(results, string.format("  %s: OK", dep))
-			else
-				table.insert(results, string.format("  %s: NOT INSTALLED", dep))
-			end
+		-- Use safe shell escaping for Python import check
+		local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import " .. dep))
+		vim.fn.system(cmd)
+		if vim.v.shell_error == 0 then
+			table.insert(results, string.format("  %s: OK", dep))
+		else
+			table.insert(results, string.format("  %s: NOT INSTALLED", dep))
 		end
 	end
 
-	-- Check jupytext CLI separately
-	local handle = io.popen("which jupytext 2>&1")
-	if handle then
-		local result = handle:read("*a")
-		handle:close()
-		if result ~= "" and not result:match("not found") then
-			table.insert(results, "  jupytext CLI: OK (in PATH)")
-		else
-			table.insert(results, "  jupytext CLI: NOT IN PATH")
-		end
+	-- Check jupytext CLI using safe executable check
+	if vim.fn.executable("jupytext") == 1 then
+		table.insert(results, "  jupytext CLI: OK (in PATH)")
+	else
+		table.insert(results, "  jupytext CLI: NOT IN PATH")
 	end
 
 	return results

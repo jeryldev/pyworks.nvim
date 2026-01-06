@@ -335,8 +335,12 @@ function M.is_package_installed(package_name, filepath)
 	-- Use centralized reverse mapping to get import name from package name
 	local import_name = packages.map_package_to_import(package_name, "python")
 
-	-- Python path already has full path from get_python_path()
-	local cmd = string.format("%s -c 'import %s' 2>/dev/null", python_path, import_name)
+	-- Escape paths and import name for shell safety
+	local cmd = string.format(
+		"%s -c %s 2>/dev/null",
+		vim.fn.shellescape(python_path),
+		vim.fn.shellescape("import " .. import_name)
+	)
 	vim.fn.system(cmd)
 	return vim.v.shell_error == 0
 end

@@ -291,8 +291,12 @@ local function get_kernel_for_language(language, filepath)
 			kernel_name = project_name:lower():gsub("[^%w_]", "_")
 		end
 
-		-- Check if ipykernel is installed before creating kernel
-		local check_cmd = string.format("%s -c 'import ipykernel' 2>/dev/null", python_path)
+		-- Check if ipykernel is installed before creating kernel (with safe escaping)
+		local check_cmd = string.format(
+			"%s -c %s 2>/dev/null",
+			vim.fn.shellescape(python_path),
+			vim.fn.shellescape("import ipykernel")
+		)
 		vim.fn.system(check_cmd)
 		if vim.v.shell_error ~= 0 then
 			notifications.notify(
