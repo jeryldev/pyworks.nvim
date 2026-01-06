@@ -38,6 +38,52 @@ local default_config = {
 -- Plugin configuration
 local config = {}
 
+-- Validate user config types (warns but doesn't crash)
+local function validate_config(user_opts)
+	if not user_opts or type(user_opts) ~= "table" then
+		return
+	end
+
+	local warnings = {}
+
+	-- Check python config
+	if user_opts.python then
+		if user_opts.python.use_uv ~= nil and type(user_opts.python.use_uv) ~= "boolean" then
+			table.insert(warnings, "python.use_uv should be boolean")
+		end
+		if
+			user_opts.python.auto_install_essentials ~= nil
+			and type(user_opts.python.auto_install_essentials) ~= "boolean"
+		then
+			table.insert(warnings, "python.auto_install_essentials should be boolean")
+		end
+		if user_opts.python.essentials ~= nil and type(user_opts.python.essentials) ~= "table" then
+			table.insert(warnings, "python.essentials should be a table/array")
+		end
+	end
+
+	-- Check notifications config
+	if user_opts.notifications then
+		if user_opts.notifications.debug_mode ~= nil and type(user_opts.notifications.debug_mode) ~= "boolean" then
+			table.insert(warnings, "notifications.debug_mode should be boolean")
+		end
+	end
+
+	-- Check cache config
+	if user_opts.cache then
+		for key, value in pairs(user_opts.cache) do
+			if type(value) ~= "number" then
+				table.insert(warnings, string.format("cache.%s should be number (seconds)", key))
+			end
+		end
+	end
+
+	-- Report warnings
+	if #warnings > 0 then
+		vim.notify("[Pyworks] Config warnings:\n• " .. table.concat(warnings, "\n• "), vim.log.levels.WARN)
+	end
+end
+
 -- Auto-configure external dependencies with proven settings
 function M.configure_dependencies(opts)
 	opts = opts or {}
@@ -119,6 +165,9 @@ function M.setup(opts)
 	if not opts.skip_keymaps then
 		vim.keymap.set("n", "<leader>ps", "<cmd>PyworksStatus<cr>", { desc = "Pyworks: Show status" })
 	end
+
+	-- Validate user config before merging (warns on type mismatches)
+	validate_config(opts)
 
 	-- Merge user configuration with defaults
 	config = vim.tbl_deep_extend("force", default_config, opts or {})
