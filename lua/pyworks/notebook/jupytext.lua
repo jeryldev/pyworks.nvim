@@ -443,12 +443,22 @@ function M.configure_jupytext_nvim()
 		group = "PyworksNotebookFallback",
 	})
 
+	-- Also clear jupytext.nvim's autocmds to force re-registration
+	pcall(vim.api.nvim_clear_autocmds, {
+		group = "jupytext.nvim",
+	})
+
 	-- Configure jupytext.nvim
 	local ok, jupytext = pcall(require, "jupytext")
 	if not ok then
 		-- jupytext.nvim not installed, but CLI is available
 		-- This shouldn't happen if dependencies are correct
 		return false
+	end
+
+	-- Reset jupytext.nvim's internal state to force fresh setup
+	if jupytext.state then
+		jupytext.state = nil
 	end
 
 	jupytext.setup({
