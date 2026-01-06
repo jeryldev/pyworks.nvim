@@ -278,7 +278,7 @@ function M.install_essentials(filepath)
 	end
 
 	local error_output = {}
-	vim.fn.jobstart(cmd, {
+	local essentials_job_id = vim.fn.jobstart(cmd, {
 		cwd = project_dir,
 		on_stdout = function(_, data)
 			-- Silent - don't show every package being installed
@@ -299,7 +299,7 @@ function M.install_essentials(filepath)
 				end
 			end
 		end,
-		on_exit = function(_, code)
+		on_exit = function(exit_job_id, code)
 			vim.schedule(function()
 				if code == 0 then
 					notifications.progress_finish("python_essentials", "Essential packages installed")
@@ -317,9 +317,28 @@ function M.install_essentials(filepath)
 					notifications.notify_error(error_msg)
 					vim.notify("[Pyworks] Installation command was: " .. cmd, vim.log.levels.ERROR)
 				end
+
+				-- Remove job from tracking
+				if exit_job_id and exit_job_id > 0 then
+					state.remove_job(exit_job_id)
+				end
 			end)
 		end,
 	})
+
+	-- Track active job only if job started successfully
+	if essentials_job_id and essentials_job_id > 0 then
+		state.add_job(essentials_job_id, {
+			type = "essentials_install",
+			language = "python",
+			packages = missing_essentials,
+			started = os.time(),
+		})
+	else
+		notifications.progress_finish("python_essentials")
+		notifications.notify_error("Failed to start essential packages installation job")
+		return false
+	end
 
 	return true
 end
