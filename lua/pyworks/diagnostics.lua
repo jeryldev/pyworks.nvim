@@ -53,15 +53,10 @@ end
 -- Check Python dependencies
 local function check_python_dependencies()
 	local results = {}
-	local python_cmd = vim.g.python3_host_prog or "python3"
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 
 	for _, dep in ipairs(python_deps) do
-		-- Use vim.system for modern Neovim 0.10+
-		local ok, result = pcall(function()
-			return vim.system({ python_cmd, "-c", "import " .. dep }, { text = true }):wait()
-		end)
-		if ok and result and result.code == 0 then
+		if utils.check_python_import(dep) then
 			table.insert(results, string.format("  %s: OK", dep))
 		else
 			table.insert(results, string.format("  %s: NOT INSTALLED", dep))

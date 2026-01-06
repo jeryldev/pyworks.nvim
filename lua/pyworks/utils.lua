@@ -429,4 +429,13 @@ function M.is_plugin_installed(plugin_name)
 	return false
 end
 
+-- Check if a Python module can be imported
+function M.check_python_import(module_name)
+	local python_cmd = vim.g.python3_host_prog or "python3"
+	local ok, result = pcall(function()
+		return vim.system({ python_cmd, "-c", "import " .. module_name }, { text = true }):wait()
+	end)
+	return ok and result and result.code == 0
+end
+
 return M

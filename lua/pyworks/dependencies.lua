@@ -280,14 +280,10 @@ function M.check_health()
 		end
 	end
 
-	-- Check Python dependencies using vim.system (Neovim 0.10+)
-	local python_cmd = vim.g.python3_host_prog or "python3"
+	-- Check Python dependencies
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 	for _, dep in ipairs(python_deps) do
-		local ok, result = pcall(function()
-			return vim.system({ python_cmd, "-c", "import " .. dep }, { text = true }):wait()
-		end)
-		if ok and result and result.code == 0 then
+		if utils.check_python_import(dep) then
 			table.insert(health, string.format("✅ Python %s: Installed", dep))
 		else
 			table.insert(health, string.format("❌ Python %s: Not installed", dep))
