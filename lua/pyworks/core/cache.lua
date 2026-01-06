@@ -9,6 +9,9 @@ local cache = {}
 -- Mutex flag to prevent concurrent modifications during cleanup
 local is_cleaning = false
 
+-- Maximum cache entries to prevent unbounded growth
+local MAX_CACHE_SIZE = 1000
+
 -- Default TTL values (in seconds)
 local default_ttl = {
 	jupytext_check = 3600, -- 1 hour (rarely changes)
@@ -51,8 +54,46 @@ function M.get(key)
 	return entry.value
 end
 
+-- Evict oldest entries if cache exceeds max size
+local function evict_if_needed()
+	-- Count entries
+	local count = 0
+	for _ in pairs(cache) do
+		count = count + 1
+	end
+
+	-- If under limit, nothing to do
+	if count < MAX_CACHE_SIZE then
+		return
+	end
+
+	-- Find and remove oldest entries (remove 10% to avoid frequent evictions)
+	local entries = {}
+	for key, entry in pairs(cache) do
+		table.insert(entries, { key = key, timestamp = entry.timestamp })
+	end
+
+	-- Sort by timestamp (oldest first)
+	table.sort(entries, function(a, b)
+		return a.timestamp < b.timestamp
+	end)
+
+	-- Remove oldest 10%
+	local to_remove = math.floor(count * 0.1)
+	to_remove = math.max(to_remove, 1) -- Remove at least 1
+
+	for i = 1, to_remove do
+		if entries[i] then
+			cache[entries[i].key] = nil
+		end
+	end
+end
+
 -- Set cache value with current timestamp
 function M.set(key, value)
+	-- Evict old entries if cache is full
+	evict_if_needed()
+
 	cache[key] = {
 		value = value,
 		timestamp = os.time(),
