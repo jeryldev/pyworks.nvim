@@ -183,11 +183,13 @@ function M.setup_buffer(opts)
 	if opts.show_cell_numbers ~= false then
 		M.number_cells()
 
-		-- Re-number cells on buffer changes
-		local augroup = vim.api.nvim_create_augroup("PyworksCellNumbering", { clear = true })
+		-- Re-number cells on buffer changes (buffer-specific augroup)
+		local bufnr = vim.api.nvim_get_current_buf()
+		local augroup_name = "PyworksCellNumbering_" .. bufnr
+		local augroup = vim.api.nvim_create_augroup(augroup_name, { clear = true })
 		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter" }, {
 			group = augroup,
-			buffer = 0,
+			buffer = bufnr,
 			callback = M.number_cells,
 		})
 	end
