@@ -12,12 +12,17 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local CELL_EXECUTION_DELAY_MS = 200
 
 -- Helper to move below a cell marker and enter insert mode
+-- If marker is at end of file, adds an empty line first
 local function enter_cell(marker_line)
-	local next_line = marker_line + 1
 	local last_line = vim.api.nvim_buf_line_count(0)
-	if next_line <= last_line then
-		vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+	local next_line = marker_line + 1
+
+	-- If marker is at or past the last line, add an empty line below
+	if next_line > last_line then
+		vim.fn.append(marker_line, "")
 	end
+
+	vim.api.nvim_win_set_cursor(0, { next_line, 0 })
 	vim.cmd("startinsert")
 end
 
