@@ -6,6 +6,11 @@ local M = {}
 local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
+local utils = require("pyworks.utils")
+
+-- Timeout constants (in milliseconds)
+local KERNEL_LIST_TIMEOUT_MS = 10000 -- 10 seconds for kernel listing
+local KERNEL_CREATE_TIMEOUT_MS = 30000 -- 30 seconds for kernel creation
 
 -- Language detection for notebooks
 local function detect_notebook_language(filepath)
@@ -112,7 +117,6 @@ function M.handle_notebook(filepath)
 	local notebook = require("pyworks.notebook.jupytext")
 	if not notebook.ensure_jupytext() then
 		-- Get project info for better instructions
-		local utils = require("pyworks.utils")
 		local project_dir, venv_path = utils.get_project_paths(filepath)
 		local project_type = utils.detect_project_type(project_dir)
 		local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
@@ -132,10 +136,11 @@ function M.handle_notebook(filepath)
 	M.handle_python_notebook(filepath)
 end
 
--- Get available kernels dynamically
+-- Get available kernels dynamically (with timeout to prevent UI blocking)
 local function get_available_kernels()
-	local result = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
-	if vim.v.shell_error ~= 0 then
+	local success, result, _ =
+		utils.system_with_timeout("jupyter kernelspec list --json 2>/dev/null", KERNEL_LIST_TIMEOUT_MS)
+	if not success then
 		return {}
 	end
 
@@ -165,7 +170,6 @@ local kernel_cache_time = 0
 local function get_kernel_for_language(language, filepath)
 	-- For Python, we need to match the kernel to the project's venv
 	if language:lower() == "python" and filepath then
-		local utils = require("pyworks.utils")
 		local project_dir, venv_path = utils.get_project_paths(filepath)
 
 		-- Debug logging (only if debug mode)
@@ -209,9 +213,10 @@ local function get_kernel_for_language(language, filepath)
 		-- Get all available kernels
 		local all_kernels = get_available_kernels()
 
-		-- Find a kernel that uses this project's Python
-		local result = vim.fn.system("jupyter kernelspec list --json 2>/dev/null")
-		if vim.v.shell_error == 0 then
+		-- Find a kernel that uses this project's Python (with timeout)
+		local kern_success, result, _ =
+			utils.system_with_timeout("jupyter kernelspec list --json 2>/dev/null", KERNEL_LIST_TIMEOUT_MS)
+		if kern_success then
 			local ok, data = pcall(vim.json.decode, result)
 			if ok and data.kernelspecs then
 				for name, spec in pairs(data.kernelspecs) do
@@ -291,14 +296,14 @@ local function get_kernel_for_language(language, filepath)
 			kernel_name = project_name:lower():gsub("[^%w_]", "_")
 		end
 
-		-- Check if ipykernel is installed before creating kernel (with safe escaping)
+		-- Check if ipykernel is installed before creating kernel (with safe escaping and timeout)
 		local check_cmd = string.format(
 			"%s -c %s 2>/dev/null",
 			vim.fn.shellescape(python_path),
 			vim.fn.shellescape("import ipykernel")
 		)
-		vim.fn.system(check_cmd)
-		if vim.v.shell_error ~= 0 then
+		local check_success, _, _ = utils.system_with_timeout(check_cmd, KERNEL_LIST_TIMEOUT_MS)
+		if not check_success then
 			notifications.notify(
 				string.format("❌ ipykernel not found in venv. Run: %s/bin/pip install ipykernel", venv_path),
 				vim.log.levels.ERROR,
@@ -319,8 +324,8 @@ local function get_kernel_for_language(language, filepath)
 			project_name
 		)
 
-		local output = vim.fn.system(cmd)
-		if vim.v.shell_error == 0 then
+		local create_success, output, _ = utils.system_with_timeout(cmd, KERNEL_CREATE_TIMEOUT_MS)
+		if create_success then
 			notifications.notify(
 				string.format("✅ Created kernel '%s' -> %s", kernel_name, python_path),
 				vim.log.levels.INFO
@@ -418,7 +423,6 @@ function M.handle_python(filepath)
 	python.setup_python_host(filepath)
 
 	-- Show detailed project and venv detection
-	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- Get relative paths for cleaner display
@@ -464,7 +468,6 @@ function M.handle_python_notebook(filepath)
 	python.setup_python_host(filepath)
 
 	-- Show detailed project and venv detection for notebooks
-	local utils = require("pyworks.utils")
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- Get relative paths for cleaner display

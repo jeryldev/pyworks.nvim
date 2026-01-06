@@ -266,11 +266,17 @@ function M.find_project_root(start_dir)
 	return start_dir
 end
 
--- Async system call wrapper
+-- Default timeout for system commands (in milliseconds)
+local DEFAULT_TIMEOUT_MS = 30000 -- 30 seconds
+
+-- Async system call wrapper with timeout support
 function M.async_system_call(cmd, callback, options)
 	options = options or {}
 	local stdout_data = {}
 	local stderr_data = {}
+	local timeout_ms = options.timeout or DEFAULT_TIMEOUT_MS
+	local timer = nil
+	local job_completed = false
 
 	local job_id = vim.fn.jobstart(cmd, {
 		stdout_buffered = true,
@@ -286,6 +292,12 @@ function M.async_system_call(cmd, callback, options)
 			end
 		end,
 		on_exit = function(_, exit_code)
+			job_completed = true
+			if timer then
+				timer:stop()
+				timer:close()
+				timer = nil
+			end
 			vim.schedule(function()
 				local stdout = table.concat(stdout_data, "\n")
 				local stderr = table.concat(stderr_data, "\n")
@@ -300,9 +312,60 @@ function M.async_system_call(cmd, callback, options)
 		vim.schedule(function()
 			callback(false, "", "Failed to start job", -1)
 		end)
+		return job_id
+	end
+
+	-- Set up timeout timer
+	if timeout_ms > 0 then
+		timer = vim.loop.new_timer()
+		timer:start(timeout_ms, 0, function()
+			if not job_completed then
+				-- Kill the job
+				pcall(vim.fn.jobstop, job_id)
+				timer:stop()
+				timer:close()
+				timer = nil
+				vim.schedule(function()
+					callback(false, "", "Command timed out after " .. (timeout_ms / 1000) .. " seconds", -2)
+				end)
+			end
+		end)
 	end
 
 	return job_id
+end
+
+-- Synchronous system call with timeout (blocks but won't hang forever)
+-- Returns: success (boolean), output (string), exit_code (number)
+function M.system_with_timeout(cmd, timeout_ms)
+	timeout_ms = timeout_ms or DEFAULT_TIMEOUT_MS
+	local result = { success = false, output = "", exit_code = -1, timed_out = false }
+	local done = false
+
+	local job_id = M.async_system_call(cmd, function(success, stdout, stderr, exit_code)
+		result.success = success
+		result.output = stdout
+		result.stderr = stderr
+		result.exit_code = exit_code
+		result.timed_out = exit_code == -2
+		done = true
+	end, { timeout = timeout_ms })
+
+	if job_id <= 0 then
+		return false, "Failed to start command", -1
+	end
+
+	-- Wait for completion (with vim.wait to allow UI updates)
+	local wait_result = vim.wait(timeout_ms + 1000, function()
+		return done
+	end, 10)
+
+	if not wait_result then
+		pcall(vim.fn.jobstop, job_id)
+		return false, "Command timed out", -2
+	end
+
+	return result.success, result.output, result.exit_code
 end
 
 -- Safe file write with proper error handling

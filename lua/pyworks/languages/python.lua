@@ -10,6 +10,11 @@ local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
 
+-- Timeout constants (in milliseconds)
+local IMPORT_CHECK_TIMEOUT_MS = 5000 -- 5 seconds for import check
+local PIP_LIST_TIMEOUT_MS = 15000 -- 15 seconds for pip list
+local VENV_CREATE_TIMEOUT_MS = 60000 -- 60 seconds for venv creation
+
 -- Helper to get current buffer's filepath
 local function get_current_filepath()
 	local path = vim.fn.expand("%:p")
@@ -181,9 +186,8 @@ function M.create_venv(filepath)
 		cmd = string.format("%s -m venv %s", python, vim.fn.shellescape(venv_path))
 	end
 
-	-- Execute command (no need to cd, using full paths)
-	local result = vim.fn.system(cmd)
-	local success = vim.v.shell_error == 0
+	-- Execute command with timeout (no need to cd, using full paths)
+	local success, result, _ = utils.system_with_timeout(cmd, VENV_CREATE_TIMEOUT_MS)
 
 	if success then
 		notifications.progress_finish("python_venv", "Virtual environment created" .. (use_uv and " with uv" or ""))
@@ -191,8 +195,7 @@ function M.create_venv(filepath)
 		state.set_env_status("python", "venv_created")
 	else
 		notifications.progress_finish("python_venv")
-		local error_msg =
-			string.format("Failed to create venv. Command: %s, Error: %s", table.concat(cmd, " "), result or "unknown")
+		local error_msg = string.format("Failed to create venv. Command: %s, Error: %s", cmd, result or "unknown")
 		notifications.notify_error(error_msg)
 	end
 
@@ -343,7 +346,7 @@ function M.install_essentials(filepath)
 	return true
 end
 
--- Check if a package is installed
+-- Check if a package is installed (with timeout to prevent UI blocking)
 function M.is_package_installed(package_name, filepath)
 	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath)
@@ -360,11 +363,11 @@ function M.is_package_installed(package_name, filepath)
 		vim.fn.shellescape(python_path),
 		vim.fn.shellescape("import " .. import_name)
 	)
-	vim.fn.system(cmd)
-	return vim.v.shell_error == 0
+	local success, _, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
+	return success
 end
 
--- Get list of installed packages
+-- Get list of installed packages (with timeout to prevent UI blocking)
 function M.get_installed_packages(filepath)
 	filepath = filepath or get_current_filepath()
 	if not M.has_venv(filepath) then
@@ -394,9 +397,9 @@ function M.get_installed_packages(filepath)
 		cmd = string.format("%s list --format=freeze 2>/dev/null", pip_path)
 	end
 
-	local output = vim.fn.system(cmd)
+	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
-	if vim.v.shell_error ~= 0 then
+	if not success then
 		return {}
 	end
 
@@ -817,7 +820,7 @@ function M.uninstall_python_packages(packages_str)
 	end
 end
 
--- List installed Python packages
+-- List installed Python packages (with timeout to prevent UI blocking)
 function M.list_python_packages()
 	local filepath = get_current_filepath()
 	if filepath == "" then
@@ -843,9 +846,9 @@ function M.list_python_packages()
 		cmd = string.format("%s list", pip_path)
 	end
 
-	local output = vim.fn.system(cmd)
+	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
-	if vim.v.shell_error == 0 then
+	if success then
 		-- Create a new buffer to show the output
 		vim.cmd("new")
 		vim.bo.buftype = "nofile"
@@ -871,14 +874,17 @@ function M.list_python_packages()
 	end
 end
 
--- Check Python version compatibility
+-- Check Python version compatibility (with timeout)
 function M.check_compatibility(package_name, filepath)
 	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath) or "python3"
 
-	-- Get Python version
+	-- Get Python version (with timeout)
 	local cmd = string.format("%s --version 2>&1", python_path)
-	local version_output = vim.fn.system(cmd)
+	local success, version_output, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
+	if not success then
+		return nil
+	end
 	local major, minor = version_output:match("Python (%d+)%.(%d+)")
 
 	if not major then
