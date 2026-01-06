@@ -424,6 +424,24 @@ function M.command_exists(cmd)
 	return false
 end
 
+-- Safe vim.schedule wrapper with error handling
+-- Prevents silent failures in async operations
+function M.safe_schedule(fn, error_context)
+	vim.schedule(function()
+		local ok, err = pcall(fn)
+		if not ok then
+			-- Log the error (don't use notifications module to avoid circular dependency)
+			vim.api.nvim_err_writeln(
+				string.format(
+					"[Pyworks] Async error%s: %s",
+					error_context and (" in " .. error_context) or "",
+					tostring(err)
+				)
+			)
+		end
+	end)
+end
+
 -- Path manipulation utilities
 function M.path_join(...)
 	local parts = { ... }

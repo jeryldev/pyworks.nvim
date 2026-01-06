@@ -307,7 +307,7 @@ function M.install_essentials(filepath)
 			end
 		end,
 		on_exit = function(exit_job_id, code)
-			vim.schedule(function()
+			utils.safe_schedule(function()
 				if code == 0 then
 					notifications.progress_finish("python_essentials", "Essential packages installed")
 					-- Mark packages as installed
@@ -329,7 +329,7 @@ function M.install_essentials(filepath)
 				if exit_job_id and exit_job_id > 0 then
 					state.remove_job(exit_job_id)
 				end
-			end)
+			end, "install_essentials")
 		end,
 	})
 
@@ -517,7 +517,7 @@ function M.install_packages(package_list, filepath)
 			end
 		end,
 		on_exit = function(job_id_exit, code)
-			vim.schedule(function()
+			utils.safe_schedule(function()
 				if code == 0 then
 					notifications.progress_finish("python_packages", "Packages installed successfully")
 					-- Mark packages as installed
@@ -602,7 +602,7 @@ function M.install_packages(package_list, filepath)
 				if job_id_exit and job_id_exit > 0 then
 					state.remove_job(job_id_exit)
 				end
-			end)
+			end, "install_packages")
 		end,
 	})
 
@@ -807,7 +807,7 @@ function M.uninstall_python_packages(packages_str)
 	local job_id = vim.fn.jobstart(cmd, {
 		cwd = project_dir,
 		on_exit = function(_, code)
-			vim.schedule(function()
+			utils.safe_schedule(function()
 				if code == 0 then
 					notifications.notify("Packages uninstalled successfully", vim.log.levels.INFO)
 					-- Invalidate cache
@@ -815,7 +815,7 @@ function M.uninstall_python_packages(packages_str)
 				else
 					notifications.notify_error("Failed to uninstall some packages")
 				end
-			end)
+			end, "uninstall_packages")
 		end,
 	})
 
