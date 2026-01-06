@@ -11,8 +11,6 @@ local error_handler = require("pyworks.core.error_handler")
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
 local function evaluate_percent_cell()
-	local cursor_pos = vim.api.nvim_win_get_cursor(0)
-
 	-- Find cell boundaries
 	local cell_start = vim.fn.search("^# %%", "bnW") -- Search backwards for cell start
 	local cell_end = vim.fn.search("^# %%", "nW") -- Search forwards for next cell start
