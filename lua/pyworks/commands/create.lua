@@ -3,6 +3,21 @@ local M = {}
 
 local jupytext = require("pyworks.notebook.jupytext")
 
+-- Helper function to position cursor below first cell marker
+local function position_cursor_at_first_cell()
+	-- Find first cell marker (# %% for Python, or markdown marker)
+	vim.cmd("normal! gg")
+	local found = vim.fn.search("^# %%", "W")
+	if found > 0 then
+		-- Move to line below the marker
+		local next_line = found + 1
+		local last_line = vim.api.nvim_buf_line_count(0)
+		if next_line <= last_line then
+			vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+		end
+	end
+end
+
 -- Helper function to validate filename
 local function validate_filename(filename, extension)
 	-- Check for invalid characters
@@ -85,6 +100,7 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 
 	-- Create file with template
 	if create_file_with_template(filename, template, "python") then
+		position_cursor_at_first_cell()
 		if filename then
 			vim.notify("✅ Created Python notebook: " .. filename, vim.log.levels.INFO)
 		else
@@ -186,6 +202,11 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 		vim.notify("You can open it manually: " .. filename, vim.log.levels.INFO)
 		return true
 	end
+
+	-- Position cursor at first cell (defer to allow jupytext to finish converting)
+	vim.defer_fn(function()
+		position_cursor_at_first_cell()
+	end, 100)
 
 	vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 	return true
