@@ -81,8 +81,11 @@ function M.install_jupytext(filepath)
 
 	local cmd = string.format("%s install jupytext", pip_cmd)
 
+	-- vim.system requires a table; wrap string commands in shell invocation
+	local cmd_table = { "sh", "-c", cmd }
+
 	-- Use vim.system for modern Neovim 0.10+
-	local ok, _ = pcall(vim.system, cmd, { text = true }, function(obj)
+	local ok, _ = pcall(vim.system, cmd_table, { text = true }, function(obj)
 		vim.schedule(function()
 			if obj.code == 0 then
 				cache.invalidate("jupytext_check")

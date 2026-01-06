@@ -284,7 +284,10 @@ function M.install_essentials(filepath)
 		return false
 	end
 
-	local ok, sys_obj = pcall(vim.system, cmd, {
+	-- vim.system requires a table; wrap string commands in shell invocation
+	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
+
+	local ok, sys_obj = pcall(vim.system, cmd_table, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
@@ -470,8 +473,11 @@ function M.install_packages(package_list, filepath)
 	notifications.notify(string.format("Executing: %s", cmd), vim.log.levels.INFO)
 	notifications.notify(string.format("In directory: %s", project_dir), vim.log.levels.INFO)
 
+	-- vim.system requires a table; wrap string commands in shell invocation
+	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
+
 	-- Create async job to install packages using vim.system (Neovim 0.10+)
-	local ok, sys_obj = pcall(vim.system, cmd, {
+	local ok, sys_obj = pcall(vim.system, cmd_table, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
@@ -749,8 +755,11 @@ function M.uninstall_python_packages(packages_str)
 
 	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
 
+	-- vim.system requires a table; wrap string commands in shell invocation
+	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
+
 	-- Execute uninstall using vim.system (Neovim 0.10+)
-	local ok, _ = pcall(vim.system, cmd, {
+	local ok, _ = pcall(vim.system, cmd_table, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
