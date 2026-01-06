@@ -442,17 +442,48 @@ function M.setup_buffer_keymaps()
 	end
 
 	-- Cell navigation (works with or without Molten)
+	-- Always positions cursor on the first content line below the cell marker
 	vim.keymap.set("n", "<leader>j]", function()
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
+		else
+			-- Move to line below the marker (first content line)
+			local next_line = found + 1
+			local last_line = vim.api.nvim_buf_line_count(0)
+			if next_line <= last_line then
+				vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+			end
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
 	vim.keymap.set("n", "<leader>j[", function()
+		local current_line = vim.fn.line(".")
+
+		-- First, check if we're on or right after a marker
+		local current_marker = vim.fn.search("^# %%", "bcnW")
+
+		-- Search backward for a marker
 		local found = vim.fn.search("^# %%", "bW")
+
 		if found == 0 then
-			vim.notify("No previous cells", vim.log.levels.INFO)
+			-- No marker found above - go to first line (first cell content)
+			vim.api.nvim_win_set_cursor(0, { 1, 0 })
+			vim.notify("First cell", vim.log.levels.INFO)
+		elseif found == current_marker and current_line <= current_marker + 1 then
+			-- We were at or just below a marker, search again for the previous one
+			local prev_found = vim.fn.search("^# %%", "bW")
+			if prev_found == 0 then
+				-- No previous marker - go to first line
+				vim.api.nvim_win_set_cursor(0, { 1, 0 })
+				vim.notify("First cell", vim.log.levels.INFO)
+			else
+				-- Move to line below the marker
+				vim.api.nvim_win_set_cursor(0, { prev_found + 1, 0 })
+			end
+		else
+			-- Move to line below the marker (first content line)
+			vim.api.nvim_win_set_cursor(0, { found + 1, 0 })
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end
