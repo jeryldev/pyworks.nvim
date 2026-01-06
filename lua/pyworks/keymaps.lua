@@ -11,6 +11,16 @@ local error_handler = require("pyworks.core.error_handler")
 local BUFFER_SETTLE_DELAY_MS = 100
 local CELL_EXECUTION_DELAY_MS = 200
 
+-- Helper to move below a cell marker and enter insert mode
+local function enter_cell(marker_line)
+	local next_line = marker_line + 1
+	local last_line = vim.api.nvim_buf_line_count(0)
+	if next_line <= last_line then
+		vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+	end
+	vim.cmd("startinsert")
+end
+
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
 local function evaluate_percent_cell()
@@ -149,7 +159,7 @@ function M.setup_buffer_keymaps()
 				if found == 0 then
 					vim.notify("Last cell", vim.log.levels.INFO)
 				else
-					vim.cmd("normal! j")
+					enter_cell(found)
 				end
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
@@ -443,18 +453,13 @@ function M.setup_buffer_keymaps()
 	end
 
 	-- Cell navigation (works with or without Molten)
-	-- Always positions cursor on the first content line below the cell marker
+	-- Always positions cursor on the first content line below the cell marker and enters insert mode
 	vim.keymap.set("n", "<leader>j]", function()
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
 		else
-			-- Move to line below the marker (first content line)
-			local next_line = found + 1
-			local last_line = vim.api.nvim_buf_line_count(0)
-			if next_line <= last_line then
-				vim.api.nvim_win_set_cursor(0, { next_line, 0 })
-			end
+			enter_cell(found)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
@@ -471,6 +476,7 @@ function M.setup_buffer_keymaps()
 			-- No marker found above - go to first line (first cell content)
 			vim.api.nvim_win_set_cursor(0, { 1, 0 })
 			vim.notify("First cell", vim.log.levels.INFO)
+			vim.cmd("startinsert")
 		elseif found == current_marker and current_line <= current_marker + 1 then
 			-- We were at or just below a marker, search again for the previous one
 			local prev_found = vim.fn.search("^# %%", "bW")
@@ -478,13 +484,12 @@ function M.setup_buffer_keymaps()
 				-- No previous marker - go to first line
 				vim.api.nvim_win_set_cursor(0, { 1, 0 })
 				vim.notify("First cell", vim.log.levels.INFO)
+				vim.cmd("startinsert")
 			else
-				-- Move to line below the marker
-				vim.api.nvim_win_set_cursor(0, { prev_found + 1, 0 })
+				enter_cell(prev_found)
 			end
 		else
-			-- Move to line below the marker (first content line)
-			vim.api.nvim_win_set_cursor(0, { found + 1, 0 })
+			enter_cell(found)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end
