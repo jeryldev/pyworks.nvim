@@ -218,19 +218,17 @@ function M.ensure_dependencies()
 			table.concat(issues, ", ")
 		)
 		vim.notify(msg, vim.log.levels.ERROR)
-	elseif #actions_taken > 0 then
-		-- Show what was configured
+	elseif #actions_taken > 0 and needs_restart then
+		-- Only show configuration message if restart is needed (first-time setup)
 		local msg = "🔧 Pyworks: Configuring notebook environment\n• " .. table.concat(actions_taken, "\n• ")
 		vim.notify(msg, vim.log.levels.INFO)
 
-		-- Separate notification for restart if needed
-		if needs_restart then
-			vim.defer_fn(function()
-				local restart_msg = "⚠️  One-time setup: Please restart Neovim to activate Molten\n"
-					.. "   This is only needed once after initial installation"
-				vim.notify(restart_msg, vim.log.levels.WARN)
-			end, 200)
-		end
+		-- Separate notification for restart
+		vim.defer_fn(function()
+			local restart_msg = "⚠️  One-time setup: Please restart Neovim to activate Molten\n"
+				.. "   This is only needed once after initial installation"
+			vim.notify(restart_msg, vim.log.levels.WARN)
+		end, 200)
 	end
 	-- Silent when everything is working (no notification)
 
