@@ -368,10 +368,12 @@ local function extract_python_imports(content)
 				-- Match: import package, import package as alias, import pkg1, pkg2
 				local import_part = trimmed:match("^import%s+(.+)")
 				if import_part then
-					-- Handle comma-separated imports: import os, sys, json
-					for pkg in import_part:gmatch("([%w_%.]+)") do
-						-- Skip 'as' keyword and alias names
-						if pkg ~= "as" then
+					-- Split by comma for multiple imports
+					for segment in import_part:gmatch("[^,]+") do
+						-- Get only the package name (before 'as' if present)
+						-- "numpy as np" -> "numpy", "pandas" -> "pandas"
+						local pkg = segment:match("^%s*([%w_%.]+)")
+						if pkg then
 							add_import(pkg)
 						end
 					end
