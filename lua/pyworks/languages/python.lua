@@ -6,9 +6,13 @@ local M = {}
 local cache = require("pyworks.core.cache")
 local error_handler = require("pyworks.core.error_handler")
 local notifications = require("pyworks.core.notifications")
-local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
+
+-- Lazy-loaded to avoid circular dependency with packages.lua
+local function get_packages()
+	return require("pyworks.core.packages")
+end
 
 -- Timeout constants (in milliseconds)
 local IMPORT_CHECK_TIMEOUT_MS = 5000 -- 5 seconds for import check
@@ -355,7 +359,7 @@ function M.is_package_installed(package_name, filepath)
 	end
 
 	-- Use centralized reverse mapping to get import name from package name
-	local import_name = packages.map_package_to_import(package_name, "python")
+	local import_name = get_packages().map_package_to_import(package_name, "python")
 
 	-- Escape paths and import name for shell safety
 	local cmd = string.format(
@@ -660,7 +664,7 @@ function M.handle_file(filepath, is_notebook)
 
 	-- Detect missing packages (async to avoid blocking file open)
 	vim.defer_fn(function()
-		local missing = packages.detect_missing_packages(filepath, "python")
+		local missing = get_packages().detect_missing_packages(filepath, "python")
 
 		if #missing > 0 then
 			notifications.notify_missing_packages(missing, "python")
@@ -727,7 +731,7 @@ function M.install_python_packages(packages_str)
 
 	-- Apply package name mappings (e.g., sklearn -> scikit-learn)
 	local applied_mappings
-	pkg_list, applied_mappings = packages.map_packages(pkg_list, "python")
+	pkg_list, applied_mappings = get_packages().map_packages(pkg_list, "python")
 	for original, mapped in pairs(applied_mappings) do
 		notifications.notify(string.format("📦 Mapping '%s' → '%s'", original, mapped), vim.log.levels.INFO)
 	end
