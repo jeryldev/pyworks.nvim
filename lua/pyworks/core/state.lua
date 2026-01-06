@@ -243,4 +243,15 @@ function M.get_session_duration()
 	return 0
 end
 
+-- Cleanup function for plugin unload
+function M.cleanup()
+	if save_timer then
+		save_timer:stop()
+		save_timer:close()
+		save_timer = nil
+	end
+	-- Save any pending state before exit
+	save_persistent_state()
+end
+
 return M
