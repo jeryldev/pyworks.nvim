@@ -172,8 +172,6 @@ function M.create_venv(filepath)
 		return true
 	end
 
-	notifications.progress_start("python_venv", "Python Setup", "Creating virtual environment...")
-
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- First check if uv is available globally
@@ -194,11 +192,9 @@ function M.create_venv(filepath)
 	local success, result, _ = utils.system_with_timeout(cmd, VENV_CREATE_TIMEOUT_MS)
 
 	if success then
-		notifications.progress_finish("python_venv", "Virtual environment created" .. (use_uv and " with uv" or ""))
 		cache.invalidate("venv_check")
 		state.set_env_status("python", "venv_created")
 	else
-		notifications.progress_finish("python_venv")
 		local error_msg = string.format("Failed to create venv. Command: %s, Error: %s", cmd, result or "unknown")
 		notifications.notify_error(error_msg)
 	end
@@ -237,12 +233,6 @@ function M.install_essentials(filepath)
 
 	-- Mark as installing to prevent duplicate calls
 	state.set(install_key, true)
-
-	notifications.progress_start(
-		"python_essentials",
-		"Python Setup",
-		string.format("Installing %d essential packages...", #missing_essentials)
-	)
 
 	-- Get the correct package manager command
 	local package_manager = M.get_package_manager(filepath)
@@ -309,13 +299,11 @@ function M.install_essentials(filepath)
 			state.set(install_key, nil)
 
 			if obj.code == 0 then
-				notifications.progress_finish("python_essentials", "Essential packages installed")
 				for _, pkg in ipairs(missing_essentials) do
 					state.mark_package_installed("python", pkg)
 				end
 				cache.invalidate("installed_packages_python")
 			else
-				notifications.progress_finish("python_essentials")
 				local error_msg = "Failed to install essential packages."
 				local stderr = obj.stderr or ""
 				local filtered_errors = {}
@@ -340,7 +328,6 @@ function M.install_essentials(filepath)
 
 	if not ok then
 		state.set(install_key, nil) -- Clear the installing flag
-		notifications.progress_finish("python_essentials")
 		notifications.notify_error("Failed to start essential packages installation: " .. tostring(sys_obj))
 		return false
 	end

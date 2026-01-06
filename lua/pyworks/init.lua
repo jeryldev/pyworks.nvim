@@ -224,8 +224,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local dummy_filepath = cwd .. "/setup.py"
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
 		if ok then
-			vim.notify("✅ Python environment setup complete", vim.log.levels.INFO)
-			vim.notify("💡 You can now create notebooks with :PyworksNewPythonNotebook", vim.log.levels.INFO)
+			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
 		end
 		return
 	end
@@ -244,7 +243,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local python = require("pyworks.languages.python")
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
 		if ok then
-			vim.notify("✅ Python environment setup complete", vim.log.levels.INFO)
+			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
 			vim.defer_fn(function()
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)
