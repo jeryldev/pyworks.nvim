@@ -207,7 +207,7 @@ function M.install_essentials(filepath)
 	filepath = filepath or get_current_filepath()
 
 	-- Guard against duplicate calls (installation is async)
-	local project_dir = utils.get_project_paths(filepath)
+	local project_dir, venv_path = utils.get_project_paths(filepath)
 	local install_key = "installing_essentials_" .. (project_dir or "global")
 	if state.get(install_key) then
 		return true -- Already installing
@@ -254,9 +254,6 @@ function M.install_essentials(filepath)
 			return false
 		end
 	end
-
-	-- Get project directory for this file (first return value)
-	local project_dir, venv_path = utils.get_project_paths(filepath)
 
 	-- Upgrade pip if using pip (not needed for uv)
 	if not is_uv then
