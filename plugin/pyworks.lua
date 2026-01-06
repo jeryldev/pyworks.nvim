@@ -15,36 +15,12 @@ end
 -- Create autocmd group for pyworks
 local augroup = vim.api.nvim_create_augroup("Pyworks", { clear = true })
 
--- Helper function to check if a file is in a pyworks-managed directory
+-- Check if a file is in a pyworks-managed directory using utils.find_project_root
 local function is_pyworks_project(filepath)
-	-- Check for common project markers
-	local markers = {
-		".venv", -- Python virtual environment
-		"requirements.txt", -- Python requirements
-		"setup.py", -- Python package
-		"pyproject.toml", -- Modern Python project
-	}
-
-	-- Use the file's directory, not cwd!
 	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()
-
-	-- Walk up the directory tree to find a project root
-	local current = dir
-	local last = ""
-	while current ~= last do
-		for _, marker in ipairs(markers) do
-			if
-				vim.fn.filereadable(current .. "/" .. marker) == 1
-				or vim.fn.isdirectory(current .. "/" .. marker) == 1
-			then
-				return true
-			end
-		end
-		last = current
-		current = vim.fn.fnamemodify(current, ":h")
-	end
-
-	return false
+	local utils = require("pyworks.utils")
+	local project_root = utils.find_project_root(dir)
+	return project_root ~= nil
 end
 
 -- Set up autocmds for file detection
