@@ -43,6 +43,24 @@ function M.map_import_to_package(import_name, language)
 	return mappings[import_name] or import_name
 end
 
+-- Map a list of package names, applying known mappings (e.g., sklearn -> scikit-learn)
+-- Returns mapped list and a table of any mappings that were applied
+function M.map_packages(pkg_list, language)
+	language = language or "python"
+	local mapped = {}
+	local applied_mappings = {}
+
+	for _, pkg in ipairs(pkg_list) do
+		local mapped_pkg = M.map_import_to_package(pkg, language)
+		if mapped_pkg ~= pkg then
+			applied_mappings[pkg] = mapped_pkg
+		end
+		table.insert(mapped, mapped_pkg)
+	end
+
+	return mapped, applied_mappings
+end
+
 -- Extract imports from Python file
 local function extract_python_imports(content)
 	local imports = {}

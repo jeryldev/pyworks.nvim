@@ -708,6 +708,13 @@ function M.install_python_packages(packages_str)
 		table.insert(pkg_list, pkg)
 	end
 
+	-- Apply package name mappings (e.g., sklearn -> scikit-learn)
+	local applied_mappings
+	pkg_list, applied_mappings = packages.map_packages(pkg_list, "python")
+	for original, mapped in pairs(applied_mappings) do
+		notifications.notify(string.format("📦 Mapping '%s' → '%s'", original, mapped), vim.log.levels.INFO)
+	end
+
 	-- Validate packages
 	pkg_list = error_handler.validate_packages(pkg_list, "Python")
 	if not pkg_list then
