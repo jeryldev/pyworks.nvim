@@ -244,15 +244,42 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 
 			local python = require("pyworks.languages.python")
 			local error_handler = require("pyworks.core.error_handler")
+			local cache = require("pyworks.core.cache")
 			local dummy_filepath = cwd .. "/setup.py"
 
 			local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
 			if ok then
-				vim.notify("✅ Python environment ready", vim.log.levels.INFO)
-				-- Wait for essentials to install, then create notebook
-				vim.defer_fn(function()
-					do_create_notebook(filename)
-				end, 2000) -- Give time for async package installation
+				vim.notify("⏳ Installing jupytext (this may take a moment)...", vim.log.levels.INFO)
+
+				-- Poll for jupytext availability, then create notebook
+				local attempts = 0
+				local max_attempts = 30 -- 30 seconds max wait
+				local timer = vim.uv.new_timer()
+
+				timer:start(
+					1000,
+					1000,
+					vim.schedule_wrap(function()
+						attempts = attempts + 1
+						cache.invalidate("jupytext_check") -- Clear cache to recheck
+
+						if jupytext.is_jupytext_installed() then
+							timer:stop()
+							timer:close()
+							vim.notify("✅ jupytext installed!", vim.log.levels.INFO)
+							do_create_notebook(filename)
+						elseif attempts >= max_attempts then
+							timer:stop()
+							timer:close()
+							vim.notify("⚠️  jupytext installation taking too long", vim.log.levels.WARN)
+							vim.notify(
+								"📁 Creating notebook file anyway (open it once jupytext is ready)",
+								vim.log.levels.INFO
+							)
+							do_create_notebook(filename)
+						end
+					end)
+				)
 			end
 			return
 		elseif choice == 2 then
