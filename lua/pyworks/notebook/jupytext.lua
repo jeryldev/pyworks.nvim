@@ -103,7 +103,7 @@ function M.install_jupytext(filepath)
 			if obj.code == 0 then
 				cache.invalidate("jupytext_check")
 				notifications.progress_finish("jupytext_install", "Jupytext installed successfully")
-				state.set("persistent_jupytext_installed", true)
+				state.set(state.KEYS.PERSISTENT_JUPYTEXT, true)
 			else
 				notifications.progress_finish("jupytext_install")
 				notifications.notify_error("Failed to install jupytext")

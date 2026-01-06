@@ -246,7 +246,7 @@ function M.install_essentials(filepath)
 
 	-- Guard against duplicate calls (installation is async)
 	local project_dir, venv_path = utils.get_project_paths(filepath)
-	local install_key = "installing_essentials_" .. (project_dir or "global")
+	local install_key = state.KEYS.INSTALLING_ESSENTIALS .. (project_dir or "global")
 	if state.get(install_key) then
 		return true -- Already installing
 	end
@@ -623,10 +623,10 @@ function M.handle_file(filepath, is_notebook)
 			notifications.notify_missing_packages(missing, "python")
 
 			-- Store missing packages for leader-pi command
-			state.set("missing_packages_python", missing)
+			state.set(state.KEYS.MISSING_PACKAGES .. "python", missing)
 		else
 			-- Clear any previous missing packages
-			state.remove("missing_packages_python")
+			state.remove(state.KEYS.MISSING_PACKAGES .. "python")
 		end
 	end, 100) -- Small delay to avoid blocking file open
 
@@ -639,7 +639,7 @@ end
 
 -- Install missing packages command
 function M.install_missing_packages()
-	local missing = state.get("missing_packages_python") or {}
+	local missing = state.get(state.KEYS.MISSING_PACKAGES .. "python") or {}
 
 	if #missing == 0 then
 		notifications.notify("No missing packages detected", vim.log.levels.INFO)

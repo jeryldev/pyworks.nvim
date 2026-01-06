@@ -22,12 +22,12 @@ local notification_history = {}
 
 -- Check if this is first time for a given context
 local function is_first_time(context)
-	return not state.get("initialized_" .. context)
+	return not state.get(state.KEYS.INITIALIZED .. context)
 end
 
 -- Mark context as initialized
 local function mark_initialized(context)
-	state.set("initialized_" .. context, true)
+	state.set(state.KEYS.INITIALIZED .. context, true)
 end
 
 -- Check if we should suppress duplicate notifications

@@ -30,16 +30,17 @@ function M.on_file_open(filepath)
 	end
 
 	-- Skip if already processing
-	if state.get("processing_" .. filepath) then
+	local processing_key = state.KEYS.PROCESSING .. filepath
+	if state.get(processing_key) then
 		return
 	end
 
-	state.set("processing_" .. filepath, true)
+	state.set(processing_key, true)
 
 	-- Helper to ensure processing flag is always cleared (finally pattern)
 	local function clear_processing_flag()
 		vim.defer_fn(function()
-			state.set("processing_" .. filepath, nil)
+			state.set(processing_key, nil)
 		end, 100)
 	end
 

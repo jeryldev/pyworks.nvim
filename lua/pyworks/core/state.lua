@@ -3,6 +3,18 @@
 
 local M = {}
 
+-- State key constants (prefixes for dynamic keys)
+M.KEYS = {
+	PROCESSING = "processing_",
+	INITIALIZED = "initialized_",
+	INSTALLING_ESSENTIALS = "installing_essentials_",
+	MISSING_PACKAGES = "missing_packages_",
+	PERSISTENT_JUPYTEXT = "persistent_jupytext_installed",
+	ENV = "env_",
+	INSTALLED = "installed_",
+	LAST_CHECK = "last_check_",
+}
+
 -- In-memory state storage
 local state = {}
 
