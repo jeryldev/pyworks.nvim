@@ -8,7 +8,7 @@ local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
 
--- Check if jupytext is installed
+-- Check if jupytext CLI is available (jupytext.nvim uses the CLI, not Python import)
 function M.is_jupytext_installed()
 	-- Check cache first
 	local cached = cache.get("jupytext_check")
@@ -16,23 +16,36 @@ function M.is_jupytext_installed()
 		return cached
 	end
 
-	-- Check for jupytext
-	local python_path = M.get_python_for_jupytext()
-	if not python_path then
-		cache.set("jupytext_check", false)
-		return false
+	-- First check if jupytext CLI is in PATH (this is what jupytext.nvim uses)
+	if vim.fn.executable("jupytext") == 1 then
+		cache.set("jupytext_check", true)
+		return true
 	end
 
-	-- Use vim.system for modern Neovim 0.10+
-	local ok, result = pcall(function()
-		return vim.system({ python_path, "-c", "import jupytext" }, { text = true }):wait()
-	end)
-	local success = ok and result and result.code == 0
+	-- Check project venv for jupytext binary
+	local project_dir, venv_path = utils.get_project_paths()
+	if vim.fn.isdirectory(venv_path) == 1 then
+		local venv_jupytext = venv_path .. "/bin/jupytext"
+		if vim.fn.executable(venv_jupytext) == 1 then
+			cache.set("jupytext_check", true)
+			return true
+		end
+	end
 
-	-- Cache the result
-	cache.set("jupytext_check", success)
+	-- Fallback: check if Python can import jupytext (less reliable for CLI usage)
+	local python_path = M.get_python_for_jupytext()
+	if python_path then
+		local ok, result = pcall(function()
+			return vim.system({ python_path, "-c", "import jupytext" }, { text = true }):wait()
+		end)
+		if ok and result and result.code == 0 then
+			cache.set("jupytext_check", true)
+			return true
+		end
+	end
 
-	return success
+	cache.set("jupytext_check", false)
+	return false
 end
 
 -- Get Python interpreter for jupytext

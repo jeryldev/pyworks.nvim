@@ -211,6 +211,25 @@ end
 vim.api.nvim_create_user_command("PyworksSetup", function()
 	local filepath = vim.api.nvim_buf_get_name(0)
 
+	-- If no file is open, use cwd as the project directory
+	if filepath == "" then
+		local cwd = vim.fn.getcwd()
+		vim.notify("📁 Setting up Python environment in: " .. cwd, vim.log.levels.INFO)
+
+		-- Create venv in cwd
+		local python = require("pyworks.languages.python")
+		local utils = require("pyworks.utils")
+
+		-- Use a dummy filepath in cwd to get project paths
+		local dummy_filepath = cwd .. "/setup.py"
+		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
+		if ok then
+			vim.notify("✅ Python environment setup complete", vim.log.levels.INFO)
+			vim.notify("💡 You can now create notebooks with :PyworksNewPythonNotebook", vim.log.levels.INFO)
+		end
+		return
+	end
+
 	-- Validate filepath
 	filepath = error_handler.validate_filepath(filepath, "setup environment")
 	if not filepath then
@@ -235,7 +254,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		vim.notify("ℹ️ Pyworks only supports Python files", vim.log.levels.INFO)
 	end
 end, {
-	desc = "Manually trigger Pyworks environment setup for current file",
+	desc = "Manually trigger Pyworks environment setup for current file or cwd",
 })
 
 -- Command to sync (install missing) packages
