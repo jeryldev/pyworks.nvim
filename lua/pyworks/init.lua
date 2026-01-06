@@ -134,13 +134,14 @@ function M.setup(opts)
 	local python = require("pyworks.languages.python")
 	python.configure(config.python)
 
-	-- Initialize state
+	-- Initialize state (load persistent data, then start session)
 	local state = require("pyworks.core.state")
+	state.init()
 	state.start_session()
 
 	-- Set Python host if not already set
 	if not vim.g.python3_host_prog then
-		M.setup_python_host()
+		python.setup_python_host()
 	end
 
 	-- Mark setup as complete
@@ -148,42 +149,6 @@ function M.setup(opts)
 
 	-- Load notebook creation commands
 	require("pyworks.commands.create")
-end
-
--- Setup Python host
--- Now supports per-buffer configuration based on file location
-function M.setup_python_host(filepath)
-	local utils = require("pyworks.utils")
-	local python_candidates = {}
-
-	if filepath then
-		-- Get project-specific venv
-		local project_dir, venv_path = utils.get_project_paths(filepath)
-		table.insert(python_candidates, venv_path .. "/bin/python3")
-		table.insert(python_candidates, venv_path .. "/bin/python")
-	else
-		-- Fallback to cwd-based detection
-		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python3")
-		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python")
-	end
-
-	-- Add system Python as fallback
-	table.insert(python_candidates, vim.fn.exepath("python3"))
-	table.insert(python_candidates, vim.fn.exepath("python"))
-
-	for _, python_path in ipairs(python_candidates) do
-		if vim.fn.executable(python_path) == 1 then
-			-- Set buffer-local Python if filepath provided
-			if filepath then
-				vim.b.python3_host_prog = python_path
-				-- Also update global for compatibility
-				vim.g.python3_host_prog = python_path
-			else
-				vim.g.python3_host_prog = python_path
-			end
-			break
-		end
-	end
 end
 
 -- Manual commands (for power users)
@@ -335,10 +300,10 @@ vim.api.nvim_create_user_command("PyworksHelp", function()
 	vim.cmd("new")
 	local buf = vim.api.nvim_get_current_buf()
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, help)
-	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
 	vim.api.nvim_buf_set_name(buf, "Pyworks Help")
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
+	vim.bo[buf].modifiable = false
 end, {
 	desc = "Show Pyworks commands and keymaps",
 })

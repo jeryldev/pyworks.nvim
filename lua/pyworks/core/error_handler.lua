@@ -126,10 +126,10 @@ function M.show_error_details(title, lines)
 	local buf = vim.api.nvim_create_buf(false, true)
 
 	-- Set buffer options
-	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
-	vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].modifiable = false
+	vim.bo[buf].filetype = "markdown"
 
 	-- Add title and content
 	local content = { "# " .. title, "", "```" }
@@ -139,9 +139,9 @@ function M.show_error_details(title, lines)
 	table.insert(content, "Press 'q' to close this window")
 
 	-- Set lines
-	vim.api.nvim_buf_set_option(buf, "modifiable", true)
+	vim.bo[buf].modifiable = true
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
+	vim.bo[buf].modifiable = false
 
 	-- Open in a split
 	vim.cmd("split")

@@ -36,6 +36,89 @@ local package_mappings = {
 	},
 }
 
+-- Python standard library modules (defined at module level for performance)
+local python_stdlib = {
+	os = true,
+	sys = true,
+	re = true,
+	json = true,
+	math = true,
+	random = true,
+	datetime = true,
+	time = true,
+	collections = true,
+	itertools = true,
+	functools = true,
+	pathlib = true,
+	subprocess = true,
+	threading = true,
+	multiprocessing = true,
+	queue = true,
+	socket = true,
+	http = true,
+	urllib = true,
+	email = true,
+	html = true,
+	xml = true,
+	csv = true,
+	io = true,
+	string = true,
+	typing = true,
+	types = true,
+	enum = true,
+	dataclasses = true,
+	abc = true,
+	copy = true,
+	pickle = true,
+	shelve = true,
+	sqlite3 = true,
+	zlib = true,
+	gzip = true,
+	hashlib = true,
+	hmac = true,
+	secrets = true,
+	uuid = true,
+	base64 = true,
+	codecs = true,
+	argparse = true,
+	logging = true,
+	configparser = true,
+	tempfile = true,
+	shutil = true,
+	glob = true,
+	fnmatch = true,
+	inspect = true,
+	traceback = true,
+	warnings = true,
+	contextlib = true,
+	unittest = true,
+	doctest = true,
+	pdb = true,
+	profile = true,
+	asyncio = true,
+	concurrent = true,
+	contextvars = true,
+	importlib = true,
+	pkgutil = true,
+	platform = true,
+	errno = true,
+	ctypes = true,
+	struct = true,
+	unicodedata = true,
+	locale = true,
+	gettext = true,
+	statistics = true,
+	decimal = true,
+	fractions = true,
+	numbers = true,
+	cmath = true,
+	array = true,
+	weakref = true,
+	gc = true,
+	atexit = true,
+	builtins = true,
+}
+
 -- Map import to package name
 function M.map_import_to_package(import_name, language)
 	language = language or "python"
@@ -92,8 +175,13 @@ end
 
 -- Scan file for imports
 function M.scan_imports(filepath, language)
+	-- Validate inputs
+	if not filepath or filepath == "" then
+		return {}
+	end
+
 	-- Ensure we have an absolute path for consistent caching
-	if filepath and not filepath:match("^/") then
+	if not filepath:match("^/") then
 		filepath = vim.fn.fnamemodify(filepath, ":p")
 	end
 
@@ -220,91 +308,8 @@ end
 -- Check if a module is part of standard library
 function M.is_stdlib(module_name, language)
 	if language == "python" then
-		-- Python standard library modules (partial list)
-		local stdlib = {
-			os = true,
-			sys = true,
-			re = true,
-			json = true,
-			math = true,
-			random = true,
-			datetime = true,
-			time = true,
-			collections = true,
-			itertools = true,
-			functools = true,
-			pathlib = true,
-			subprocess = true,
-			threading = true,
-			multiprocessing = true,
-			queue = true,
-			socket = true,
-			http = true,
-			urllib = true,
-			email = true,
-			html = true,
-			xml = true,
-			csv = true,
-			io = true,
-			string = true,
-			typing = true,
-			types = true,
-			enum = true,
-			dataclasses = true,
-			abc = true,
-			copy = true,
-			pickle = true,
-			shelve = true,
-			sqlite3 = true,
-			zlib = true,
-			gzip = true,
-			hashlib = true,
-			hmac = true,
-			secrets = true,
-			uuid = true,
-			base64 = true,
-			codecs = true,
-			argparse = true,
-			logging = true,
-			configparser = true,
-			tempfile = true,
-			shutil = true,
-			glob = true,
-			fnmatch = true,
-			inspect = true,
-			traceback = true,
-			warnings = true,
-			contextlib = true,
-			unittest = true,
-			doctest = true,
-			pdb = true,
-			profile = true,
-			asyncio = true,
-			concurrent = true,
-			contextvars = true,
-			importlib = true,
-			pkgutil = true,
-			platform = true,
-			errno = true,
-			ctypes = true,
-			struct = true,
-			unicodedata = true,
-			locale = true,
-			gettext = true,
-			statistics = true,
-			decimal = true,
-			fractions = true,
-			numbers = true,
-			cmath = true,
-			array = true,
-			weakref = true,
-			gc = true,
-			atexit = true,
-			builtins = true,
-		}
-		return stdlib[module_name] == true
+		return python_stdlib[module_name] == true
 	end
-
 	return false
 end
 

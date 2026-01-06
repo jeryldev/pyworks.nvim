@@ -199,10 +199,10 @@ function M.run_diagnostics()
 	vim.cmd("new")
 	local buf = vim.api.nvim_get_current_buf()
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, report)
-	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
 	vim.api.nvim_buf_set_name(buf, "Pyworks Diagnostics")
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
+	vim.bo[buf].modifiable = false
 
 	vim.notify("Diagnostics complete - see buffer for details", vim.log.levels.INFO)
 end

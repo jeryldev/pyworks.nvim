@@ -410,8 +410,8 @@ end
 -- Python file handler
 function M.handle_python(filepath)
 	-- Set up Python host for this file's project
-	local init = require("pyworks.init")
-	init.setup_python_host(filepath)
+	local python = require("pyworks.languages.python")
+	python.setup_python_host(filepath)
 
 	-- Show detailed project and venv detection
 	local utils = require("pyworks.utils")
@@ -449,7 +449,6 @@ function M.handle_python(filepath)
 		return
 	end
 
-	local python = require("pyworks.languages.python")
 	python.handle_file(filepath, false) -- false = not a notebook
 	auto_init_molten("python", filepath)
 end
@@ -457,8 +456,8 @@ end
 -- Python notebook handler
 function M.handle_python_notebook(filepath)
 	-- Set up Python host for this file's project
-	local init = require("pyworks.init")
-	init.setup_python_host(filepath)
+	local python = require("pyworks.languages.python")
+	python.setup_python_host(filepath)
 
 	-- Show detailed project and venv detection for notebooks
 	local utils = require("pyworks.utils")
@@ -494,7 +493,6 @@ function M.handle_python_notebook(filepath)
 		return
 	end
 
-	local python = require("pyworks.languages.python")
 	python.handle_file(filepath, true) -- true = is a notebook
 	auto_init_molten("python", filepath)
 end

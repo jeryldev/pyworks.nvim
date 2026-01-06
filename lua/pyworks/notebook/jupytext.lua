@@ -177,10 +177,10 @@ function M.open_notebook(filepath)
 	local buf = vim.api.nvim_get_current_buf()
 
 	-- Set buffer options
-	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-	vim.api.nvim_buf_set_option(buf, "swapfile", false)
-	vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].swapfile = false
+	vim.bo[buf].filetype = "markdown"
 
 	-- Set buffer name to indicate it's a view
 	vim.api.nvim_buf_set_name(buf, filepath .. " [Notebook View]")
@@ -190,7 +190,7 @@ function M.open_notebook(filepath)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
 	-- Make it read-only
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
+	vim.bo[buf].modifiable = false
 
 	return true
 end
@@ -272,18 +272,29 @@ function M.setup_pairing(filepath)
 end
 
 -- Check if jupytext CLI is available in PATH or common venv locations
-function M.find_jupytext_cli()
+function M.find_jupytext_cli(filepath)
 	-- Check if already in PATH
 	if vim.fn.executable("jupytext") == 1 then
 		return "jupytext"
 	end
 
-	-- Check common venv locations
-	local venv_paths = {
-		vim.fn.getcwd() .. "/.venv/bin/jupytext",
-		vim.fn.expand("~") .. "/.local/bin/jupytext",
-		vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/.venv/bin/jupytext",
-	}
+	-- Build list of paths to check
+	local venv_paths = {}
+
+	-- First priority: project venv based on the file being opened
+	if filepath and filepath ~= "" then
+		local _, venv_path = utils.get_project_paths(filepath)
+		if venv_path then
+			table.insert(venv_paths, venv_path .. "/bin/jupytext")
+		end
+	end
+
+	-- Second: cwd-based venv
+	table.insert(venv_paths, vim.fn.getcwd() .. "/.venv/bin/jupytext")
+	-- Third: user local bin
+	table.insert(venv_paths, vim.fn.expand("~") .. "/.local/bin/jupytext")
+	-- Fourth: parent directory venv
+	table.insert(venv_paths, vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/.venv/bin/jupytext")
 
 	for _, path in ipairs(venv_paths) do
 		if vim.fn.executable(path) == 1 then

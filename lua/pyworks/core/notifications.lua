@@ -16,6 +16,7 @@ local config = {
 -- Track notification history to avoid duplicates
 local notification_history = {}
 local history_ttl = 10 -- seconds
+local max_history_size = 100 -- Prevent unbounded growth
 
 -- Check if this is first time for a given context
 local function is_first_time(context)
@@ -31,17 +32,31 @@ end
 local function should_suppress(message)
 	local now = vim.loop.now()
 
-	-- Check history
+	-- Collect indices to remove (expired entries)
+	local to_remove = {}
+	local found_duplicate = false
+
 	for i = #notification_history, 1, -1 do
 		local entry = notification_history[i]
-
-		-- Remove old entries
 		if now - entry.time > history_ttl * 1000 then
-			table.remove(notification_history, i)
+			table.insert(to_remove, i)
 		elseif entry.message == message then
-			-- Found duplicate within TTL
-			return true
+			found_duplicate = true
 		end
+	end
+
+	-- Remove expired entries (already in reverse order)
+	for _, i in ipairs(to_remove) do
+		table.remove(notification_history, i)
+	end
+
+	if found_duplicate then
+		return true
+	end
+
+	-- Enforce max size (remove oldest if at limit)
+	while #notification_history >= max_history_size do
+		table.remove(notification_history, 1)
 	end
 
 	-- Add to history

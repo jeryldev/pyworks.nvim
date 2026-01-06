@@ -10,8 +10,11 @@ local packages = require("pyworks.core.packages")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
 
--- Track current file being processed
-local current_filepath = nil
+-- Helper to get current buffer's filepath
+local function get_current_filepath()
+	local path = vim.fn.expand("%:p")
+	return path ~= "" and path or nil
+end
 
 -- Configuration
 local config = {
@@ -29,6 +32,36 @@ local config = {
 -- Configure Python module
 function M.configure(opts)
 	config = vim.tbl_deep_extend("force", config, opts or {})
+end
+
+-- Setup Python host for Neovim
+-- Sets vim.g.python3_host_prog to the project's venv Python or system Python
+function M.setup_python_host(filepath)
+	local python_candidates = {}
+
+	if filepath then
+		local project_dir, venv_path = utils.get_project_paths(filepath)
+		table.insert(python_candidates, venv_path .. "/bin/python3")
+		table.insert(python_candidates, venv_path .. "/bin/python")
+	else
+		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python3")
+		table.insert(python_candidates, vim.fn.getcwd() .. "/.venv/bin/python")
+	end
+
+	table.insert(python_candidates, vim.fn.exepath("python3"))
+	table.insert(python_candidates, vim.fn.exepath("python"))
+
+	for _, python_path in ipairs(python_candidates) do
+		if vim.fn.executable(python_path) == 1 then
+			if filepath then
+				vim.b.python3_host_prog = python_path
+				vim.g.python3_host_prog = python_path
+			else
+				vim.g.python3_host_prog = python_path
+			end
+			break
+		end
+	end
 end
 
 -- Check if virtual environment exists
@@ -125,7 +158,7 @@ end
 
 -- Create virtual environment
 function M.create_venv(filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	if M.has_venv(filepath) then
 		return true
 	end
@@ -168,7 +201,7 @@ end
 
 -- Install essential packages
 function M.install_essentials(filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	if not M.has_venv(filepath) then
 		if not M.create_venv(filepath) then
 			return false
@@ -293,7 +326,7 @@ end
 
 -- Check if a package is installed
 function M.is_package_installed(package_name, filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath)
 	if not python_path then
 		return false
@@ -328,7 +361,7 @@ end
 
 -- Get list of installed packages
 function M.get_installed_packages(filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	if not M.has_venv(filepath) then
 		return {}
 	end
@@ -375,7 +408,7 @@ end
 
 -- Install packages
 function M.install_packages(package_list, filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	if not M.has_venv(filepath) then
 		if not M.create_venv(filepath) then
 			return false
@@ -579,8 +612,8 @@ end
 
 -- Ensure Python environment is ready
 function M.ensure_environment(filepath)
-	-- Use provided filepath or fall back to current_filepath
-	filepath = filepath or current_filepath
+	-- Use provided filepath or fall back to current buffer
+	filepath = filepath or get_current_filepath()
 
 	-- Check cache first
 	if not state.should_check("python_env", "python", 30) then
@@ -609,13 +642,9 @@ end
 
 -- Handle Python file
 function M.handle_file(filepath, is_notebook)
-	-- Store current filepath for other functions to use
-	-- Make sure it's absolute
-	if filepath and filepath ~= "" then
-		if not filepath:match("^/") then
-			filepath = vim.fn.fnamemodify(filepath, ":p")
-		end
-		current_filepath = filepath
+	-- Ensure filepath is absolute
+	if filepath and filepath ~= "" and not filepath:match("^/") then
+		filepath = vim.fn.fnamemodify(filepath, ":p")
 	end
 
 	-- Ensure environment for this specific file's project
@@ -658,29 +687,9 @@ function M.install_missing_packages()
 		vim.log.levels.INFO
 	)
 
-	-- Get current buffer's filepath if not already set
-	local filepath = current_filepath
-	if not filepath or filepath == "" then
-		-- Primary method: Use vim.fn.expand which handles all cases
-		filepath = vim.fn.expand("%:p")
-
-		-- Fallback: If expand didn't work, use nvim_buf_get_name
-		if filepath == "" then
-			local bufname = vim.api.nvim_buf_get_name(0)
-			if bufname ~= "" then
-				-- Make it absolute if it's relative
-				if not bufname:match("^/") and not bufname:match("^~") then
-					-- It's a relative path, make it absolute
-					filepath = vim.fn.fnamemodify(bufname, ":p")
-				else
-					filepath = bufname
-				end
-			end
-		end
-	end
-
-	-- Final validation and error reporting
-	if not filepath or filepath == "" then
+	-- Get current buffer's filepath
+	local filepath = get_current_filepath()
+	if not filepath then
 		notifications.notify_error("Could not determine file path for package installation")
 		return
 	end
@@ -697,7 +706,7 @@ end
 -- Install specific Python packages (user command)
 function M.install_python_packages(packages_str)
 	-- Get current file context
-	local filepath = current_filepath or vim.fn.expand("%:p")
+	local filepath = get_current_filepath()
 	if filepath == "" then
 		filepath = nil
 	end
@@ -740,7 +749,7 @@ end
 -- Uninstall Python packages (user command)
 function M.uninstall_python_packages(packages_str)
 	-- Get current file context
-	local filepath = current_filepath or vim.fn.expand("%:p")
+	local filepath = get_current_filepath()
 	if filepath == "" then
 		filepath = nil
 	end
@@ -805,7 +814,7 @@ end
 
 -- List installed Python packages
 function M.list_python_packages()
-	local filepath = current_filepath or vim.fn.expand("%:p")
+	local filepath = get_current_filepath()
 	if filepath == "" then
 		filepath = nil
 	end
@@ -859,7 +868,7 @@ end
 
 -- Check Python version compatibility
 function M.check_compatibility(package_name, filepath)
-	filepath = filepath or current_filepath
+	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath) or "python3"
 
 	-- Get Python version

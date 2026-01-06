@@ -183,7 +183,4 @@ function M.get_session_duration()
 	return 0
 end
 
--- Initialize on load
-M.init()
-
 return M
