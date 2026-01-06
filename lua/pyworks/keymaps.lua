@@ -69,16 +69,13 @@ function M.setup_buffer_keymaps()
 		-- CELL EXECUTION
 		-- ============================================================================
 
-		-- Run current line
+		-- Run current line (auto-initializes kernel if needed)
 		vim.keymap.set("n", "<leader>jl", function()
-			-- Check if kernel is initialized for this buffer
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
-				-- Auto-initialize based on file type
 				local ft = vim.bo.filetype
 				local filepath = vim.api.nvim_buf_get_name(bufnr)
 				local detector = require("pyworks.core.detector")
-				-- Pass filepath for project-aware kernel selection
 				local kernel = detector.get_kernel_for_language(ft, filepath)
 
 				if kernel then
@@ -89,10 +86,9 @@ function M.setup_buffer_keymaps()
 						vim.b[bufnr].molten_initialized = true
 					end
 
-					-- Wait a moment then run the line
+					-- Defer execution to allow kernel initialization to complete
 					vim.defer_fn(function()
 						error_handler.protected_call(vim.cmd, "Failed to evaluate line", "MoltenEvaluateLine")
-						-- Move to next line
 						local cursor = vim.api.nvim_win_get_cursor(0)
 						local next_line = cursor[1] + 1
 						local last_line = vim.api.nvim_buf_line_count(0)
@@ -104,10 +100,9 @@ function M.setup_buffer_keymaps()
 				end
 			end
 
-			-- Kernel should be initialized, run the line
 			vim.cmd("MoltenEvaluateLine")
 
-			-- Move to next line for convenience
+			-- Auto-advance to next line
 			local cursor = vim.api.nvim_win_get_cursor(0)
 			local next_line = cursor[1] + 1
 			local last_line = vim.api.nvim_buf_line_count(0)
@@ -132,7 +127,7 @@ function M.setup_buffer_keymaps()
 			vim.tbl_extend("force", opts, { desc = "Run selection" })
 		)
 
-		-- Run current cell and move to next (classic Jupyter Shift+Enter)
+		-- Run current cell and move to next (classic Jupyter Shift+Enter behavior)
 		vim.keymap.set("n", "<leader>jc", function()
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
@@ -140,22 +135,19 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			-- Mark cell as executed
 			local ui = require("pyworks.ui")
 			local cell_num = ui.get_current_cell_number()
 			ui.mark_cell_executed(cell_num)
 
-			-- Always evaluate the # %% delimited cell
-			-- This works whether or not a Molten cell already exists
+			-- Evaluate # %% delimited cell (works with or without existing Molten cell)
 			evaluate_percent_cell()
 
-			-- Move to next cell marker after a short delay to ensure evaluation starts
+			-- Defer navigation to allow evaluation to start
 			vim.defer_fn(function()
 				local found = vim.fn.search("^# %%", "W")
 				if found == 0 then
 					vim.notify("Last cell", vim.log.levels.INFO)
 				else
-					-- Move to the line after the cell marker (first line of code)
 					vim.cmd("normal! j")
 				end
 			end, 100)
@@ -169,25 +161,20 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			-- Mark cell as executed
 			local ui = require("pyworks.ui")
 			local cell_num = ui.get_current_cell_number()
 			ui.mark_cell_executed(cell_num)
 
-			-- Save cursor position before evaluating
 			local cursor_pos = vim.api.nvim_win_get_cursor(0)
-
-			-- Always evaluate the # %% delimited cell
-			-- This works whether or not a Molten cell already exists
 			evaluate_percent_cell()
 
-			-- Restore cursor position after evaluation
+			-- Restore cursor position after evaluation completes
 			vim.defer_fn(function()
 				vim.api.nvim_win_set_cursor(0, cursor_pos)
 			end, 100)
 		end, vim.tbl_extend("force", opts, { desc = "Re-evaluate current cell" }))
 
-		-- Run all cells in the buffer
+		-- Run all cells in the buffer sequentially
 		vim.keymap.set("n", "<leader>jR", function()
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
@@ -195,10 +182,7 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			-- Save current position
 			local save_pos = vim.fn.getpos(".")
-
-			-- Find all cell markers
 			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 			local cell_count = 0
 			for _, line in ipairs(lines) do
@@ -213,39 +197,30 @@ function M.setup_buffer_keymaps()
 			end
 
 			vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
-
-			-- Go to the beginning of the file
 			vim.cmd("normal! gg")
 
-			-- Function to run cells sequentially with delay
 			local ui = require("pyworks.ui")
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
-					-- All cells executed, restore position
 					vim.fn.setpos(".", save_pos)
 					vim.notify("✓ All cells executed", vim.log.levels.INFO)
 					return
 				end
 
-				-- Find the Nth cell
 				vim.cmd("normal! gg")
 				for _ = 1, cell_num do
 					vim.fn.search("^# %%", "W")
 				end
 
-				-- Mark cell as executed
 				ui.mark_cell_executed(cell_num)
-
-				-- Execute the cell
 				evaluate_percent_cell()
 
-				-- Schedule next cell execution
+				-- 200ms delay between cells to avoid overwhelming the kernel
 				vim.defer_fn(function()
 					run_next_cell(cell_num + 1)
-				end, 200) -- 200ms delay between cells to avoid overwhelming the kernel
+				end, 200)
 			end
 
-			-- Start running cells
 			run_next_cell(1)
 		end, vim.tbl_extend("force", opts, { desc = "Run all cells" }))
 
@@ -253,66 +228,52 @@ function M.setup_buffer_keymaps()
 		-- CELL SELECTION & NAVIGATION
 		-- ============================================================================
 
-		-- Visual select current cell (changed from jc to jv)
+		-- Visual select current cell
 		vim.keymap.set("n", "<leader>jv", function()
-			-- Check if Python provider is working
 			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
 				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
 				return
 			end
 
-			-- Save current position
-			local save_cursor = vim.api.nvim_win_get_cursor(0)
-
-			-- Check if there are any cell markers in the file
 			local has_cells = vim.fn.search("^# %%", "nw") > 0
 
 			if has_cells then
-				-- Find and select the current cell
-				local cell_start = vim.fn.search("^# %%", "bnW") -- Search backwards
+				local cell_start = vim.fn.search("^# %%", "bnW")
 				if cell_start == 0 then
-					-- We're before the first cell, select from beginning
 					vim.cmd("normal! gg")
 				else
 					vim.cmd("normal! " .. cell_start .. "G")
-					vim.cmd("normal! j") -- Move past the cell marker
+					vim.cmd("normal! j")
 				end
 
-				vim.cmd("normal! V") -- Start visual line mode
+				vim.cmd("normal! V")
 
-				local cell_end = vim.fn.search("^# %%", "nW") -- Search forwards
+				local cell_end = vim.fn.search("^# %%", "nW")
 				if cell_end == 0 then
-					-- We're in the last cell, select to end
 					vim.cmd("normal! G")
 				else
 					vim.cmd("normal! " .. cell_end .. "G")
-					vim.cmd("normal! k") -- Don't include the next cell marker
+					vim.cmd("normal! k")
 				end
 			else
-				-- No cell markers, select the entire file
 				vim.cmd("normal! ggVG")
 				vim.notify("No cell markers found, selected entire file", vim.log.levels.INFO)
 			end
 		end, vim.tbl_extend("force", opts, { desc = "Visual select current cell" }))
 
-		-- Go to cell N (based on # %% markers, not Molten cells)
+		-- Go to cell N
 		vim.keymap.set("n", "<leader>jg", function()
 			vim.ui.input({ prompt = "Go to cell number: " }, function(input)
 				if input and input ~= "" then
 					local cell_num = tonumber(input)
 					if cell_num and cell_num > 0 then
-						-- Save current position
 						local save_pos = vim.fn.getpos(".")
-
-						-- Go to beginning of file
 						vim.cmd("normal! gg")
 
-						-- Search for the Nth cell marker
 						local cells_found = 0
 						for i = 1, cell_num do
 							local result = vim.fn.search("^# %%", "W")
 							if result == 0 then
-								-- Not enough cells, restore position
 								vim.fn.setpos(".", save_pos)
 								if cells_found == 0 then
 									vim.notify("No cells found in this file", vim.log.levels.WARN)
@@ -327,7 +288,6 @@ function M.setup_buffer_keymaps()
 							cells_found = i
 						end
 
-						-- Move to the line after the cell marker
 						vim.cmd("normal! j")
 						vim.notify("Jumped to cell " .. cell_num, vim.log.levels.INFO)
 					else
@@ -341,33 +301,25 @@ function M.setup_buffer_keymaps()
 		-- OUTPUT MANAGEMENT
 		-- ============================================================================
 
-		-- Delete cell output
 		vim.keymap.set("n", "<leader>jd", function()
-			-- Silently try to delete - if not in cell, no error shown
 			pcall(vim.cmd, "silent! MoltenDelete")
 		end, vim.tbl_extend("force", opts, { desc = "Delete cell output" }))
 
-		-- Hide output window
 		vim.keymap.set("n", "<leader>jh", function()
-			-- Try to hide current Molten cell output if it exists
 			local ok = pcall(vim.cmd, "MoltenHideOutput")
 			if not ok then
 				vim.notify("No output window to hide", vim.log.levels.INFO)
 			end
 		end, vim.tbl_extend("force", opts, { desc = "Hide output window" }))
 
-		-- Enter/open output window
 		vim.keymap.set("n", "<leader>jo", function()
-			-- Silently try to enter output - if not in cell, no error shown
 			pcall(vim.cmd, "silent! noautocmd MoltenEnterOutput")
 		end, vim.tbl_extend("force", opts, { desc = "Enter output window" }))
 
-		-- Hover to show output (using K)
+		-- Show Molten output or fall back to LSP hover
 		vim.keymap.set("n", "K", function()
-			-- Check if we're on a cell that has output
 			local ok, _ = pcall(vim.cmd, "MoltenShowOutput")
 			if not ok then
-				-- Fall back to default K behavior (show hover docs)
 				vim.lsp.buf.hover()
 			end
 		end, vim.tbl_extend("force", opts, { desc = "Show Molten output or LSP hover" }))
@@ -375,55 +327,33 @@ function M.setup_buffer_keymaps()
 		-- CELL CREATION
 		-- ============================================================================
 
-		-- Insert code cell above
 		vim.keymap.set("n", "<leader>ja", function()
 			local cell_start = vim.fn.search("^# %%", "bnW")
 			local insert_line = cell_start > 0 and cell_start - 1 or 0
-
 			vim.fn.append(insert_line, { "# %%", "" })
 			vim.api.nvim_win_set_cursor(0, { insert_line + 2, 0 })
 			vim.cmd("startinsert")
 		end, vim.tbl_extend("force", opts, { desc = "Insert code cell above" }))
 
-		-- Insert code cell below
 		vim.keymap.set("n", "<leader>jb", function()
 			local cell_end = vim.fn.search("^# %%", "nW")
-			local insert_line
-
-			if cell_end == 0 then
-				-- No next cell, insert at end
-				insert_line = vim.fn.line("$")
-			else
-				-- Insert before next cell
-				insert_line = cell_end - 1
-			end
-
+			local insert_line = cell_end == 0 and vim.fn.line("$") or cell_end - 1
 			vim.fn.append(insert_line, { "", "# %%", "" })
 			vim.api.nvim_win_set_cursor(0, { insert_line + 3, 0 })
 			vim.cmd("startinsert")
 		end, vim.tbl_extend("force", opts, { desc = "Insert code cell below" }))
 
-		-- Insert markdown cell above
 		vim.keymap.set("n", "<leader>jma", function()
 			local cell_start = vim.fn.search("^# %%", "bnW")
 			local insert_line = cell_start > 0 and cell_start - 1 or 0
-
 			vim.fn.append(insert_line, { "# %% [markdown]", "# " })
 			vim.api.nvim_win_set_cursor(0, { insert_line + 2, 2 })
 			vim.cmd("startinsert!")
 		end, vim.tbl_extend("force", opts, { desc = "Insert markdown cell above" }))
 
-		-- Insert markdown cell below
 		vim.keymap.set("n", "<leader>jmb", function()
 			local cell_end = vim.fn.search("^# %%", "nW")
-			local insert_line
-
-			if cell_end == 0 then
-				insert_line = vim.fn.line("$")
-			else
-				insert_line = cell_end - 1
-			end
-
+			local insert_line = cell_end == 0 and vim.fn.line("$") or cell_end - 1
 			vim.fn.append(insert_line, { "", "# %% [markdown]", "# " })
 			vim.api.nvim_win_set_cursor(0, { insert_line + 3, 2 })
 			vim.cmd("startinsert!")
@@ -442,36 +372,28 @@ function M.setup_buffer_keymaps()
 			end
 
 			local line = vim.fn.getline(cell_start)
-			local new_line
-
-			-- Check if it's a markdown cell (matches "# %% [markdown]" or "# %%[markdown]")
+			local new_line, msg
 			if line:match("%[markdown%]") then
-				-- Convert to code cell
 				new_line = "# %%"
-				vim.notify("Converted to code cell", vim.log.levels.INFO)
+				msg = "Converted to code cell"
 			else
-				-- Convert to markdown cell
 				new_line = "# %% [markdown]"
-				vim.notify("Converted to markdown cell", vim.log.levels.INFO)
+				msg = "Converted to markdown cell"
 			end
-
 			vim.fn.setline(cell_start, new_line)
+			vim.notify(msg, vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Toggle cell type" }))
 
-		-- Merge with cell below
 		vim.keymap.set("n", "<leader>jJ", function()
 			local next_cell = vim.fn.search("^# %%", "nW")
 			if next_cell == 0 then
 				vim.notify("No cell below to merge", vim.log.levels.WARN)
 				return
 			end
-
-			-- Delete the next cell marker line
 			vim.fn.deletebufline("%", next_cell)
 			vim.notify("Merged with cell below", vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Merge with cell below" }))
 
-		-- Split cell at cursor
 		vim.keymap.set("n", "<leader>js", function()
 			local cursor_line = vim.fn.line(".")
 			vim.fn.append(cursor_line, { "", "# %%", "" })
@@ -483,40 +405,30 @@ function M.setup_buffer_keymaps()
 		-- CELL FOLDING & UI
 		-- ============================================================================
 
-		-- Toggle cell folding
 		vim.keymap.set("n", "<leader>jf", function()
-			local ui = require("pyworks.ui")
-			ui.toggle_cell_folding()
+			require("pyworks.ui").toggle_cell_folding()
 		end, vim.tbl_extend("force", opts, { desc = "Toggle cell folding" }))
 
-		-- Collapse all cells
 		vim.keymap.set("n", "<leader>jzc", function()
-			local ui = require("pyworks.ui")
-			ui.collapse_all_cells()
+			require("pyworks.ui").collapse_all_cells()
 		end, vim.tbl_extend("force", opts, { desc = "Collapse all cells" }))
 
-		-- Expand all cells
 		vim.keymap.set("n", "<leader>jze", function()
-			local ui = require("pyworks.ui")
-			ui.expand_all_cells()
+			require("pyworks.ui").expand_all_cells()
 		end, vim.tbl_extend("force", opts, { desc = "Expand all cells" }))
 
-		-- Renumber cells (refresh cell numbers)
 		vim.keymap.set("n", "<leader>jn", function()
-			local ui = require("pyworks.ui")
-			ui.number_cells()
+			require("pyworks.ui").number_cells()
 			vim.notify("Cell numbers refreshed", vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Refresh cell numbers" }))
 	else
-		-- Fallback keymaps when Molten is not available
-		-- These just select text for manual copying
+		-- Fallback keymaps when Molten is not available (select text for manual copying)
 
 		vim.keymap.set("n", "<leader>jv", function()
-			-- Highlight/select current cell
-			vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>") -- Go to cell start
-			vim.cmd("normal! V") -- Start visual line mode
-			vim.cmd("normal! /^# %%\\|^```\\|^```{<CR>") -- Go to next cell start
-			vim.cmd("normal! k") -- Go up one line to exclude next cell marker
+			vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>")
+			vim.cmd("normal! V")
+			vim.cmd("normal! /^# %%\\|^```\\|^```{<CR>")
+			vim.cmd("normal! k")
 			vim.notify("Molten not available. Cell selected for manual copy.", vim.log.levels.WARN)
 		end, vim.tbl_extend("force", opts, { desc = "Select current cell (Molten not available)" }))
 
@@ -531,7 +443,6 @@ function M.setup_buffer_keymaps()
 
 	-- Cell navigation (works with or without Molten)
 	vim.keymap.set("n", "<leader>j]", function()
-		-- Search for next cell marker (# %% for Python notebooks)
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
@@ -539,7 +450,6 @@ function M.setup_buffer_keymaps()
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
 	vim.keymap.set("n", "<leader>j[", function()
-		-- Search for previous cell marker
 		local found = vim.fn.search("^# %%", "bW")
 		if found == 0 then
 			vim.notify("No previous cells", vim.log.levels.INFO)
@@ -550,12 +460,9 @@ end
 -- Set up Molten kernel management keymaps
 function M.setup_molten_keymaps()
 	local opts = { buffer = true, silent = true }
-
-	-- Check if Molten is available (it's a remote plugin, not a Lua module)
 	local has_molten = vim.fn.exists(":MoltenInit") == 2
 
 	if has_molten then
-		-- Initialize kernel manually
 		vim.keymap.set("n", "<leader>mi", function()
 			vim.ui.input({ prompt = "Kernel name: " }, function(input)
 				if input and input ~= "" then
@@ -564,17 +471,14 @@ function M.setup_molten_keymaps()
 			end)
 		end, vim.tbl_extend("force", opts, { desc = "Initialize kernel" }))
 
-		-- Restart kernel (when things go wrong)
 		vim.keymap.set("n", "<leader>mr", function()
 			vim.cmd("MoltenRestart")
 		end, vim.tbl_extend("force", opts, { desc = "Restart kernel" }))
 
-		-- Interrupt execution (stop long-running code)
 		vim.keymap.set("n", "<leader>mx", function()
 			vim.cmd("MoltenInterrupt")
 		end, vim.tbl_extend("force", opts, { desc = "Interrupt execution" }))
 
-		-- Show kernel info
 		vim.keymap.set("n", "<leader>mI", function()
 			vim.cmd("MoltenInfo")
 		end, vim.tbl_extend("force", opts, { desc = "Show kernel info" }))
