@@ -355,39 +355,74 @@ end, {
 
 vim.api.nvim_create_user_command("PyworksHelp", function()
 	local help = {
-		"=== Pyworks Commands ===",
 		"",
-		"NOTEBOOK CREATION",
-		"  :PyworksNewPython [name]         Create Python file with cell markers",
-		"  :PyworksNewPythonNotebook [name] Create Jupyter notebook (.ipynb)",
+		"  NOTEBOOK CREATION",
+		"    :PyworksNewPython [name]         Create Python file with cell markers",
+		"    :PyworksNewPythonNotebook [name] Create Jupyter notebook (.ipynb)",
 		"",
-		"ENVIRONMENT",
-		"  :PyworksSetup                    Create venv and install essentials",
-		"  :PyworksStatus                   Show package status (imports/installed/missing)",
-		"  :PyworksDiagnostics              Run diagnostics (venv, plugins, cache)",
+		"  ENVIRONMENT",
+		"    :PyworksSetup                    Create venv and install essentials",
+		"    :PyworksStatus                   Show package status",
+		"    :PyworksDiagnostics              Run diagnostics (venv, plugins, cache)",
 		"",
-		"PACKAGE MANAGEMENT",
-		"  :PyworksSync                     Install missing packages from imports",
-		"  :PyworksAdd [packages]           Add packages to venv",
-		"  :PyworksRemove [packages]        Remove packages from venv",
-		"  :PyworksList                     List installed packages",
+		"  PACKAGE MANAGEMENT",
+		"    :PyworksSync                     Install missing packages from imports",
+		"    :PyworksAdd [packages]           Add packages to venv",
+		"    :PyworksRemove [packages]        Remove packages from venv",
+		"    :PyworksList                     List installed packages",
 		"",
-		"KEYMAPS",
-		"  <leader>ps                       Show package status",
-		"  <leader>jl                       Run current line",
-		"  <leader>jc                       Run cell and move to next",
-		"  <leader>je                       Re-run current cell",
+		"  KEYMAPS",
+		"    <leader>ps                       Show package status",
+		"    <leader>jl                       Run current line",
+		"    <leader>jc                       Run cell and move to next",
+		"    <leader>je                       Re-run current cell",
 		"",
-		"For full documentation: :help pyworks",
+		"  Press q or <Esc> to close",
+		"",
 	}
 
-	vim.cmd("new")
-	local buf = vim.api.nvim_get_current_buf()
+	-- Create buffer
+	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, help)
 	vim.bo[buf].buftype = "nofile"
 	vim.bo[buf].bufhidden = "wipe"
-	vim.api.nvim_buf_set_name(buf, "Pyworks Help")
 	vim.bo[buf].modifiable = false
+
+	-- Fixed window size
+	local width = 90
+	local height = 30
+	local row = math.floor((vim.o.lines - height) / 2)
+	local col = math.floor((vim.o.columns - width) / 2)
+
+	-- Open floating window
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = " Pyworks ",
+		title_pos = "center",
+	})
+
+	-- Close on q or Escape
+	local function close()
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_close(win, true)
+		end
+	end
+
+	vim.keymap.set("n", "q", close, { buffer = buf, nowait = true })
+	vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true })
+
+	-- Close when leaving window
+	vim.api.nvim_create_autocmd("WinLeave", {
+		buffer = buf,
+		once = true,
+		callback = close,
+	})
 end, {
 	desc = "Show Pyworks commands and keymaps",
 })

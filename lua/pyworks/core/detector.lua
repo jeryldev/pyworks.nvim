@@ -253,17 +253,11 @@ local function get_kernel_for_language(language, filepath)
 							local is_exact_match = (kernel_python_to_compare == venv_python_to_compare)
 							if is_exact_match then
 								-- Found an exact match! (show once, deduplication handles repeats)
-								notifications.notify(
-									string.format("✅ Found kernel '%s'", name),
-									vim.log.levels.INFO
-								)
+								notifications.notify(string.format("✅ Found kernel '%s'", name), vim.log.levels.INFO)
 								return name
 							elseif kernel_python:match("^" .. vim.pesc(venv_path)) then
 								-- Kernel is from our exact venv directory
-								notifications.notify(
-									string.format("✅ Found kernel '%s'", name),
-									vim.log.levels.INFO
-								)
+								notifications.notify(string.format("✅ Found kernel '%s'", name), vim.log.levels.INFO)
 								return name
 							else
 								-- Log why this kernel doesn't match
