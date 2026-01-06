@@ -1,42 +1,14 @@
 local M = {}
 
--- Cache for expensive operations
+-- Cache for project path lookups (simple internal cache)
 local cache = {
 	cwd = nil,
-	project_dir = nil, -- The actual project directory
+	project_dir = nil,
 	venv_path = nil,
 	last_cwd_check = nil,
 }
 
--- Generic data cache for expensive operations
-local data_cache = {}
-
--- Get cached data or fetch it
-function M.get_cached(key, fetcher, ttl)
-	ttl = ttl or 5000 -- Default 5 second TTL
-	local now = vim.uv.hrtime() / 1e6
-	local entry = data_cache[key]
-
-	if entry and entry.result and (now - entry.timestamp) < ttl then
-		return entry.result
-	end
-
-	local result = fetcher()
-	data_cache[key] = {
-		result = result,
-		timestamp = now,
-	}
-	return result
-end
-
--- Clear cache entry
-function M.clear_cache(key)
-	if key then
-		data_cache[key] = nil
-	else
-		data_cache = {}
-	end
-end
+-- Note: For general caching, use require("pyworks.core.cache") instead
 
 -- Check if virtual environment exists
 function M.has_venv()
