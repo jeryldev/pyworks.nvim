@@ -391,7 +391,7 @@ function M.handle_python(filepath)
 		return
 	end
 
-	python.handle_file(filepath, false) -- false = not a notebook
+	python.handle_file(filepath)
 	auto_init_molten("python", filepath)
 end
 
@@ -432,7 +432,7 @@ function M.handle_python_notebook(filepath)
 		return
 	end
 
-	python.handle_file(filepath, true) -- true = is a notebook
+	python.handle_file(filepath, { is_notebook = true })
 	auto_init_molten("python", filepath)
 end
 

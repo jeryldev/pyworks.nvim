@@ -606,7 +606,10 @@ function M.ensure_environment(filepath)
 end
 
 -- Handle Python file
-function M.handle_file(filepath, is_notebook)
+-- opts.is_notebook: boolean, true if file is a Jupyter notebook
+function M.handle_file(filepath, opts)
+	opts = opts or {}
+
 	-- Ensure filepath is absolute
 	if filepath and filepath ~= "" and not filepath:match("^/") then
 		filepath = vim.fn.fnamemodify(filepath, ":p")
@@ -631,7 +634,7 @@ function M.handle_file(filepath, is_notebook)
 	end, 100) -- Small delay to avoid blocking file open
 
 	-- If it's a notebook, ensure jupytext
-	if is_notebook then
+	if opts.is_notebook then
 		local jupytext = require("pyworks.notebook.jupytext")
 		jupytext.ensure_jupytext()
 	end

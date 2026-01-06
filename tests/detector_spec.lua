@@ -89,10 +89,10 @@ describe("detector", function()
 			local handle_file_called = false
 			package.loaded["pyworks.languages.python"] = {
 				setup_python_host = function() end,
-				handle_file = function(filepath, is_notebook)
+				handle_file = function(filepath, opts)
 					handle_file_called = true
 					assert.equals(test_file, filepath)
-					assert.is_false(is_notebook)
+					assert.is_nil(opts) -- Not a notebook, so opts should be nil
 				end,
 			}
 
