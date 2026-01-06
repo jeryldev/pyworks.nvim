@@ -438,7 +438,12 @@ function M.configure_jupytext_nvim()
 		return false
 	end
 
-	-- jupytext CLI is available, configure jupytext.nvim
+	-- jupytext CLI is available, clear fallback handler if it was set up
+	pcall(vim.api.nvim_clear_autocmds, {
+		group = "PyworksNotebookFallback",
+	})
+
+	-- Configure jupytext.nvim
 	local ok, jupytext = pcall(require, "jupytext")
 	if not ok then
 		-- jupytext.nvim not installed, but CLI is available
