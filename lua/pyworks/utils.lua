@@ -71,8 +71,10 @@ function M.ensure_venv_in_path()
 	local _, venv_path = M.get_project_paths()
 	local venv_bin = venv_path .. "/bin"
 
-	if not vim.env.PATH:match(vim.pesc(venv_bin)) then
-		vim.env.PATH = venv_bin .. ":" .. vim.env.PATH
+	-- Guard against nil PATH (unlikely but possible)
+	local current_path = vim.env.PATH or ""
+	if not current_path:match(vim.pesc(venv_bin)) then
+		vim.env.PATH = venv_bin .. ":" .. current_path
 		return true
 	end
 	return false

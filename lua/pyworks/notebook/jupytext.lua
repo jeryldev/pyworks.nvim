@@ -300,9 +300,10 @@ function M.find_jupytext_cli(filepath)
 
 	for _, path in ipairs(venv_paths) do
 		if vim.fn.executable(path) == 1 then
-			-- Add directory to PATH
+			-- Add directory to PATH (guard against nil PATH)
 			local dir = vim.fn.fnamemodify(path, ":h")
-			vim.env.PATH = dir .. ":" .. vim.env.PATH
+			local current_path = vim.env.PATH or ""
+			vim.env.PATH = dir .. ":" .. current_path
 			return path
 		end
 	end
