@@ -191,16 +191,8 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 	return true
 end
 
--- Create a new Python .ipynb notebook
-vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
-	local filename = opts.args ~= "" and opts.args or "notebook"
-
-	-- Check for invalid characters
-	if filename:match("[<>:|?*]") then
-		vim.notify("❌ Invalid filename: " .. filename, vim.log.levels.ERROR)
-		return
-	end
-
+-- Helper to create notebook after environment is ready
+local function do_create_notebook(filename)
 	local kernel_info = {
 		kernelspec = {
 			display_name = "Python 3",
@@ -219,7 +211,64 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 		"import matplotlib.pyplot as plt",
 	}
 
+	-- Invalidate jupytext cache before creating (in case we just installed it)
+	local cache = require("pyworks.core.cache")
+	cache.invalidate("jupytext_check")
+
 	create_ipynb_file(filename, "Python", kernel_info, imports)
+end
+
+-- Create a new Python .ipynb notebook
+vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
+	local filename = opts.args ~= "" and opts.args or "notebook"
+
+	-- Check for invalid characters
+	if filename:match("[<>:|?*]") then
+		vim.notify("❌ Invalid filename: " .. filename, vim.log.levels.ERROR)
+		return
+	end
+
+	-- Check if jupytext is available
+	if not jupytext.is_jupytext_installed() then
+		-- Offer to set up environment first
+		local choice = vim.fn.confirm(
+			"jupytext not found. Set up Python environment first?",
+			"&Yes (recommended)\n&No (create file only)\n&Cancel",
+			1
+		)
+
+		if choice == 1 then
+			-- Set up environment, then create notebook
+			local cwd = vim.fn.getcwd()
+			vim.notify("📁 Setting up Python environment in: " .. cwd, vim.log.levels.INFO)
+
+			local python = require("pyworks.languages.python")
+			local error_handler = require("pyworks.core.error_handler")
+			local dummy_filepath = cwd .. "/setup.py"
+
+			local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
+			if ok then
+				vim.notify("✅ Python environment ready", vim.log.levels.INFO)
+				-- Wait for essentials to install, then create notebook
+				vim.defer_fn(function()
+					do_create_notebook(filename)
+				end, 2000) -- Give time for async package installation
+			end
+			return
+		elseif choice == 2 then
+			-- Create file only (can't open it)
+			vim.notify(
+				"Creating notebook file (won't be able to open until jupytext is installed)...",
+				vim.log.levels.INFO
+			)
+			-- Fall through to create the file
+		else
+			-- Cancel
+			return
+		end
+	end
+
+	do_create_notebook(filename)
 end, { nargs = "?", desc = "Create new Python .ipynb notebook" })
 
 return M
