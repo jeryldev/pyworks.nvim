@@ -206,7 +206,7 @@ end
 -- Create a centered floating window with content
 -- @param title: Window title (string)
 -- @param content: Array of lines to display
--- @param opts: Optional settings { width = 90, height = auto }
+-- @param opts: Optional settings { width = 100, height = auto }
 -- @return buf, win: Buffer and window handles
 function M.create_floating_window(title, content, opts)
 	opts = opts or {}
@@ -219,7 +219,7 @@ function M.create_floating_window(title, content, opts)
 	vim.bo[buf].modifiable = false
 
 	-- Calculate window size
-	local width = opts.width or 90
+	local width = opts.width or 100
 	local height = opts.height or #content
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)
