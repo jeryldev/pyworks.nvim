@@ -12,52 +12,9 @@ local utils = require("pyworks.utils")
 local KERNEL_LIST_TIMEOUT_MS = 10000 -- 10 seconds for kernel listing
 local KERNEL_CREATE_TIMEOUT_MS = 30000 -- 30 seconds for kernel creation
 
--- Language detection for notebooks
-local function detect_notebook_language(filepath)
-	-- Try cache first
-	local cached = cache.get("notebook_lang_" .. filepath)
-	if cached then
-		return cached
-	end
-
-	-- Read notebook metadata
-	local file = io.open(filepath, "r")
-	if not file then
-		return "python" -- Default to Python
-	end
-
-	local content = file:read("*all")
-	file:close()
-
-	-- Try to parse as JSON
-	local ok, data = pcall(vim.json.decode, content)
-	if not ok then
-		return "python" -- Default if can't parse
-	end
-
-	-- Check metadata for language
-	local language = "python" -- Default
-
-	if data.metadata then
-		if data.metadata.kernelspec then
-			local lang = data.metadata.kernelspec.language
-			if lang then
-				language = lang:lower()
-			end
-		elseif data.metadata.language_info then
-			local lang = data.metadata.language_info.name
-			if lang then
-				language = lang:lower()
-			end
-		end
-	end
-
-	-- Pyworks only supports Python (return python for all notebooks)
-	language = "python"
-
-	cache.set("notebook_lang_" .. filepath, language)
-
-	return language
+-- Language detection for notebooks (pyworks only supports Python)
+local function detect_notebook_language(_filepath)
+	return "python"
 end
 
 -- Main file handler
@@ -171,10 +128,6 @@ local function get_available_kernels()
 	return kernels
 end
 
--- Cache available kernels
-local cached_kernels = nil
-local kernel_cache_time = 0
-
 -- Find Python executable in venv
 local function find_python_in_venv(venv_path, filepath)
 	local candidates = {
@@ -286,7 +239,7 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 			string.format("✅ Created kernel '%s' -> %s", kernel_name, python_path),
 			vim.log.levels.INFO
 		)
-		cached_kernels = nil
+		cache.invalidate("kernel_list")
 		return kernel_name
 	end
 
@@ -297,10 +250,10 @@ end
 local function get_kernel_for_language(language, filepath)
 	-- For non-Python or no filepath: generic kernel lookup
 	if language:lower() ~= "python" or not filepath then
-		local now = vim.uv.now()
-		if not cached_kernels or (now - kernel_cache_time) > 60000 then
+		local cached_kernels = cache.get("kernel_list")
+		if not cached_kernels then
 			cached_kernels = get_available_kernels()
-			kernel_cache_time = now
+			cache.set("kernel_list", cached_kernels)
 		end
 
 		local lang = language:lower()

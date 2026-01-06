@@ -3,6 +3,9 @@ local M = {}
 
 local jupytext = require("pyworks.notebook.jupytext")
 
+local VENV_CHECK_MAX_ATTEMPTS = 30
+local VENV_CHECK_INTERVAL_MS = 1000
+
 -- Helper function to position cursor below first cell marker
 local function position_cursor_at_first_cell()
 	-- Find first cell marker (# %% for Python, or markdown marker)
@@ -278,12 +281,11 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 				if ok then
 					-- Poll for jupytext availability (installed as part of essentials), then create notebook
 					local attempts = 0
-					local max_attempts = 30 -- 30 seconds max wait
 					local timer = vim.uv.new_timer()
 
 					timer:start(
-						1000,
-						1000,
+						VENV_CHECK_INTERVAL_MS,
+						VENV_CHECK_INTERVAL_MS,
 						vim.schedule_wrap(function()
 							attempts = attempts + 1
 							cache.invalidate("jupytext_check") -- Clear cache to recheck
@@ -295,7 +297,7 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 								-- Re-configure jupytext.nvim to update PATH with venv's bin directory
 								jupytext.configure_jupytext_nvim()
 								do_create_notebook(filename)
-							elseif attempts >= max_attempts then
+							elseif attempts >= VENV_CHECK_MAX_ATTEMPTS then
 								timer:stop()
 								timer:close()
 								vim.notify("⚠️  jupytext installation taking too long", vim.log.levels.WARN)

@@ -8,6 +8,9 @@ local M = {}
 
 local error_handler = require("pyworks.core.error_handler")
 
+local BUFFER_SETTLE_DELAY_MS = 100
+local CELL_EXECUTION_DELAY_MS = 200
+
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
 local function evaluate_percent_cell()
@@ -93,7 +96,7 @@ function M.setup_buffer_keymaps()
 						if next_line <= last_line then
 							vim.api.nvim_win_set_cursor(0, { next_line, cursor[2] })
 						end
-					end, 100)
+					end, BUFFER_SETTLE_DELAY_MS)
 					return
 				end
 			end
@@ -148,7 +151,7 @@ function M.setup_buffer_keymaps()
 				else
 					vim.cmd("normal! j")
 				end
-			end, 100)
+			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
 		-- Re-evaluate current cell (stay in place)
@@ -169,7 +172,7 @@ function M.setup_buffer_keymaps()
 			-- Restore cursor position after evaluation completes
 			vim.defer_fn(function()
 				vim.api.nvim_win_set_cursor(0, cursor_pos)
-			end, 100)
+			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Re-evaluate current cell" }))
 
 		-- Run all cells in the buffer sequentially
@@ -213,10 +216,10 @@ function M.setup_buffer_keymaps()
 				ui.mark_cell_executed(cell_num)
 				evaluate_percent_cell()
 
-				-- 200ms delay between cells to avoid overwhelming the kernel
+				-- Delay between cells to avoid overwhelming the kernel
 				vim.defer_fn(function()
 					run_next_cell(cell_num + 1)
-				end, 200)
+				end, CELL_EXECUTION_DELAY_MS)
 			end
 
 			run_next_cell(1)
