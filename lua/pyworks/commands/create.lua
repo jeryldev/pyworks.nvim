@@ -94,7 +94,6 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 		"import matplotlib.pyplot as plt",
 		"",
 		"# %%",
-		"# Your code here",
 		"",
 	}
 
@@ -152,7 +151,7 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 				id = generate_cell_id(),
 				metadata = vim.empty_dict(),
 				outputs = {},
-				source = { "# Your code here" },
+				source = {},
 			},
 		},
 		metadata = kernel_info,
