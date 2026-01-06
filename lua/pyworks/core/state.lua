@@ -9,6 +9,10 @@ local state = {}
 -- Persistent state file path
 local state_file = vim.fn.stdpath("data") .. "/pyworks_state.json"
 
+-- Debounce timer for saves
+local save_timer = nil
+local SAVE_DEBOUNCE_MS = 500 -- Debounce multiple saves within 500ms
+
 -- Load state from disk
 local function load_persistent_state()
 	local file = io.open(state_file, "r")
@@ -27,7 +31,7 @@ local function load_persistent_state()
 	return {}
 end
 
--- Save state to disk
+-- Save state to disk atomically (write to temp file, then rename)
 local function save_persistent_state()
 	-- Filter only persistent keys
 	local persistent = {}
@@ -37,11 +41,50 @@ local function save_persistent_state()
 		end
 	end
 
-	local file = io.open(state_file, "w")
-	if file then
-		file:write(vim.json.encode(persistent))
-		file:close()
+	-- Encode to JSON
+	local ok, json_content = pcall(vim.json.encode, persistent)
+	if not ok then
+		return false
 	end
+
+	-- Write to temp file first (atomic write pattern)
+	local temp_file = state_file .. ".tmp"
+	local file = io.open(temp_file, "w")
+	if not file then
+		return false
+	end
+
+	local write_ok = pcall(function()
+		file:write(json_content)
+		file:flush()
+		file:close()
+	end)
+
+	if not write_ok then
+		pcall(os.remove, temp_file)
+		return false
+	end
+
+	-- Rename temp file to actual file (atomic on most filesystems)
+	local rename_ok = os.rename(temp_file, state_file)
+	if not rename_ok then
+		pcall(os.remove, temp_file)
+		return false
+	end
+
+	return true
+end
+
+-- Debounced save (coalesces multiple rapid saves into one)
+local function schedule_save()
+	if save_timer then
+		save_timer:stop()
+	end
+
+	save_timer = vim.defer_fn(function()
+		save_persistent_state()
+		save_timer = nil
+	end, SAVE_DEBOUNCE_MS)
 end
 
 -- Initialize state from disk
@@ -61,9 +104,9 @@ end
 function M.set(key, value)
 	state[key] = value
 
-	-- Save if it's a persistent key
+	-- Schedule debounced save if it's a persistent key
 	if key:match("^persistent_") or key:match("^initialized_") then
-		vim.defer_fn(save_persistent_state, 100)
+		schedule_save()
 	end
 end
 
