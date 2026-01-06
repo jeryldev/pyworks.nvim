@@ -248,6 +248,12 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 		return
 	end
 
+	-- Check for directory traversal attacks
+	if filename:match("%.%.") then
+		vim.notify("❌ Invalid filename: directory traversal not allowed", vim.log.levels.ERROR)
+		return
+	end
+
 	-- Check if jupytext is available
 	if not jupytext.is_jupytext_installed() then
 		-- Offer to set up environment first using vim.ui.select for nice UI
