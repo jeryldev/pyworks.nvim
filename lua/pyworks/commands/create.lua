@@ -206,30 +206,28 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 	end
 
 	-- Check if jupytext conversion worked (buffer should NOT start with '{')
-	-- If it still shows JSON, force a reload
+	-- Use short delay just to let buffer settle
 	vim.defer_fn(function()
 		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 		if first_line:match("^%s*{") then
 			-- Still JSON - jupytext didn't convert. Try forcing reload
-			vim.notify("🔄 Re-triggering jupytext conversion...", vim.log.levels.INFO)
-			-- Re-configure jupytext and reload
 			jupytext.configure_jupytext_nvim()
 			vim.cmd("edit!")
-			-- Check again after reload
+			-- Quick check after reload
 			vim.defer_fn(function()
 				local check_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 				if check_line:match("^%s*{") then
-					vim.notify("⚠️ Notebook still showing as JSON. Try closing and reopening.", vim.log.levels.WARN)
+					vim.notify("⚠️ Notebook showing as JSON. Try :edit! to reload.", vim.log.levels.WARN)
 				else
 					position_cursor_at_first_cell()
-					vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 				end
-			end, 200)
+				vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
+			end, 50)
 		else
 			position_cursor_at_first_cell()
 			vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 		end
-	end, 200)
+	end, 50)
 
 	return true
 end
