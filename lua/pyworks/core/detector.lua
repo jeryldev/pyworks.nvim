@@ -79,6 +79,13 @@ function M.on_file_open(filepath)
 
 	state.set("processing_" .. filepath, true)
 
+	-- Helper to ensure processing flag is always cleared (finally pattern)
+	local function clear_processing_flag()
+		vim.defer_fn(function()
+			state.set("processing_" .. filepath, nil)
+		end, 100)
+	end
+
 	-- Always show what file we're processing
 	notifications.notify(
 		string.format("🔍 Processing: %s", vim.fn.fnamemodify(filepath, ":t")),
@@ -98,17 +105,25 @@ function M.on_file_open(filepath)
 		)
 	end
 
-	-- Route to appropriate handler (Python only)
-	if ext == "ipynb" then
-		M.handle_notebook(filepath)
-	elseif ext == "py" or ft == "python" then
-		M.handle_python(filepath)
-	end
+	-- Route to appropriate handler (Python only) with error protection
+	local ok, err = pcall(function()
+		if ext == "ipynb" then
+			M.handle_notebook(filepath)
+		elseif ext == "py" or ft == "python" then
+			M.handle_python(filepath)
+		end
+	end)
 
-	-- Clear processing flag after a delay
-	vim.defer_fn(function()
-		state.set("processing_" .. filepath, nil)
-	end, 100)
+	-- Always clear the processing flag, even if handler failed
+	clear_processing_flag()
+
+	-- Log error if handler failed (but don't propagate it)
+	if not ok then
+		notifications.notify(
+			string.format("Error processing %s: %s", vim.fn.fnamemodify(filepath, ":t"), tostring(err)),
+			vim.log.levels.ERROR
+		)
+	end
 end
 
 -- Handle notebook files
