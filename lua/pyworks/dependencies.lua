@@ -3,6 +3,51 @@
 
 local M = {}
 
+-- Detect terminal backend for image rendering
+-- Returns: backend name (string), is_supported (boolean), detection_info (string)
+local function detect_image_backend()
+	local term = vim.env.TERM or ""
+	local term_program = vim.env.TERM_PROGRAM or ""
+	local kitty_window_id = vim.env.KITTY_WINDOW_ID
+	local wezterm_pane = vim.env.WEZTERM_PANE
+	local iterm_session = vim.env.ITERM_SESSION_ID
+	local ghostty = vim.env.GHOSTTY_RESOURCES_DIR
+
+	-- Check for kitty protocol support (highest priority)
+	if kitty_window_id or term_program:lower():match("kitty") then
+		return "kitty", true, "Detected Kitty terminal"
+	end
+
+	-- Check for Ghostty (uses kitty protocol)
+	if ghostty or term_program:lower():match("ghostty") then
+		return "kitty", true, "Detected Ghostty terminal (kitty protocol)"
+	end
+
+	-- Check for WezTerm (uses kitty protocol)
+	if wezterm_pane or term_program:lower():match("wezterm") then
+		return "kitty", true, "Detected WezTerm (kitty protocol)"
+	end
+
+	-- Check for iTerm2 (supports inline images)
+	if iterm_session or term_program:lower():match("iterm") then
+		return "kitty", true, "Detected iTerm2 (kitty protocol)"
+	end
+
+	-- Check for X11 environments (ueberzug)
+	if vim.env.DISPLAY and vim.fn.executable("ueberzug") == 1 then
+		return "ueberzug", true, "Detected X11 with ueberzug"
+	end
+
+	-- Check for tmux (may work with underlying terminal)
+	if vim.env.TMUX then
+		-- tmux passthrough may work if underlying terminal supports kitty
+		return "kitty", false, "Running in tmux - image support may be limited"
+	end
+
+	-- Fallback: try kitty but warn it may not work
+	return "kitty", false, "Unknown terminal - image rendering may not work"
+end
+
 -- Check if a plugin is installed via lazy.nvim
 local function is_plugin_installed(plugin_name)
 	local lazy_ok, lazy = pcall(require, "lazy.core.config")
@@ -111,18 +156,10 @@ function M.ensure_dependencies()
 				-- Try to configure if not already done
 				local ok, img = pcall(require, "image")
 				if ok and img.setup then
-					-- Detect terminal capabilities
-					local backend = "kitty"
-					local term = vim.env.TERM or ""
-					local term_program = vim.env.TERM_PROGRAM or ""
+					-- Use robust terminal detection
+					local backend, is_supported, detection_info = detect_image_backend()
 
-					if term_program:match("kitty") or term_program:match("ghostty") then
-						backend = "kitty"
-					elseif term:match("xterm") or vim.env.DISPLAY then
-						backend = "ueberzug" -- For X11 environments
-					end
-
-					local setup_ok = pcall(img.setup, {
+					local setup_ok, setup_err = pcall(img.setup, {
 						backend = backend,
 						integrations = {
 							markdown = {
@@ -142,9 +179,19 @@ function M.ensure_dependencies()
 					})
 
 					if setup_ok then
-						table.insert(actions_taken, string.format("Image.nvim: Configured with %s backend", backend))
+						local status_msg = string.format("Image.nvim: %s (%s backend)", detection_info, backend)
+						table.insert(actions_taken, status_msg)
+
+						-- Warn if terminal support is uncertain
+						if not is_supported then
+							table.insert(
+								issues,
+								"Image rendering may not work in this terminal. Try Kitty, Ghostty, WezTerm, or iTerm2."
+							)
+						end
 					else
-						table.insert(actions_taken, "Image.nvim: Configuration attempted")
+						local err_msg = setup_err and tostring(setup_err) or "unknown error"
+						table.insert(issues, string.format("Image.nvim setup failed: %s", err_msg))
 					end
 				end
 				return true
