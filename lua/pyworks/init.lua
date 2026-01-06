@@ -354,6 +354,7 @@ end, {
 })
 
 vim.api.nvim_create_user_command("PyworksHelp", function()
+	local ui = require("pyworks.ui")
 	local help = {
 		"",
 		"  COMMANDS",
@@ -391,48 +392,7 @@ vim.api.nvim_create_user_command("PyworksHelp", function()
 		"",
 	}
 
-	-- Create buffer
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, help)
-	vim.bo[buf].buftype = "nofile"
-	vim.bo[buf].bufhidden = "wipe"
-	vim.bo[buf].modifiable = false
-
-	-- Dynamic window size based on content
-	local width = 90
-	local height = #help
-	local row = math.floor((vim.o.lines - height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
-
-	-- Open floating window
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = "editor",
-		width = width,
-		height = height,
-		row = row,
-		col = col,
-		style = "minimal",
-		border = "rounded",
-		title = " Pyworks ",
-		title_pos = "center",
-	})
-
-	-- Close on q or Escape
-	local function close()
-		if vim.api.nvim_win_is_valid(win) then
-			vim.api.nvim_win_close(win, true)
-		end
-	end
-
-	vim.keymap.set("n", "q", close, { buffer = buf, nowait = true })
-	vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true })
-
-	-- Close when leaving window
-	vim.api.nvim_create_autocmd("WinLeave", {
-		buffer = buf,
-		once = true,
-		callback = close,
-	})
+	ui.create_floating_window(" Pyworks ", help)
 end, {
 	desc = "Show Pyworks commands and keymaps",
 })

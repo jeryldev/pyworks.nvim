@@ -810,6 +810,8 @@ function M.list_python_packages()
 	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
 	if success then
+		local ui = require("pyworks.ui")
+
 		-- Parse output into lines
 		local lines = vim.split(output, "\n")
 		local content = { "" }
@@ -823,48 +825,7 @@ function M.list_python_packages()
 		table.insert(content, "  Press q or <Esc> to close")
 		table.insert(content, "")
 
-		-- Create buffer
-		local buf = vim.api.nvim_create_buf(false, true)
-		vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-		vim.bo[buf].buftype = "nofile"
-		vim.bo[buf].bufhidden = "wipe"
-		vim.bo[buf].modifiable = false
-
-		-- Fixed window size
-		local width = 90
-		local height = 30
-		local row = math.floor((vim.o.lines - height) / 2)
-		local col = math.floor((vim.o.columns - width) / 2)
-
-		-- Open floating window
-		local win = vim.api.nvim_open_win(buf, true, {
-			relative = "editor",
-			width = width,
-			height = height,
-			row = row,
-			col = col,
-			style = "minimal",
-			border = "rounded",
-			title = " Installed Packages ",
-			title_pos = "center",
-		})
-
-		-- Close on q or Escape
-		local function close()
-			if vim.api.nvim_win_is_valid(win) then
-				vim.api.nvim_win_close(win, true)
-			end
-		end
-
-		vim.keymap.set("n", "q", close, { buffer = buf, nowait = true })
-		vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true })
-
-		-- Close when leaving window
-		vim.api.nvim_create_autocmd("WinLeave", {
-			buffer = buf,
-			once = true,
-			callback = close,
-		})
+		ui.create_floating_window(" Installed Packages ", content, { height = 30 })
 	else
 		notifications.notify_error("Failed to list packages")
 	end

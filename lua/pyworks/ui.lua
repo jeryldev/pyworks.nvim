@@ -201,4 +201,58 @@ function M.setup_buffer(opts)
 	-- since # is a comment character and will use the colorscheme's comment color
 end
 
+-- Create a centered floating window with content
+-- @param title: Window title (string)
+-- @param content: Array of lines to display
+-- @param opts: Optional settings { width = 90, height = auto }
+-- @return buf, win: Buffer and window handles
+function M.create_floating_window(title, content, opts)
+	opts = opts or {}
+
+	-- Create buffer
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].modifiable = false
+
+	-- Calculate window size
+	local width = opts.width or 90
+	local height = opts.height or #content
+	local row = math.floor((vim.o.lines - height) / 2)
+	local col = math.floor((vim.o.columns - width) / 2)
+
+	-- Open floating window
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = title,
+		title_pos = "center",
+	})
+
+	-- Close on q or Escape
+	local function close()
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_close(win, true)
+		end
+	end
+
+	vim.keymap.set("n", "q", close, { buffer = buf, nowait = true })
+	vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true })
+
+	-- Close when leaving window
+	vim.api.nvim_create_autocmd("WinLeave", {
+		buffer = buf,
+		once = true,
+		callback = close,
+	})
+
+	return buf, win
+end
+
 return M
