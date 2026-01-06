@@ -65,10 +65,11 @@ local function check_python_dependencies()
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 
 	for _, dep in ipairs(python_deps) do
-		-- Use safe shell escaping for Python import check
-		local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import " .. dep))
-		vim.fn.system(cmd)
-		if vim.v.shell_error == 0 then
+		-- Use vim.system for modern Neovim 0.10+
+		local ok, result = pcall(function()
+			return vim.system({ python_cmd, "-c", "import " .. dep }, { text = true }):wait()
+		end)
+		if ok and result and result.code == 0 then
 			table.insert(results, string.format("  %s: OK", dep))
 		else
 			table.insert(results, string.format("  %s: NOT INSTALLED", dep))
@@ -131,7 +132,10 @@ function M.run_diagnostics()
 	local python_path = vim.fn.exepath("python3")
 	if python_path ~= "" then
 		table.insert(report, "  python3: " .. python_path)
-		local version = vim.fn.system("python3 --version 2>&1"):gsub("\n", "")
+		local py_ok, py_result = pcall(function()
+			return vim.system({ "python3", "--version" }, { text = true }):wait()
+		end)
+		local version = (py_ok and py_result and py_result.stdout) and py_result.stdout:gsub("\n", "") or "unknown"
 		table.insert(report, "  Version: " .. version)
 	else
 		table.insert(report, "  python3: NOT FOUND")
@@ -142,7 +146,10 @@ function M.run_diagnostics()
 	table.insert(report, "UV Package Manager:")
 	if vim.fn.executable("uv") == 1 then
 		table.insert(report, "  uv: " .. vim.fn.exepath("uv"))
-		local version = vim.fn.system("uv --version 2>&1"):gsub("\n", "")
+		local uv_ok, uv_result = pcall(function()
+			return vim.system({ "uv", "--version" }, { text = true }):wait()
+		end)
+		local version = (uv_ok and uv_result and uv_result.stdout) and uv_result.stdout:gsub("\n", "") or "unknown"
 		table.insert(report, "  Version: " .. version)
 	else
 		table.insert(report, "  uv: NOT FOUND")

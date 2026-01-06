@@ -242,11 +242,12 @@ function M.register_molten()
 	-- Use the Python host that pyworks has configured
 	local python_cmd = vim.g.python3_host_prog or "python3"
 
-	-- Check if pynvim is available using safe shell escape
-	local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import pynvim"))
-	vim.fn.system(cmd)
+	-- Check if pynvim is available using vim.system (Neovim 0.10+)
+	local ok, result = pcall(function()
+		return vim.system({ python_cmd, "-c", "import pynvim" }, { text = true }):wait()
+	end)
 
-	if vim.v.shell_error ~= 0 then
+	if not ok or not result or result.code ~= 0 then
 		-- pynvim not installed - will be handled by pyworks essentials
 		return false
 	end
@@ -288,13 +289,14 @@ function M.check_health()
 		end
 	end
 
-	-- Check Python dependencies using safe shell escaping
+	-- Check Python dependencies using vim.system (Neovim 0.10+)
 	local python_cmd = vim.g.python3_host_prog or "python3"
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 	for _, dep in ipairs(python_deps) do
-		local cmd = string.format("%s -c %s 2>&1", vim.fn.shellescape(python_cmd), vim.fn.shellescape("import " .. dep))
-		vim.fn.system(cmd)
-		if vim.v.shell_error == 0 then
+		local ok, result = pcall(function()
+			return vim.system({ python_cmd, "-c", "import " .. dep }, { text = true }):wait()
+		end)
+		if ok and result and result.code == 0 then
 			table.insert(health, string.format("✅ Python %s: Installed", dep))
 		else
 			table.insert(health, string.format("❌ Python %s: Not installed", dep))

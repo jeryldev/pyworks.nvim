@@ -259,7 +259,7 @@ function M.install_essentials(filepath)
 
 	-- Upgrade pip if using pip (not needed for uv)
 	if not is_uv then
-		vim.fn.system(package_manager .. " install --upgrade pip 2>/dev/null")
+		pcall(vim.system, { package_manager, "install", "--upgrade", "pip" }, { text = true })
 	end
 
 	local packages_str = table.concat(missing_essentials, " ")
@@ -284,16 +284,23 @@ function M.install_essentials(filepath)
 		return false
 	end
 
-	local error_output = {}
-	local essentials_job_id = vim.fn.jobstart(cmd, {
+	local ok, sys_obj = pcall(vim.system, cmd, {
+		text = true,
 		cwd = project_dir,
-		on_stdout = function(_, data)
-			-- Silent - don't show every package being installed
-		end,
-		on_stderr = function(_, data)
-			for _, line in ipairs(data) do
-				if line ~= "" then
-					-- Only collect actual errors (not progress output)
+	}, function(obj)
+		vim.schedule(function()
+			if obj.code == 0 then
+				notifications.progress_finish("python_essentials", "Essential packages installed")
+				for _, pkg in ipairs(missing_essentials) do
+					state.mark_package_installed("python", pkg)
+				end
+				cache.invalidate("installed_packages_python")
+			else
+				notifications.progress_finish("python_essentials")
+				local error_msg = "Failed to install essential packages."
+				local stderr = obj.stderr or ""
+				local filtered_errors = {}
+				for line in stderr:gmatch("[^\r\n]+") do
 					if
 						not line:match("WARNING")
 						and not line:match("Resolved")
@@ -301,49 +308,21 @@ function M.install_essentials(filepath)
 						and not line:match("Collecting")
 						and not line:match("Installing")
 					then
-						table.insert(error_output, line)
+						table.insert(filtered_errors, line)
 					end
 				end
+				if #filtered_errors > 0 then
+					error_msg = error_msg .. "\nError: " .. table.concat(filtered_errors, "\n")
+				end
+				notifications.notify_error(error_msg)
+				vim.notify("[Pyworks] Installation command was: " .. cmd, vim.log.levels.ERROR)
 			end
-		end,
-		on_exit = function(exit_job_id, code)
-			utils.safe_schedule(function()
-				if code == 0 then
-					notifications.progress_finish("python_essentials", "Essential packages installed")
-					-- Mark packages as installed
-					for _, pkg in ipairs(missing_essentials) do
-						state.mark_package_installed("python", pkg)
-					end
-					cache.invalidate("installed_packages_python")
-				else
-					notifications.progress_finish("python_essentials")
-					local error_msg = "Failed to install essential packages."
-					if #error_output > 0 then
-						error_msg = error_msg .. "\nError: " .. table.concat(error_output, "\n")
-					end
-					notifications.notify_error(error_msg)
-					vim.notify("[Pyworks] Installation command was: " .. cmd, vim.log.levels.ERROR)
-				end
+		end)
+	end)
 
-				-- Remove job from tracking
-				if exit_job_id and exit_job_id > 0 then
-					state.remove_job(exit_job_id)
-				end
-			end, "install_essentials")
-		end,
-	})
-
-	-- Track active job only if job started successfully
-	if essentials_job_id and essentials_job_id > 0 then
-		state.add_job(essentials_job_id, {
-			type = "essentials_install",
-			language = "python",
-			packages = missing_essentials,
-			started = os.time(),
-		})
-	else
+	if not ok then
 		notifications.progress_finish("python_essentials")
-		notifications.notify_error("Failed to start essential packages installation job")
+		notifications.notify_error("Failed to start essential packages installation: " .. tostring(sys_obj))
 		return false
 	end
 
@@ -487,135 +466,102 @@ function M.install_packages(package_list, filepath)
 		return false
 	end
 
-	-- Track output for better error reporting
-	local error_lines = {}
-	local success_output = {}
-	local all_output = {} -- Keep ALL output for debugging
-
 	-- Log the command being executed
 	notifications.notify(string.format("Executing: %s", cmd), vim.log.levels.INFO)
 	notifications.notify(string.format("In directory: %s", project_dir), vim.log.levels.INFO)
 
-	-- Create a job to install packages
-	local job_id = vim.fn.jobstart(cmd, {
+	-- Create async job to install packages using vim.system (Neovim 0.10+)
+	local ok, sys_obj = pcall(vim.system, cmd, {
+		text = true,
 		cwd = project_dir,
-		on_stdout = function(_, data)
-			for _, line in ipairs(data) do
-				if line ~= "" then
-					table.insert(success_output, line)
+	}, function(obj)
+		vim.schedule(function()
+			if obj.code == 0 then
+				notifications.progress_finish("python_packages", "Packages installed successfully")
+				for _, pkg in ipairs(package_list) do
+					state.mark_package_installed("python", pkg)
+				end
+				cache.invalidate("installed_packages_python")
+				cache.invalidate_pattern("imports_")
+			else
+				notifications.progress_finish("python_packages")
+
+				-- Build output for error buffer
+				local stdout = obj.stdout or ""
+				local stderr = obj.stderr or ""
+				local all_output = {}
+				for line in stdout:gmatch("[^\r\n]+") do
 					table.insert(all_output, "[STDOUT] " .. line)
 				end
-			end
-		end,
-		on_stderr = function(_, data)
-			for _, line in ipairs(data) do
-				if line ~= "" then
+				for line in stderr:gmatch("[^\r\n]+") do
 					table.insert(all_output, "[STDERR] " .. line)
-					-- Capture ALL stderr for debugging, not just errors
-					table.insert(error_lines, line)
 				end
+
+				-- Create a detailed error buffer
+				vim.cmd("new")
+				vim.bo.buftype = "nofile"
+				vim.bo.bufhidden = "wipe"
+				vim.bo.swapfile = false
+				vim.bo.filetype = "text"
+				vim.api.nvim_buf_set_name(0, "Package Installation Error")
+
+				local error_report = {
+					"PACKAGE INSTALLATION FAILED",
+					"=" .. string.rep("=", 60),
+					"",
+					"Command: " .. cmd,
+					"Directory: " .. project_dir,
+					"Exit code: " .. obj.code,
+					"Packages attempted: " .. packages_str,
+					"",
+					"=" .. string.rep("=", 60),
+					"FULL OUTPUT:",
+					"=" .. string.rep("=", 60),
+					"",
+				}
+
+				vim.list_extend(error_report, all_output)
+
+				error_report[#error_report + 1] = ""
+				error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+				error_report[#error_report + 1] = "ERROR ANALYSIS:"
+				error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+
+				for line in stderr:gmatch("[^\r\n]+") do
+					if
+						line:match("No solution found")
+						or line:match("Because")
+						or line:match("requires")
+						or line:match("depends")
+					then
+						error_report[#error_report + 1] = "• " .. line
+					end
+				end
+
+				error_report[#error_report + 1] = ""
+				error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+				error_report[#error_report + 1] = "TROUBLESHOOTING:"
+				error_report[#error_report + 1] = "=" .. string.rep("=", 60)
+				error_report[#error_report + 1] = "1. Try installing packages one by one to identify conflicts"
+				error_report[#error_report + 1] = "2. Check Python version compatibility"
+				error_report[#error_report + 1] =
+					"3. For UV: Consider using 'uv pip install --no-deps' for problematic packages"
+				error_report[#error_report + 1] = "4. Use :PyworksListPython to see currently installed packages"
+				error_report[#error_report + 1] = ""
+				error_report[#error_report + 1] = "Press 'q' to close this buffer"
+
+				vim.api.nvim_buf_set_lines(0, 0, -1, false, error_report)
+				vim.bo.modifiable = false
+				vim.bo.readonly = true
+				vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
+
+				notifications.notify_error("Package installation failed. See error buffer for details.")
 			end
-		end,
-		on_exit = function(job_id_exit, code)
-			utils.safe_schedule(function()
-				if code == 0 then
-					notifications.progress_finish("python_packages", "Packages installed successfully")
-					-- Mark packages as installed
-					for _, pkg in ipairs(package_list) do
-						state.mark_package_installed("python", pkg)
-					end
-					-- Invalidate cache
-					cache.invalidate("installed_packages_python")
-					cache.invalidate_pattern("imports_")
-				else
-					notifications.progress_finish("python_packages")
+		end)
+	end)
 
-					-- Create a detailed error buffer
-					vim.cmd("new")
-					vim.bo.buftype = "nofile"
-					vim.bo.bufhidden = "wipe"
-					vim.bo.swapfile = false
-					vim.bo.filetype = "text"
-					vim.api.nvim_buf_set_name(0, "Package Installation Error")
-
-					local error_report = {
-						"PACKAGE INSTALLATION FAILED",
-						"=" .. string.rep("=", 60),
-						"",
-						"Command: " .. cmd,
-						"Directory: " .. project_dir,
-						"Exit code: " .. code,
-						"Packages attempted: " .. packages_str,
-						"",
-						"=" .. string.rep("=", 60),
-						"FULL OUTPUT:",
-						"=" .. string.rep("=", 60),
-						"",
-					}
-
-					-- Add all output
-					vim.list_extend(error_report, all_output)
-
-					-- Add specific error analysis
-					error_report[#error_report + 1] = ""
-					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
-					error_report[#error_report + 1] = "ERROR ANALYSIS:"
-					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
-
-					-- Look for specific UV resolution errors
-					for _, line in ipairs(error_lines) do
-						if
-							line:match("No solution found")
-							or line:match("Because")
-							or line:match("requires")
-							or line:match("depends")
-						then
-							error_report[#error_report + 1] = "• " .. line
-						end
-					end
-
-					error_report[#error_report + 1] = ""
-					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
-					error_report[#error_report + 1] = "TROUBLESHOOTING:"
-					error_report[#error_report + 1] = "=" .. string.rep("=", 60)
-					error_report[#error_report + 1] = "1. Try installing packages one by one to identify conflicts"
-					error_report[#error_report + 1] = "2. Check Python version compatibility"
-					error_report[#error_report + 1] =
-						"3. For UV: Consider using 'uv pip install --no-deps' for problematic packages"
-					error_report[#error_report + 1] = "4. Use :PyworksListPython to see currently installed packages"
-					error_report[#error_report + 1] = ""
-					error_report[#error_report + 1] = "Press 'q' to close this buffer"
-
-					-- Set buffer content
-					vim.api.nvim_buf_set_lines(0, 0, -1, false, error_report)
-
-					-- Make read-only and add keymap
-					vim.bo.modifiable = false
-					vim.bo.readonly = true
-					vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
-
-					-- Also show a short notification
-					notifications.notify_error("Package installation failed. See error buffer for details.")
-				end
-
-				-- Remove job from active jobs (use the job_id from on_exit parameter)
-				if job_id_exit and job_id_exit > 0 then
-					state.remove_job(job_id_exit)
-				end
-			end, "install_packages")
-		end,
-	})
-
-	-- Track active job only if job started successfully
-	if job_id and job_id > 0 then
-		state.add_job(job_id, {
-			type = "package_install",
-			language = "python",
-			packages = package_list,
-			started = os.time(),
-		})
-	else
-		notifications.notify_error("Failed to start package installation job")
+	if not ok then
+		notifications.notify_error("Failed to start package installation: " .. tostring(sys_obj))
 		return false
 	end
 
@@ -803,23 +749,22 @@ function M.uninstall_python_packages(packages_str)
 
 	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
 
-	-- Execute uninstall
-	local job_id = vim.fn.jobstart(cmd, {
+	-- Execute uninstall using vim.system (Neovim 0.10+)
+	local ok, _ = pcall(vim.system, cmd, {
+		text = true,
 		cwd = project_dir,
-		on_exit = function(_, code)
-			utils.safe_schedule(function()
-				if code == 0 then
-					notifications.notify("Packages uninstalled successfully", vim.log.levels.INFO)
-					-- Invalidate cache
-					cache.invalidate("installed_packages_python")
-				else
-					notifications.notify_error("Failed to uninstall some packages")
-				end
-			end, "uninstall_packages")
-		end,
-	})
+	}, function(obj)
+		vim.schedule(function()
+			if obj.code == 0 then
+				notifications.notify("Packages uninstalled successfully", vim.log.levels.INFO)
+				cache.invalidate("installed_packages_python")
+			else
+				notifications.notify_error("Failed to uninstall some packages")
+			end
+		end)
+	end)
 
-	if not job_id or job_id <= 0 then
+	if not ok then
 		notifications.notify_error("Failed to start uninstall command")
 	end
 end

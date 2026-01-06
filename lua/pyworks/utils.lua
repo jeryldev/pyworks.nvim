@@ -271,7 +271,8 @@ end
 -- Default timeout for system commands (in milliseconds)
 local DEFAULT_TIMEOUT_MS = 30000 -- 30 seconds
 
--- Async system call wrapper with timeout support
+-- Async system call wrapper using vim.system() (Neovim 0.10+)
+-- Returns: SystemObj that can be used to kill the process
 function M.async_system_call(cmd, callback, options)
 	vim.validate({
 		cmd = { cmd, { "string", "table" } },
@@ -279,103 +280,68 @@ function M.async_system_call(cmd, callback, options)
 		options = { options, "table", true },
 	})
 	options = options or {}
-	local stdout_data = {}
-	local stderr_data = {}
 	local timeout_ms = options.timeout or DEFAULT_TIMEOUT_MS
-	local timer = nil
-	local job_completed = false
 
-	local job_id = vim.fn.jobstart(cmd, {
-		stdout_buffered = true,
-		stderr_buffered = true,
-		on_stdout = function(_, data)
-			if data then
-				vim.list_extend(stdout_data, data)
-			end
-		end,
-		on_stderr = function(_, data)
-			if data then
-				vim.list_extend(stderr_data, data)
-			end
-		end,
-		on_exit = function(_, exit_code)
-			job_completed = true
-			if timer then
-				timer:stop()
-				timer:close()
-				timer = nil
-			end
-			vim.schedule(function()
-				local stdout = table.concat(stdout_data, "\n")
-				local stderr = table.concat(stderr_data, "\n")
-				callback(exit_code == 0, stdout, stderr, exit_code)
-			end)
-		end,
+	local system_opts = {
+		text = true,
 		cwd = options.cwd,
 		env = options.env,
-	})
+		timeout = timeout_ms > 0 and timeout_ms or nil,
+	}
 
-	if job_id <= 0 then
+	local ok, result = pcall(vim.system, cmd, system_opts, function(obj)
 		vim.schedule(function()
-			callback(false, "", "Failed to start job", -1)
+			local success = obj.code == 0
+			local stdout = obj.stdout or ""
+			local stderr = obj.stderr or ""
+			local exit_code = obj.code
+
+			if obj.signal == 15 or obj.signal == 9 then
+				callback(false, "", "Command timed out after " .. (timeout_ms / 1000) .. " seconds", -2)
+			else
+				callback(success, stdout, stderr, exit_code)
+			end
 		end)
-		return job_id
+	end)
+
+	if not ok then
+		vim.schedule(function()
+			callback(false, "", "Failed to start job: " .. tostring(result), -1)
+		end)
+		return nil
 	end
 
-	-- Set up timeout timer
-	if timeout_ms > 0 then
-		timer = vim.uv.new_timer()
-		timer:start(
-			timeout_ms,
-			0,
-			vim.schedule_wrap(function()
-				if not job_completed then
-					pcall(vim.fn.jobstop, job_id)
-					if timer then
-						timer:stop()
-						timer:close()
-						timer = nil
-					end
-					callback(false, "", "Command timed out after " .. (timeout_ms / 1000) .. " seconds", -2)
-				end
-			end)
-		)
-	end
-
-	return job_id
+	return result
 end
 
--- Synchronous system call with timeout (blocks but won't hang forever)
+-- Synchronous system call with timeout using vim.system() (Neovim 0.10+)
 -- Returns: success (boolean), output (string), exit_code (number)
 function M.system_with_timeout(cmd, timeout_ms)
+	vim.validate({
+		cmd = { cmd, { "string", "table" } },
+		timeout_ms = { timeout_ms, "number", true },
+	})
 	timeout_ms = timeout_ms or DEFAULT_TIMEOUT_MS
-	local result = { success = false, output = "", exit_code = -1, timed_out = false }
-	local done = false
 
-	local job_id = M.async_system_call(cmd, function(success, stdout, stderr, exit_code)
-		result.success = success
-		result.output = stdout
-		result.stderr = stderr
-		result.exit_code = exit_code
-		result.timed_out = exit_code == -2
-		done = true
-	end, { timeout = timeout_ms })
+	local ok, sys_obj = pcall(vim.system, cmd, {
+		text = true,
+		timeout = timeout_ms > 0 and timeout_ms or nil,
+	})
 
-	if job_id <= 0 then
-		return false, "Failed to start command", -1
+	if not ok then
+		return false, "Failed to start command: " .. tostring(sys_obj), -1
 	end
 
-	-- Wait for completion (with vim.wait to allow UI updates)
-	local wait_result = vim.wait(timeout_ms + 1000, function()
-		return done
-	end, 10)
+	local result = sys_obj:wait()
 
-	if not wait_result then
-		pcall(vim.fn.jobstop, job_id)
+	if result.signal == 15 or result.signal == 9 then
 		return false, "Command timed out", -2
 	end
 
-	return result.success, result.output, result.exit_code
+	local success = result.code == 0
+	local stdout = result.stdout or ""
+
+	return success, stdout, result.code
 end
 
 -- Safe file write with proper error handling

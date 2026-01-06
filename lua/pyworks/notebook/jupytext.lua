@@ -23,11 +23,11 @@ function M.is_jupytext_installed()
 		return false
 	end
 
-	-- Use safe shell escaping for Python import check
-	local cmd =
-		string.format("%s -c %s 2>/dev/null", vim.fn.shellescape(python_path), vim.fn.shellescape("import jupytext"))
-	vim.fn.system(cmd)
-	local success = vim.v.shell_error == 0
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, result = pcall(function()
+		return vim.system({ python_path, "-c", "import jupytext" }, { text = true }):wait()
+	end)
+	local success = ok and result and result.code == 0
 
 	-- Cache the result
 	cache.set("jupytext_check", success)
@@ -81,9 +81,10 @@ function M.install_jupytext(filepath)
 
 	local cmd = string.format("%s install jupytext", pip_cmd)
 
-	vim.fn.jobstart(cmd, {
-		on_exit = function(_, code)
-			if code == 0 then
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, _ = pcall(vim.system, cmd, { text = true }, function(obj)
+		vim.schedule(function()
+			if obj.code == 0 then
 				cache.invalidate("jupytext_check")
 				notifications.progress_finish("jupytext_install", "Jupytext installed successfully")
 				state.set("persistent_jupytext_installed", true)
@@ -91,8 +92,14 @@ function M.install_jupytext(filepath)
 				notifications.progress_finish("jupytext_install")
 				notifications.notify_error("Failed to install jupytext")
 			end
-		end,
-	})
+		end)
+	end)
+
+	if not ok then
+		notifications.progress_finish("jupytext_install")
+		notifications.notify_error("Failed to start jupytext installation")
+		return false
+	end
 
 	return true
 end
@@ -118,15 +125,20 @@ function M.notebook_to_markdown(filepath)
 		return nil, "Jupytext not installed"
 	end
 
-	-- Use jupytext to convert to markdown
-	local cmd = string.format("%s -m jupytext --to markdown --output - '%s' 2>/dev/null", python_path, filepath)
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, result = pcall(function()
+		return vim.system(
+			{ python_path, "-m", "jupytext", "--to", "markdown", "--output", "-", filepath },
+			{ text = true }
+		)
+			:wait()
+	end)
 
-	local output = vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
+	if not ok or not result or result.code ~= 0 then
 		return nil, "Failed to convert notebook"
 	end
 
-	return output, nil
+	return result.stdout, nil
 end
 
 -- Convert notebook to Python script
@@ -140,15 +152,20 @@ function M.notebook_to_python(filepath)
 		return nil, "Jupytext not installed"
 	end
 
-	-- Use jupytext to convert to Python
-	local cmd = string.format("%s -m jupytext --to py:percent --output - '%s' 2>/dev/null", python_path, filepath)
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, result = pcall(function()
+		return vim.system(
+			{ python_path, "-m", "jupytext", "--to", "py:percent", "--output", "-", filepath },
+			{ text = true }
+		)
+			:wait()
+	end)
 
-	local output = vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
+	if not ok or not result or result.code ~= 0 then
 		return nil, "Failed to convert notebook"
 	end
 
-	return output, nil
+	return result.stdout, nil
 end
 
 -- Open notebook in readable format
@@ -208,11 +225,15 @@ function M.sync_notebook_to_python(notebook_path, python_path)
 		return false, "Jupytext not installed"
 	end
 
-	local cmd =
-		string.format("%s -m jupytext --to py:percent --output '%s' '%s'", python_cmd, python_path, notebook_path)
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, result = pcall(function()
+		return vim.system(
+			{ python_cmd, "-m", "jupytext", "--to", "py:percent", "--output", python_path, notebook_path },
+			{ text = true }
+		):wait()
+	end)
 
-	vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
+	if not ok or not result or result.code ~= 0 then
 		return false, "Failed to sync notebook"
 	end
 
@@ -230,10 +251,15 @@ function M.sync_python_to_notebook(python_path, notebook_path)
 		return false, "Jupytext not installed"
 	end
 
-	local cmd = string.format("%s -m jupytext --to notebook --output '%s' '%s'", python_cmd, notebook_path, python_path)
+	-- Use vim.system for modern Neovim 0.10+
+	local ok, result = pcall(function()
+		return vim.system(
+			{ python_cmd, "-m", "jupytext", "--to", "notebook", "--output", notebook_path, python_path },
+			{ text = true }
+		):wait()
+	end)
 
-	vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
+	if not ok or not result or result.code ~= 0 then
 		return false, "Failed to sync Python file"
 	end
 
