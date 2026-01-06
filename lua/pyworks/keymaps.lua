@@ -11,6 +11,13 @@ local error_handler = require("pyworks.core.error_handler")
 local BUFFER_SETTLE_DELAY_MS = 100
 local CELL_EXECUTION_DELAY_MS = 200
 
+-- Helper to go to the first line (first cell) and enter insert mode
+local function enter_first_cell()
+	vim.api.nvim_win_set_cursor(0, { 1, 0 })
+	vim.notify("First cell", vim.log.levels.INFO)
+	vim.cmd("startinsert")
+end
+
 -- Helper to move below a cell marker and enter insert mode
 -- If marker is at end of file, adds an empty line first
 local function enter_cell(marker_line)
@@ -478,18 +485,12 @@ function M.setup_buffer_keymaps()
 		local found = vim.fn.search("^# %%", "bW")
 
 		if found == 0 then
-			-- No marker found above - go to first line (first cell content)
-			vim.api.nvim_win_set_cursor(0, { 1, 0 })
-			vim.notify("First cell", vim.log.levels.INFO)
-			vim.cmd("startinsert")
+			enter_first_cell()
 		elseif found == current_marker and current_line <= current_marker + 1 then
 			-- We were at or just below a marker, search again for the previous one
 			local prev_found = vim.fn.search("^# %%", "bW")
 			if prev_found == 0 then
-				-- No previous marker - go to first line
-				vim.api.nvim_win_set_cursor(0, { 1, 0 })
-				vim.notify("First cell", vim.log.levels.INFO)
-				vim.cmd("startinsert")
+				enter_first_cell()
 			else
 				enter_cell(prev_found)
 			end
