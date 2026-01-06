@@ -165,6 +165,44 @@ function M.get_package_manager(filepath)
 	end
 end
 
+-- Build pip/uv command with proper syntax
+-- action: "install", "uninstall", "list"
+-- packages: string of packages (for install/uninstall) or nil (for list)
+-- filepath: file path to determine venv location
+-- opts: { format = "freeze", quiet = true }
+local function build_pip_command(action, packages, filepath, opts)
+	opts = opts or {}
+	local _, venv_path = utils.get_project_paths(filepath)
+	local python_path = venv_path .. "/bin/python"
+	local is_uv = M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 1
+
+	local cmd
+	if is_uv then
+		cmd = string.format("uv pip %s --python %s", action, vim.fn.shellescape(python_path))
+	else
+		local pip_path = M.get_pip_path(filepath)
+		cmd = string.format("%s %s", pip_path, action)
+	end
+
+	if packages and packages ~= "" then
+		cmd = cmd .. " " .. packages
+	end
+
+	if opts.format then
+		cmd = cmd .. " --format=" .. opts.format
+	end
+
+	if opts.yes and not is_uv then
+		cmd = cmd .. " -y"
+	end
+
+	if opts.quiet then
+		cmd = cmd .. " 2>/dev/null"
+	end
+
+	return cmd, is_uv
+end
+
 -- Create virtual environment
 function M.create_venv(filepath)
 	filepath = filepath or get_current_filepath()
@@ -261,19 +299,8 @@ function M.install_essentials(filepath)
 	end
 
 	local packages_str = table.concat(missing_essentials, " ")
+	local cmd = build_pip_command("install", packages_str, filepath)
 
-	-- Build the install command with proper syntax for UV
-	local cmd
-	if is_uv then
-		-- For UV, use --python flag to specify the venv's Python
-		local python_path = venv_path .. "/bin/python"
-		cmd = string.format("uv pip install --python %s %s", vim.fn.shellescape(python_path), packages_str)
-	else
-		-- Regular pip command
-		cmd = string.format("%s install %s", package_manager, packages_str)
-	end
-
-	-- Log the command for debugging (only in debug mode)
 	if notifications.get_config().debug_mode then
 		notifications.notify("[Debug] Running: " .. cmd, vim.log.levels.DEBUG)
 	end
@@ -360,29 +387,17 @@ function M.get_installed_packages(filepath)
 		return {}
 	end
 
-	local cmd
-	local project_dir, venv_path = utils.get_project_paths(filepath)
-	local python_path = venv_path .. "/bin/python"
-
-	-- Check if this is a UV venv
-	if M.venv_uses_uv(filepath) then
-		-- For UV venvs, use 'uv pip list' with the specific Python interpreter
-		if vim.fn.executable("uv") == 1 then
-			-- Use --python to specify the venv's Python interpreter
-			cmd = string.format("uv pip list --python %s --format=freeze 2>/dev/null", vim.fn.shellescape(python_path))
-		else
-			-- UV venv but no UV available - can't list packages
-			return {}
-		end
-	else
-		-- Regular pip venv
-		local pip_path = M.get_pip_path(filepath)
-		if not pip_path then
-			return {}
-		end
-		cmd = string.format("%s list --format=freeze 2>/dev/null", pip_path)
+	-- UV venv but no UV available - can't list packages
+	if M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 0 then
+		return {}
 	end
 
+	-- Regular pip venv without pip - can't list packages
+	if not M.venv_uses_uv(filepath) and not M.get_pip_path(filepath) then
+		return {}
+	end
+
+	local cmd = build_pip_command("list", nil, filepath, { format = "freeze", quiet = true })
 	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
 	if not success then
@@ -439,22 +454,8 @@ function M.install_packages(package_list, filepath)
 		string.format("Installing %d packages...", #package_list)
 	)
 
-	-- Get project directory for this file (first return value)
-	local project_dir, venv_path = utils.get_project_paths(filepath)
-
-	-- Build the install command with proper syntax for UV
-	local cmd
-	if is_uv then
-		-- For UV, use --python flag to specify the venv's Python
-		local python_path = venv_path .. "/bin/python"
-		cmd = string.format("uv pip install --python %s %s", vim.fn.shellescape(python_path), packages_str)
-	else
-		-- Regular pip command
-		cmd = string.format("%s install %s", package_manager, packages_str)
-	end
-
-	-- Debug: Show what we got
-	-- notifications.notify(string.format("Debug: filepath=%s, project_dir=%s", filepath or "nil", project_dir or "nil"), vim.log.levels.WARN)
+	local project_dir = utils.get_project_paths(filepath)
+	local cmd = build_pip_command("install", packages_str, filepath)
 
 	-- Ensure project_dir is valid
 	if not project_dir or project_dir == "" then
@@ -736,22 +737,9 @@ function M.uninstall_python_packages(packages_str)
 		return
 	end
 
-	-- Get package manager
-	local package_manager = M.get_package_manager(filepath)
-	local project_dir, venv_path = utils.get_project_paths(filepath)
-
-	-- Build uninstall command
+	local project_dir = utils.get_project_paths(filepath)
 	local packages_str_clean = table.concat(pkg_list, " ")
-	local cmd
-	local is_uv = package_manager:match("^uv")
-	if is_uv then
-		-- For UV, use --python flag to specify the venv's Python
-		local python_path = venv_path .. "/bin/python"
-		cmd = string.format("uv pip uninstall --python %s %s", vim.fn.shellescape(python_path), packages_str_clean)
-	else
-		-- Regular pip command
-		cmd = string.format("%s uninstall -y %s", package_manager, packages_str_clean)
-	end
+	local cmd = build_pip_command("uninstall", packages_str_clean, filepath, { yes = true })
 
 	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
 
@@ -790,20 +778,19 @@ function M.list_python_packages()
 		return
 	end
 
-	-- Determine command based on package manager (uv or pip)
-	local cmd
-	if M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 1 then
-		local project_dir, _ = utils.get_project_paths(filepath)
-		cmd = string.format("cd %s && uv pip list", vim.fn.shellescape(project_dir))
-	else
-		local pip_path = M.get_pip_path(filepath)
-		if not pip_path then
-			notifications.notify_error("pip not found in virtual environment")
-			return
-		end
-		cmd = string.format("%s list", pip_path)
+	-- UV venv but no UV available
+	if M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 0 then
+		notifications.notify_error("uv not found but required for this venv")
+		return
 	end
 
+	-- Regular pip venv without pip
+	if not M.venv_uses_uv(filepath) and not M.get_pip_path(filepath) then
+		notifications.notify_error("pip not found in virtual environment")
+		return
+	end
+
+	local cmd = build_pip_command("list", nil, filepath)
 	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
 	if success then
