@@ -4,19 +4,10 @@ local M = {}
 local notifications = require("pyworks.core.notifications")
 local utils = require("pyworks.utils")
 
--- Check if jupytext CLI is available
+-- Check if jupytext CLI is available (delegates to jupytext module)
 function M.check_jupytext_cli(filepath)
-	-- First check project venv
-	if filepath then
-		local project_dir, venv_path = utils.get_project_paths(filepath)
-		local venv_jupytext = venv_path .. "/bin/jupytext"
-		if vim.fn.executable(venv_jupytext) == 1 then
-			return true
-		end
-	end
-
-	-- Fall back to system PATH check using safe executable function
-	return vim.fn.executable("jupytext") == 1
+	local jupytext = require("pyworks.notebook.jupytext")
+	return jupytext.is_jupytext_installed()
 end
 
 -- Handle notebook opening with fallback
