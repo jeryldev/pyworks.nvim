@@ -225,6 +225,13 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
 		if ok then
 			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
+			-- Re-configure jupytext.nvim after packages are installed (async)
+			vim.defer_fn(function()
+				local jupytext = require("pyworks.notebook.jupytext")
+				local cache = require("pyworks.core.cache")
+				cache.invalidate("jupytext_check")
+				jupytext.configure_jupytext_nvim()
+			end, 2000) -- Wait for async package installation
 		end
 		return
 	end
@@ -244,7 +251,13 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
 		if ok then
 			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
+			-- Re-configure jupytext.nvim after packages are installed (async)
 			vim.defer_fn(function()
+				local jupytext = require("pyworks.notebook.jupytext")
+				local cache = require("pyworks.core.cache")
+				cache.invalidate("jupytext_check")
+				jupytext.configure_jupytext_nvim()
+				-- Then trigger file detection
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)
 			end, POST_SETUP_DELAY_MS)
