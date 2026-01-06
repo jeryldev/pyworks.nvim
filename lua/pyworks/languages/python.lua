@@ -209,6 +209,14 @@ end
 -- Install essential packages
 function M.install_essentials(filepath)
 	filepath = filepath or get_current_filepath()
+
+	-- Guard against duplicate calls (installation is async)
+	local project_dir = utils.get_project_paths(filepath)
+	local install_key = "installing_essentials_" .. (project_dir or "global")
+	if state.get(install_key) then
+		return true -- Already installing
+	end
+
 	if not M.has_venv(filepath) then
 		if not M.create_venv(filepath) then
 			return false
@@ -226,6 +234,9 @@ function M.install_essentials(filepath)
 	if #missing_essentials == 0 then
 		return true
 	end
+
+	-- Mark as installing to prevent duplicate calls
+	state.set(install_key, true)
 
 	notifications.progress_start(
 		"python_essentials",
@@ -275,8 +286,10 @@ function M.install_essentials(filepath)
 		cmd = string.format("%s install %s", package_manager, packages_str)
 	end
 
-	-- Log the command for debugging
-	vim.notify("[Pyworks Debug] Running: " .. cmd, vim.log.levels.DEBUG)
+	-- Log the command for debugging (only in debug mode)
+	if notifications.get_config().debug_mode then
+		notifications.notify("[Debug] Running: " .. cmd, vim.log.levels.DEBUG)
+	end
 
 	-- Ensure project_dir is valid
 	if not project_dir or vim.fn.isdirectory(project_dir) ~= 1 then
@@ -292,6 +305,9 @@ function M.install_essentials(filepath)
 		cwd = project_dir,
 	}, function(obj)
 		vim.schedule(function()
+			-- Clear the installing flag
+			state.set(install_key, nil)
+
 			if obj.code == 0 then
 				notifications.progress_finish("python_essentials", "Essential packages installed")
 				for _, pkg in ipairs(missing_essentials) do
@@ -318,12 +334,12 @@ function M.install_essentials(filepath)
 					error_msg = error_msg .. "\nError: " .. table.concat(filtered_errors, "\n")
 				end
 				notifications.notify_error(error_msg)
-				vim.notify("[Pyworks] Installation command was: " .. cmd, vim.log.levels.ERROR)
 			end
 		end)
 	end)
 
 	if not ok then
+		state.set(install_key, nil) -- Clear the installing flag
 		notifications.progress_finish("python_essentials")
 		notifications.notify_error("Failed to start essential packages installation: " .. tostring(sys_obj))
 		return false

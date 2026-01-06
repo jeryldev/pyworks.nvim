@@ -86,13 +86,6 @@ function M.on_file_open(filepath)
 		end, 100)
 	end
 
-	-- Always show what file we're processing
-	notifications.notify(
-		string.format("🔍 Processing: %s", vim.fn.fnamemodify(filepath, ":t")),
-		vim.log.levels.INFO,
-		{ force = true } -- Force show even when silent
-	)
-
 	-- Detect file type
 	local ext = vim.fn.fnamemodify(filepath, ":e")
 	local ft = vim.bo.filetype
@@ -206,7 +199,7 @@ local function get_kernel_for_language(language, filepath)
 					notifications.notify(
 						string.format("⚠️ No Python found in venv: %s", venv_path),
 						vim.log.levels.WARN,
-						{ force = true }
+						{ action_required = true }
 					)
 					-- Create venv if it doesn't have Python
 					local python_module = require("pyworks.languages.python")
@@ -259,19 +252,17 @@ local function get_kernel_for_language(language, filepath)
 							-- Only match if kernel uses EXACTLY our project's Python
 							local is_exact_match = (kernel_python_to_compare == venv_python_to_compare)
 							if is_exact_match then
-								-- Found an exact match!
+								-- Found an exact match! (show once, deduplication handles repeats)
 								notifications.notify(
-									string.format("✅ Found exact matching kernel '%s' -> %s", name, kernel_python),
-									vim.log.levels.INFO,
-									{ force = true } -- Force show even when silent
+									string.format("✅ Found kernel '%s'", name),
+									vim.log.levels.INFO
 								)
 								return name
 							elseif kernel_python:match("^" .. vim.pesc(venv_path)) then
 								-- Kernel is from our exact venv directory
 								notifications.notify(
-									string.format("✅ Found venv kernel '%s' -> %s", name, kernel_python),
-									vim.log.levels.INFO,
-									{ force = true } -- Force show even when silent
+									string.format("✅ Found kernel '%s'", name),
+									vim.log.levels.INFO
 								)
 								return name
 							else
@@ -448,23 +439,21 @@ function M.handle_python(filepath)
 	-- Detect project type
 	local project_type = utils.detect_project_type(project_dir)
 
-	-- Show detection results
+	-- Show detection results (deduplication handles repeats)
 	if venv_exists then
 		notifications.notify(
 			string.format("🐍 %s project: venv at %s/.venv", project_type, project_rel),
-			vim.log.levels.INFO,
-			{ force = true }
+			vim.log.levels.INFO
 		)
 	else
 		notifications.notify(
 			string.format("⚠️  %s project: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
-			{ force = true }
+			{ action_required = true }
 		)
 		notifications.notify(
 			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
-			vim.log.levels.INFO,
-			{ force = true }
+			vim.log.levels.INFO
 		)
 		-- Don't auto-create on file open, but still set up for manual creation
 		-- Store filepath for PyworksSetup command
@@ -493,23 +482,21 @@ function M.handle_python_notebook(filepath)
 	-- Detect project type
 	local project_type = utils.detect_project_type(project_dir)
 
-	-- Show detection results
+	-- Show detection results (first time only, not forced)
 	if venv_exists then
 		notifications.notify(
 			string.format("📓 %s notebook: venv at %s/.venv", project_type, project_rel),
-			vim.log.levels.INFO,
-			{ force = true }
+			vim.log.levels.INFO
 		)
 	else
 		notifications.notify(
 			string.format("⚠️  %s notebook: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
-			{ force = true }
+			{ action_required = true }
 		)
 		notifications.notify(
 			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
-			vim.log.levels.INFO,
-			{ force = true }
+			vim.log.levels.INFO
 		)
 		-- Don't auto-create for notebooks, let user decide
 		return
