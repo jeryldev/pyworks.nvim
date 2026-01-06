@@ -341,23 +341,22 @@ local function extract_python_imports(content)
 		end
 	end
 
-	-- First pass: Handle multiline imports by normalizing content
-	-- Convert multiline "from X import (\n  a,\n  b\n)" to single line
-	local normalized = content:gsub("from%s+([%w_%.]+)%s+import%s*%(([^%)]+)%)", function(pkg, _)
-		return "from " .. pkg .. " import multiline_placeholder"
-	end)
-
-	-- Also handle multiline "import (\n  a,\n  b\n)"
-	normalized = normalized:gsub("import%s*%(([^%)]+)%)", function(inner)
-		-- Extract all package names from the parenthesized block
-		local pkgs = {}
-		for pkg in inner:gmatch("([%w_%.]+)") do
-			if pkg ~= "as" then
-				table.insert(pkgs, pkg)
+	-- Normalize multiline imports to single-line (chained gsub for efficiency)
+	-- Pass 1: "from X import (\n  a,\n  b\n)" -> "from X import multiline_placeholder"
+	-- Pass 2: "import (\n  a,\n  b\n)" -> "import a, b"
+	local normalized = content
+		:gsub("from%s+([%w_%.]+)%s+import%s*%(([^%)]+)%)", function(pkg, _)
+			return "from " .. pkg .. " import multiline_placeholder"
+		end)
+		:gsub("import%s*%(([^%)]+)%)", function(inner)
+			local pkgs = {}
+			for pkg in inner:gmatch("([%w_%.]+)") do
+				if pkg ~= "as" then
+					table.insert(pkgs, pkg)
+				end
 			end
-		end
-		return "import " .. table.concat(pkgs, ", ")
-	end)
+			return "import " .. table.concat(pkgs, ", ")
+		end)
 
 	-- Process line by line
 	for line in normalized:gmatch("[^\r\n]+") do
