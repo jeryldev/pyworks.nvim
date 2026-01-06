@@ -6,6 +6,9 @@ local M = {}
 -- Cache storage
 local cache = {}
 
+-- Mutex flag to prevent concurrent modifications during cleanup
+local is_cleaning = false
+
 -- Default TTL values (in seconds)
 local default_ttl = {
 	jupytext_check = 3600, -- 1 hour (rarely changes)
@@ -66,12 +69,19 @@ function M.invalidate(key)
 	cache[key] = nil
 end
 
--- Clear all cache entries matching pattern
+-- Clear all cache entries matching pattern (thread-safe)
 function M.invalidate_pattern(pattern)
+	-- Collect keys to delete first (safer than modifying during iteration)
+	local keys_to_delete = {}
 	for key, _ in pairs(cache) do
 		if key:match(pattern) then
-			cache[key] = nil
+			table.insert(keys_to_delete, key)
 		end
+	end
+
+	-- Delete collected keys
+	for _, key in ipairs(keys_to_delete) do
+		cache[key] = nil
 	end
 end
 
@@ -101,19 +111,33 @@ function M.stats()
 	}
 end
 
--- Clean expired entries
+-- Clean expired entries (thread-safe)
 function M.cleanup()
+	-- Prevent concurrent cleanup runs
+	if is_cleaning then
+		return 0
+	end
+	is_cleaning = true
+
 	local now = os.time()
 	local cleaned = 0
 
+	-- Collect keys to delete first (safer than modifying during iteration)
+	local keys_to_delete = {}
 	for key, entry in pairs(cache) do
 		local ttl = get_ttl(key)
 		if now - entry.timestamp > ttl then
-			cache[key] = nil
-			cleaned = cleaned + 1
+			table.insert(keys_to_delete, key)
 		end
 	end
 
+	-- Delete collected keys
+	for _, key in ipairs(keys_to_delete) do
+		cache[key] = nil
+		cleaned = cleaned + 1
+	end
+
+	is_cleaning = false
 	return cleaned
 end
 
