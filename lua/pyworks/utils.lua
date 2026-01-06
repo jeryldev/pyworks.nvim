@@ -420,4 +420,13 @@ function M.ensure_directory(path)
 	return true
 end
 
+-- Check if a Neovim plugin is installed (lazy.nvim compatible)
+function M.is_plugin_installed(plugin_name)
+	local lazy_ok, lazy = pcall(require, "lazy.core.config")
+	if lazy_ok and lazy.plugins and lazy.plugins[plugin_name] then
+		return true
+	end
+	return false
+end
+
 return M

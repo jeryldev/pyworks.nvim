@@ -2,22 +2,14 @@
 local M = {}
 
 local error_handler = require("pyworks.core.error_handler")
-
--- Check if a plugin is installed via lazy.nvim
-local function is_plugin_installed(plugin_name)
-	local lazy_ok, lazy = pcall(require, "lazy.core.config")
-	if lazy_ok and lazy.plugins and lazy.plugins[plugin_name] then
-		return true
-	end
-	return false
-end
+local utils = require("pyworks.utils")
 
 -- Check plugin dependencies
 local function check_plugin_dependencies()
 	local results = {}
 
 	-- molten-nvim
-	if is_plugin_installed("molten-nvim") then
+	if utils.is_plugin_installed("molten-nvim") then
 		if vim.fn.exists(":MoltenInit") == 2 then
 			table.insert(results, "  molten-nvim: OK (command available)")
 		else
@@ -28,7 +20,7 @@ local function check_plugin_dependencies()
 	end
 
 	-- jupytext.nvim
-	if is_plugin_installed("jupytext.nvim") then
+	if utils.is_plugin_installed("jupytext.nvim") then
 		local ok = pcall(require, "jupytext")
 		if ok then
 			table.insert(results, "  jupytext.nvim: OK")
@@ -40,7 +32,7 @@ local function check_plugin_dependencies()
 	end
 
 	-- image.nvim
-	if is_plugin_installed("image.nvim") then
+	if utils.is_plugin_installed("image.nvim") then
 		local ok, img = pcall(require, "image")
 		if ok then
 			if img.state and img.state.backend then

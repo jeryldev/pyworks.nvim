@@ -3,6 +3,8 @@
 
 local M = {}
 
+local utils = require("pyworks.utils")
+
 -- Detect terminal backend for image rendering
 -- Returns: backend name (string), is_supported (boolean), detection_info (string)
 local function detect_image_backend()
@@ -48,15 +50,6 @@ local function detect_image_backend()
 	return "kitty", false, "Unknown terminal - image rendering may not work"
 end
 
--- Check if a plugin is installed via lazy.nvim
-local function is_plugin_installed(plugin_name)
-	local lazy_ok, lazy = pcall(require, "lazy.core.config")
-	if lazy_ok and lazy.plugins and lazy.plugins[plugin_name] then
-		return true
-	end
-	return false
-end
-
 -- Comprehensive dependency check and auto-fix
 function M.ensure_dependencies()
 	local issues = {}
@@ -68,7 +61,7 @@ function M.ensure_dependencies()
 		{
 			name = "molten-nvim",
 			check = function()
-				if not is_plugin_installed("molten-nvim") then
+				if not utils.is_plugin_installed("molten-nvim") then
 					return false, "not installed"
 				end
 				if vim.fn.exists(":MoltenInit") ~= 2 then
@@ -77,7 +70,7 @@ function M.ensure_dependencies()
 				return true
 			end,
 			fix = function()
-				if not is_plugin_installed("molten-nvim") then
+				if not utils.is_plugin_installed("molten-nvim") then
 					table.insert(issues, "Molten not installed")
 					return false
 				end
@@ -97,7 +90,7 @@ function M.ensure_dependencies()
 		{
 			name = "jupytext.nvim",
 			check = function()
-				if not is_plugin_installed("jupytext.nvim") then
+				if not utils.is_plugin_installed("jupytext.nvim") then
 					return false, "not installed"
 				end
 				local ok = pcall(require, "jupytext")
@@ -111,7 +104,7 @@ function M.ensure_dependencies()
 				return true
 			end,
 			fix = function()
-				if not is_plugin_installed("jupytext.nvim") then
+				if not utils.is_plugin_installed("jupytext.nvim") then
 					table.insert(issues, "Jupytext not installed")
 					return false
 				end
@@ -135,7 +128,7 @@ function M.ensure_dependencies()
 		{
 			name = "image.nvim",
 			check = function()
-				if not is_plugin_installed("image.nvim") then
+				if not utils.is_plugin_installed("image.nvim") then
 					return false, "not installed"
 				end
 				local ok, img = pcall(require, "image")
@@ -149,7 +142,7 @@ function M.ensure_dependencies()
 				return true
 			end,
 			fix = function()
-				if not is_plugin_installed("image.nvim") then
+				if not utils.is_plugin_installed("image.nvim") then
 					table.insert(issues, "Image.nvim not installed")
 					return false
 				end
