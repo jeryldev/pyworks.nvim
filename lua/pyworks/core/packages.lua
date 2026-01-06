@@ -6,18 +6,91 @@ local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 
--- Package name mappings for common mismatches
+-- Package name mappings for common mismatches (import name -> PyPI package name)
+-- Updated for 2025 with AI/ML packages
 local package_mappings = {
 	python = {
+		-- Data Science & ML classics
 		["sklearn"] = "scikit-learn",
 		["cv2"] = "opencv-python",
+		["cv"] = "opencv-python",
 		["PIL"] = "Pillow",
 		["bs4"] = "beautifulsoup4",
 		["sns"] = "seaborn",
 		["yaml"] = "PyYAML",
+		["skimage"] = "scikit-image",
+
+		-- AI/ML frameworks (2025)
+		["torch"] = "torch",
+		["torchvision"] = "torchvision",
+		["torchaudio"] = "torchaudio",
+		["tensorflow"] = "tensorflow",
+		["tf"] = "tensorflow",
+		["keras"] = "keras",
+		["jax"] = "jax",
+		["flax"] = "flax",
+
+		-- LLM & AI APIs (2025)
+		["anthropic"] = "anthropic",
+		["openai"] = "openai",
+		["tiktoken"] = "tiktoken",
+		["google.generativeai"] = "google-generativeai",
+		["vertexai"] = "google-cloud-aiplatform",
+		["cohere"] = "cohere",
+		["replicate"] = "replicate",
+		["groq"] = "groq",
+		["mistralai"] = "mistralai",
+
+		-- LangChain ecosystem
+		["langchain"] = "langchain",
+		["langchain_core"] = "langchain-core",
+		["langchain_community"] = "langchain-community",
+		["langchain_openai"] = "langchain-openai",
+		["langchain_anthropic"] = "langchain-anthropic",
+		["langgraph"] = "langgraph",
+		["langsmith"] = "langsmith",
+
+		-- Vector databases & embeddings
+		["faiss"] = "faiss-cpu",
+		["chromadb"] = "chromadb",
+		["pinecone"] = "pinecone-client",
+		["qdrant_client"] = "qdrant-client",
+		["weaviate"] = "weaviate-client",
+		["lancedb"] = "lancedb",
+		["milvus"] = "pymilvus",
+
+		-- Transformers & NLP
+		["transformers"] = "transformers",
+		["sentence_transformers"] = "sentence-transformers",
+		["datasets"] = "datasets",
+		["tokenizers"] = "tokenizers",
+		["accelerate"] = "accelerate",
+		["peft"] = "peft",
+		["trl"] = "trl",
+		["spacy"] = "spacy",
+		["nltk"] = "nltk",
+
+		-- Web & API frameworks
 		["discord"] = "discord.py",
 		["dotenv"] = "python-dotenv",
 		["rest_framework"] = "djangorestframework",
+		["fastapi"] = "fastapi",
+		["starlette"] = "starlette",
+		["pydantic"] = "pydantic",
+		["httpx"] = "httpx",
+		["aiohttp"] = "aiohttp",
+
+		-- Database & ORM
+		["sqlalchemy"] = "sqlalchemy",
+		["sqlmodel"] = "sqlmodel",
+		["alembic"] = "alembic",
+		["psycopg2"] = "psycopg2-binary",
+		["psycopg"] = "psycopg",
+		["asyncpg"] = "asyncpg",
+		["pymongo"] = "pymongo",
+		["redis"] = "redis",
+
+		-- Utilities
 		["magic"] = "python-magic",
 		["dateutil"] = "python-dateutil",
 		["jwt"] = "PyJWT",
@@ -25,19 +98,49 @@ local package_mappings = {
 		["serial"] = "pyserial",
 		["usb"] = "pyusb",
 		["Crypto"] = "pycryptodome",
+		["cryptography"] = "cryptography",
 		["websocket"] = "websocket-client",
+		["websockets"] = "websockets",
+
+		-- Google Cloud
 		["google.cloud"] = "google-cloud-storage",
-		["cv"] = "opencv-python",
+		["google.auth"] = "google-auth",
+		["google.oauth2"] = "google-auth-oauthlib",
+
+		-- GUI & system
 		["wx"] = "wxPython",
 		["gi"] = "PyGObject",
 		["dbus"] = "dbus-python",
 		["apt"] = "python-apt",
 		["cairo"] = "pycairo",
+
+		-- Testing
+		["pytest"] = "pytest",
+		["hypothesis"] = "hypothesis",
+		["faker"] = "faker",
+		["factory"] = "factory-boy",
+
+		-- CLI & config
+		["typer"] = "typer",
+		["click"] = "click",
+		["rich"] = "rich",
+		["tqdm"] = "tqdm",
 	},
 }
 
+-- Generate reverse mappings (package name -> import name) at module load
+local reverse_package_mappings = {}
+for lang, mappings in pairs(package_mappings) do
+	reverse_package_mappings[lang] = {}
+	for import_name, pkg_name in pairs(mappings) do
+		reverse_package_mappings[lang][pkg_name:lower()] = import_name
+	end
+end
+
 -- Python standard library modules (defined at module level for performance)
+-- Updated for Python 3.9+ (includes modules added in 3.9, 3.10, 3.11)
 local python_stdlib = {
+	-- Core
 	os = true,
 	sys = true,
 	re = true,
@@ -46,77 +149,148 @@ local python_stdlib = {
 	random = true,
 	datetime = true,
 	time = true,
+	-- Collections & iterators
 	collections = true,
 	itertools = true,
 	functools = true,
+	operator = true,
+	-- File system
 	pathlib = true,
+	shutil = true,
+	glob = true,
+	fnmatch = true,
+	tempfile = true,
+	fileinput = true,
+	stat = true,
+	filecmp = true,
+	-- Concurrency
 	subprocess = true,
 	threading = true,
 	multiprocessing = true,
 	queue = true,
+	asyncio = true,
+	concurrent = true,
+	contextvars = true,
+	sched = true,
+	-- Networking
 	socket = true,
 	http = true,
 	urllib = true,
 	email = true,
 	html = true,
 	xml = true,
+	ftplib = true,
+	poplib = true,
+	imaplib = true,
+	smtplib = true,
+	ssl = true,
+	select = true,
+	selectors = true,
+	socketserver = true,
+	xmlrpc = true,
+	ipaddress = true,
+	-- Data formats
 	csv = true,
+	tomllib = true, -- Python 3.11+ (TOML parsing)
+	configparser = true,
+	netrc = true,
+	plistlib = true,
+	-- I/O
 	io = true,
 	string = true,
+	codecs = true,
+	textwrap = true,
+	difflib = true,
+	readline = true,
+	rlcompleter = true,
+	-- Type system
 	typing = true,
 	types = true,
 	enum = true,
 	dataclasses = true,
 	abc = true,
+	-- Data structures (Python 3.9+)
+	graphlib = true, -- Python 3.9+ (topological sorting)
+	zoneinfo = true, -- Python 3.9+ (timezone support)
+	-- Object handling
 	copy = true,
+	pprint = true,
+	reprlib = true,
+	-- Persistence
 	pickle = true,
 	shelve = true,
+	dbm = true,
 	sqlite3 = true,
+	-- Compression
 	zlib = true,
 	gzip = true,
+	bz2 = true,
+	lzma = true,
+	zipfile = true,
+	tarfile = true,
+	-- Cryptography
 	hashlib = true,
 	hmac = true,
 	secrets = true,
+	-- Identifiers
 	uuid = true,
 	base64 = true,
-	codecs = true,
+	binascii = true,
+	quopri = true,
+	-- CLI & config
 	argparse = true,
 	logging = true,
-	configparser = true,
-	tempfile = true,
-	shutil = true,
-	glob = true,
-	fnmatch = true,
+	getopt = true,
+	getpass = true,
+	curses = true,
+	-- Introspection & debugging
 	inspect = true,
 	traceback = true,
 	warnings = true,
 	contextlib = true,
+	dis = true,
+	linecache = true,
+	-- Testing
 	unittest = true,
 	doctest = true,
 	pdb = true,
 	profile = true,
-	asyncio = true,
-	concurrent = true,
-	contextvars = true,
+	timeit = true,
+	trace = true,
+	cProfile = true,
+	-- Import system
 	importlib = true,
 	pkgutil = true,
+	runpy = true,
+	zipimport = true,
+	-- System
 	platform = true,
 	errno = true,
 	ctypes = true,
 	struct = true,
+	mmap = true,
+	signal = true,
+	sysconfig = true,
+	-- Internationalization
 	unicodedata = true,
 	locale = true,
 	gettext = true,
+	-- Math & numbers
 	statistics = true,
 	decimal = true,
 	fractions = true,
 	numbers = true,
 	cmath = true,
+	-- Low-level
 	array = true,
 	weakref = true,
 	gc = true,
 	atexit = true,
 	builtins = true,
+	faulthandler = true,
+	-- Special
+	["__future__"] = true,
+	["_thread"] = true,
 }
 
 -- Map import to package name
@@ -124,6 +298,13 @@ function M.map_import_to_package(import_name, language)
 	language = language or "python"
 	local mappings = package_mappings[language] or {}
 	return mappings[import_name] or import_name
+end
+
+-- Map package name back to import name (for checking if installed)
+function M.map_package_to_import(package_name, language)
+	language = language or "python"
+	local mappings = reverse_package_mappings[language] or {}
+	return mappings[package_name:lower()] or package_name
 end
 
 -- Map a list of package names, applying known mappings (e.g., sklearn -> scikit-learn)
@@ -145,27 +326,63 @@ function M.map_packages(pkg_list, language)
 end
 
 -- Extract imports from Python file
+-- Handles single-line, multiline (parenthesized), and multiple comma-separated imports
 local function extract_python_imports(content)
 	local imports = {}
 
-	-- Match 'import package' and 'from package import ...'
-	for line in content:gmatch("[^\r\n]+") do
-		-- Skip comments
-		if not line:match("^%s*#") then
-			-- Match: import package, import package as alias
-			local pkg = line:match("^%s*import%s+([%w_%.]+)")
-			if pkg then
-				-- Take only the root package
-				local root = pkg:match("^([^%.]+)")
+	-- Helper to add import root package
+	local function add_import(pkg)
+		if pkg and pkg ~= "" then
+			-- Take only the root package (before first dot)
+			local root = pkg:match("^([%w_]+)")
+			if root then
 				imports[root] = true
 			end
+		end
+	end
 
-			-- Match: from package import ...
-			pkg = line:match("^%s*from%s+([%w_%.]+)%s+import")
-			if pkg then
-				-- Take only the root package
-				local root = pkg:match("^([^%.]+)")
-				imports[root] = true
+	-- First pass: Handle multiline imports by normalizing content
+	-- Convert multiline "from X import (\n  a,\n  b\n)" to single line
+	local normalized = content:gsub("from%s+([%w_%.]+)%s+import%s*%(([^%)]+)%)", function(pkg, _)
+		return "from " .. pkg .. " import multiline_placeholder"
+	end)
+
+	-- Also handle multiline "import (\n  a,\n  b\n)"
+	normalized = normalized:gsub("import%s*%(([^%)]+)%)", function(inner)
+		-- Extract all package names from the parenthesized block
+		local pkgs = {}
+		for pkg in inner:gmatch("([%w_%.]+)") do
+			if pkg ~= "as" then
+				table.insert(pkgs, pkg)
+			end
+		end
+		return "import " .. table.concat(pkgs, ", ")
+	end)
+
+	-- Process line by line
+	for line in normalized:gmatch("[^\r\n]+") do
+		-- Skip comments and empty lines
+		local trimmed = line:match("^%s*(.-)%s*$")
+		if trimmed and trimmed ~= "" and not trimmed:match("^#") then
+			-- Skip relative imports (from . import or from .. import)
+			if not trimmed:match("^from%s+%.+%s+import") then
+				-- Match: import package, import package as alias, import pkg1, pkg2
+				local import_part = trimmed:match("^import%s+(.+)")
+				if import_part then
+					-- Handle comma-separated imports: import os, sys, json
+					for pkg in import_part:gmatch("([%w_%.]+)") do
+						-- Skip 'as' keyword and alias names
+						if pkg ~= "as" then
+							add_import(pkg)
+						end
+					end
+				end
+
+				-- Match: from package import ...
+				local pkg = trimmed:match("^from%s+([%w_%.]+)%s+import")
+				if pkg then
+					add_import(pkg)
+				end
 			end
 		end
 	end
@@ -289,16 +506,54 @@ end
 -- Check if a module is likely a custom/local package
 function M.is_custom_package(module_name, language)
 	if language == "python" then
-		-- Patterns that suggest custom/local packages
-		-- Custom packages often have company/project prefixes
+		-- Skip nil or empty
+		if not module_name or module_name == "" then
+			return true
+		end
+
+		-- Single underscore prefix indicates internal/private module
+		if module_name:match("^_[^_]") then
+			return true
+		end
+
+		-- Test-related modules (pytest, unittest discovery)
+		if
+			module_name:match("^test_")
+			or module_name:match("_test$")
+			or module_name == "conftest"
+			or module_name == "tests"
+		then
+			return true
+		end
+
+		-- Common custom/local package prefixes
 		if
 			module_name:match("^seell_") -- SEELL specific
 			or module_name:match("^my_") -- Common custom prefix
 			or module_name:match("^custom_") -- Common custom prefix
 			or module_name:match("^local_") -- Common local prefix
 			or module_name:match("^internal_") -- Internal packages
-			or module_name:match("^private_")
-		then -- Private packages
+			or module_name:match("^private_") -- Private packages
+			or module_name:match("^app_") -- App-specific modules
+			or module_name:match("^lib_") -- Local libraries
+			or module_name:match("^src$") -- Source directory as module
+			or module_name:match("^utils$") -- Common local utils (if not in stdlib)
+			or module_name:match("^helpers$") -- Common local helpers
+			or module_name:match("^config$") -- Local config module
+			or module_name:match("^settings$") -- Local settings module
+		then
+			return true
+		end
+
+		-- Build/setup modules (not installable)
+		if
+			module_name == "setup"
+			or module_name == "setuptools"
+			or module_name == "build"
+			or module_name == "noxfile"
+			or module_name == "fabfile"
+			or module_name == "tasks"
+		then
 			return true
 		end
 	end

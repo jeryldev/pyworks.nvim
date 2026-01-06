@@ -332,26 +332,8 @@ function M.is_package_installed(package_name, filepath)
 		return false
 	end
 
-	-- Try to import the package
-	local import_name = package_name
-	-- Handle special cases
-	if package_name == "scikit-learn" then
-		import_name = "sklearn"
-	elseif package_name == "opencv-python" then
-		import_name = "cv2"
-	elseif package_name == "Pillow" then
-		import_name = "PIL"
-	elseif package_name == "beautifulsoup4" then
-		import_name = "bs4"
-	elseif package_name == "ipykernel" then
-		import_name = "ipykernel"
-	elseif package_name == "jupyter_client" then
-		import_name = "jupyter_client"
-	elseif package_name == "jupytext" then
-		import_name = "jupytext"
-	elseif package_name == "pynvim" then
-		import_name = "pynvim"
-	end
+	-- Use centralized reverse mapping to get import name from package name
+	local import_name = packages.map_package_to_import(package_name, "python")
 
 	-- Python path already has full path from get_python_path()
 	local cmd = string.format("%s -c 'import %s' 2>/dev/null", python_path, import_name)
