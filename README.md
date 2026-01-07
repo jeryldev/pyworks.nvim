@@ -20,7 +20,7 @@ A Neovim plugin that provides automatic environment setup, package detection, an
 
 ## Requirements
 
-- Neovim ≥ 0.9.0
+- Neovim ≥ 0.10.0 (uses `vim.system()` and `vim.uv` APIs)
 - Python 3.8+
 - `jupytext` CLI (automatically installed by pyworks)
 - Optional: [`uv`](https://github.com/astral-sh/uv) for faster package management (10-100x faster than pip)
@@ -265,9 +265,14 @@ require("pyworks").setup({
 
 ### Project Detection
 
-Pyworks only activates in directories containing:
-- `.venv` (Python virtual environment)
-- `requirements.txt`, `setup.py`, `pyproject.toml` (Python project markers)
+Pyworks finds your project root by looking for these markers (in priority order):
+- `.venv` - Virtual environment (highest priority)
+- `pyproject.toml`, `setup.py`, `requirements.txt` - Python project files
+- `manage.py`, `app.py`, `main.py` - Framework entry points (Django, Flask, FastAPI)
+- `Pipfile`, `poetry.lock`, `uv.lock` - Package manager lock files
+- `conda.yaml`, `environment.yml` - Conda environments
+- `dvc.yaml`, `mlflow.yaml` - ML pipeline configs
+- `.git` - Git repository (lowest priority fallback)
 
 ### Smart Package Management
 

@@ -31,7 +31,7 @@ Key Features:
 2. REQUIREMENTS                                         *pyworks-requirements*
 
 Required:
-- Neovim ≥ 0.9.0
+- Neovim ≥ 0.10.0 (uses vim.system() and vim.uv APIs)
 - Python 3.8+
 - jupytext CLI (automatically installed by pyworks)
 
@@ -133,6 +133,7 @@ CELL EXECUTION~
 *<leader>jr*  Run selection (Visual mode)
 *<leader>jc*  Run current cell and move to next (Normal mode)
 *<leader>je*  Re-evaluate current cell, stay in place (Normal mode)
+*<leader>jR*  Run all cells in buffer (Normal mode)
 
 CELL SELECTION & NAVIGATION~
 
@@ -160,6 +161,13 @@ CELL OPERATIONS~
 *<leader>jt*  Toggle cell type (code ↔ markdown)
 *<leader>jJ*  Merge with cell below
 *<leader>js*  Split cell at cursor
+
+CELL FOLDING & UI~
+
+*<leader>jf*   Toggle cell folding on/off
+*<leader>jzc*  Collapse all cells
+*<leader>jze*  Expand all cells
+*<leader>jn*   Refresh cell numbers
 
 KERNEL MANAGEMENT~
 
@@ -228,7 +236,7 @@ Default configuration (all optional):
         preferred_venv_name = ".venv",
         use_uv = true,  -- 10-100x faster than pip
         auto_install_essentials = true,
-        essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
+        essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
       },
       notifications = {
         verbose_first_time = true,
@@ -246,9 +254,13 @@ Default configuration (all optional):
 
 PROJECT DETECTION~
 
-Pyworks only activates in directories containing:
-- .venv (Python virtual environment)
-- requirements.txt, setup.py, pyproject.toml (Python markers)
+Pyworks finds your project root by looking for these markers (priority order):
+- .venv (virtual environment - highest priority)
+- pyproject.toml, setup.py, requirements.txt (Python project files)
+- manage.py, app.py, main.py (Django, Flask, FastAPI entry points)
+- Pipfile, poetry.lock, uv.lock (package manager lock files)
+- conda.yaml, environment.yml (Conda environments)
+- .git (Git repository - lowest priority fallback)
 
 ==============================================================================
 8. TROUBLESHOOTING                                  *pyworks-troubleshooting*
