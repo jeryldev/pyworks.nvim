@@ -149,7 +149,7 @@ function M.setup_buffer_keymaps()
 				if found == 0 then
 					vim.notify("Last cell", vim.log.levels.INFO)
 				else
-					ui.enter_cell(found)
+					ui.enter_cell(found, { insert_mode = false })
 				end
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
@@ -180,6 +180,12 @@ function M.setup_buffer_keymaps()
 
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
+					-- Go to last cell and position cursor below the marker
+					vim.cmd("normal! G")
+					local last_cell_line = vim.fn.search("^# %%", "bW")
+					if last_cell_line > 0 then
+						ui.enter_cell(last_cell_line, { insert_mode = false })
+					end
 					vim.notify("All cells executed", vim.log.levels.INFO)
 					return
 				end
