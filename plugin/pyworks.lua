@@ -143,3 +143,123 @@ vim.api.nvim_create_autocmd("FileType", {
 	end,
 	desc = "Pyworks: Set up language-specific keymaps and auto-init for notebooks",
 })
+
+-- Helper function to reload a notebook buffer properly
+-- Follows the same pattern as open_and_verify_notebook in commands/create.lua
+local function reload_notebook_buffer(filepath)
+	-- Ensure jupytext.nvim is configured before reloading
+	local jupytext = require("pyworks.notebook.jupytext")
+	jupytext.configure_jupytext_nvim()
+
+	-- Use :edit to open fresh from disk - this triggers BufReadCmd
+	local ok = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filepath))
+
+	if ok then
+		-- Verify conversion worked (buffer should NOT start with '{')
+		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
+		if first_line:match("^%s*{") then
+			-- Still JSON, try configuring and reloading once more
+			jupytext.configure_jupytext_nvim()
+			pcall(vim.cmd, "edit!")
+		end
+	end
+
+	return ok
+end
+
+-- Manual command to reload current notebook (useful after session restore)
+vim.api.nvim_create_user_command("PyworksReloadNotebook", function()
+	local filepath = vim.api.nvim_buf_get_name(0)
+	if not filepath:match("%.ipynb$") then
+		vim.notify("Not a notebook file", vim.log.levels.WARN)
+		return
+	end
+	-- Expand path to handle ~ and resolve symlinks
+	filepath = vim.fn.expand(filepath)
+	filepath = vim.fn.resolve(filepath)
+
+	if vim.fn.filereadable(filepath) ~= 1 then
+		vim.notify("File not found: " .. filepath, vim.log.levels.ERROR)
+		vim.notify("Buffer name: " .. vim.api.nvim_buf_get_name(0), vim.log.levels.INFO)
+		return
+	end
+	reload_notebook_buffer(filepath)
+end, { desc = "Reload current notebook with jupytext conversion" })
+
+-- Handle session restore: re-trigger notebook conversion for .ipynb files
+-- Session restore bypasses BufReadCmd, leaving notebooks blank or as raw JSON
+vim.api.nvim_create_autocmd("SessionLoadPost", {
+	group = augroup,
+	callback = function()
+		vim.defer_fn(function()
+			-- Find all .ipynb buffers and re-process them
+			for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+				if vim.api.nvim_buf_is_loaded(bufnr) then
+					local filepath = vim.api.nvim_buf_get_name(bufnr)
+					if filepath:match("%.ipynb$") and filepath ~= "" and vim.fn.filereadable(filepath) == 1 then
+						-- Check if buffer is empty or still raw JSON (not converted)
+						local lines = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)
+						local first_line = lines[1] or ""
+						local is_empty = #lines == 0 or (first_line == "" and #lines == 1)
+						local is_json = first_line:match("^%s*{")
+
+						if is_empty or is_json then
+							-- Switch to buffer and reload
+							vim.api.nvim_set_current_buf(bufnr)
+							reload_notebook_buffer(filepath)
+						end
+					end
+				end
+			end
+		end, 500) -- Longer delay to ensure session is fully loaded
+	end,
+	desc = "Pyworks: Re-process notebooks after session restore",
+})
+
+-- Fallback: Handle BufWinEnter for notebooks that might have been missed
+-- BufWinEnter fires when buffer is displayed in a window
+vim.api.nvim_create_autocmd("BufWinEnter", {
+	group = augroup,
+	pattern = "*.ipynb",
+	callback = function(ev)
+		local filepath = vim.api.nvim_buf_get_name(ev.buf)
+
+		-- Skip if no filepath or file doesn't exist
+		if filepath == "" or vim.fn.filereadable(filepath) ~= 1 then
+			return
+		end
+
+		-- Check if buffer needs conversion (empty or raw JSON)
+		local lines = vim.api.nvim_buf_get_lines(ev.buf, 0, 1, false)
+		local first_line = lines[1] or ""
+		local is_empty = #lines == 0 or (first_line == "" and #lines == 1)
+		local is_json = first_line:match("^%s*{")
+
+		if is_empty or is_json then
+			-- Skip if already being processed
+			local ok, processing = pcall(vim.api.nvim_buf_get_var, ev.buf, "pyworks_notebook_processing")
+			if ok and processing then
+				return
+			end
+			pcall(vim.api.nvim_buf_set_var, ev.buf, "pyworks_notebook_processing", true)
+
+			-- Defer to let other handlers complete first
+			vim.defer_fn(function()
+				-- Double-check the buffer still exists and needs processing
+				if not vim.api.nvim_buf_is_valid(ev.buf) then
+					return
+				end
+
+				local check_lines = vim.api.nvim_buf_get_lines(ev.buf, 0, 1, false)
+				local check_first = check_lines[1] or ""
+				local still_empty = #check_lines == 0 or (check_first == "" and #check_lines == 1)
+				local still_json = check_first:match("^%s*{")
+
+				if still_empty or still_json then
+					reload_notebook_buffer(filepath)
+				end
+			end, 500) -- Longer delay
+		end
+	end,
+	desc = "Pyworks: Handle notebooks that bypass normal loading",
+})

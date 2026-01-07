@@ -33,6 +33,9 @@ local function validate_filename(filename, extension)
 		filename = filename .. "." .. extension
 	end
 
+	-- Convert to absolute path to ensure session restore works correctly
+	filename = vim.fn.fnamemodify(filename, ":p")
+
 	-- Ensure parent directories exist
 	if not ensure_parent_dirs(filename) then
 		return nil
@@ -229,6 +232,9 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 	if not filename:match("%.ipynb$") then
 		filename = filename .. ".ipynb"
 	end
+
+	-- Convert to absolute path to ensure session restore works correctly
+	filename = vim.fn.fnamemodify(filename, ":p")
 
 	-- Ensure parent directories exist
 	if not ensure_parent_dirs(filename) then
