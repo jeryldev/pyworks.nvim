@@ -122,7 +122,7 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 		else
 			vim.notify("Created new Python notebook (use :w to save)", vim.log.levels.INFO)
 		end
-		ui.enter_first_cell()
+		ui.enter_first_cell({ insert_mode = false })
 	end
 end, { nargs = "?", desc = "Create new Python file with cells" })
 
@@ -218,10 +218,10 @@ local function open_and_verify_notebook(filename, language)
 		if check_line:match("^%s*{") then
 			vim.notify("Notebook showing as JSON. Try :edit! to reload.", vim.log.levels.WARN)
 		else
-			ui.enter_first_cell()
+			ui.enter_first_cell({ insert_mode = false })
 		end
 	else
-		ui.enter_first_cell()
+		ui.enter_first_cell({ insert_mode = false })
 	end
 	vim.notify("Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 	return true

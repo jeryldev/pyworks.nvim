@@ -162,7 +162,6 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			local save_pos = vim.fn.getpos(".")
 			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 			local cell_count = 0
 			for _, line in ipairs(lines) do
@@ -181,7 +180,6 @@ function M.setup_buffer_keymaps()
 
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
-					vim.fn.setpos(".", save_pos)
 					vim.notify("All cells executed", vim.log.levels.INFO)
 					return
 				end
@@ -436,13 +434,15 @@ function M.setup_buffer_keymaps()
 	end
 
 	-- Cell navigation (works with or without Molten)
-	-- Always positions cursor on the first content line below the cell marker and enters insert mode
+	-- Positions cursor on the first content line below the cell marker (stays in normal mode)
+	local nav_opts = { insert_mode = false }
+
 	vim.keymap.set("n", "<leader>j]", function()
 		local found = vim.fn.search("^# %%", "W")
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
 		else
-			ui.enter_cell(found)
+			ui.enter_cell(found, nav_opts)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
@@ -456,17 +456,17 @@ function M.setup_buffer_keymaps()
 		local found = vim.fn.search("^# %%", "bW")
 
 		if found == 0 then
-			ui.enter_first_cell()
+			ui.enter_first_cell(nav_opts)
 		elseif found == current_marker and current_line <= current_marker + 1 then
 			-- We were at or just below a marker, search again for the previous one
 			local prev_found = vim.fn.search("^# %%", "bW")
 			if prev_found == 0 then
-				ui.enter_first_cell()
+				ui.enter_first_cell(nav_opts)
 			else
-				ui.enter_cell(prev_found)
+				ui.enter_cell(prev_found, nav_opts)
 			end
 		else
-			ui.enter_cell(found)
+			ui.enter_cell(found, nav_opts)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end

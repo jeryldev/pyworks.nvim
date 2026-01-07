@@ -263,9 +263,14 @@ function M.find_first_cell()
 	return nil
 end
 
--- Move cursor below a cell marker and enter insert mode
+-- Move cursor below a cell marker
 -- If marker is at end of file, adds an empty line first
-function M.enter_cell(marker_line)
+-- @param marker_line: Line number of the cell marker
+-- @param opts: Optional table with { insert_mode = true/false } (default: true)
+function M.enter_cell(marker_line, opts)
+	opts = opts or {}
+	local insert_mode = opts.insert_mode ~= false
+
 	local last_line = vim.api.nvim_buf_line_count(0)
 	local next_line = marker_line + 1
 
@@ -275,18 +280,26 @@ function M.enter_cell(marker_line)
 	end
 
 	vim.api.nvim_win_set_cursor(0, { next_line, 0 })
-	vim.cmd("startinsert")
+	if insert_mode then
+		vim.cmd("startinsert")
+	end
 end
 
--- Go to the first cell and enter insert mode on the line below the marker
-function M.enter_first_cell()
+-- Go to the first cell and position cursor on the line below the marker
+-- @param opts: Optional table with { insert_mode = true/false } (default: true)
+function M.enter_first_cell(opts)
+	opts = opts or {}
+	local insert_mode = opts.insert_mode ~= false
+
 	local marker_line = M.find_first_cell()
 	if marker_line then
-		M.enter_cell(marker_line)
+		M.enter_cell(marker_line, opts)
 	else
-		-- No cell marker, just go to line 1 and insert
+		-- No cell marker, just go to line 1
 		vim.api.nvim_win_set_cursor(0, { 1, 0 })
-		vim.cmd("startinsert")
+		if insert_mode then
+			vim.cmd("startinsert")
+		end
 	end
 end
 
