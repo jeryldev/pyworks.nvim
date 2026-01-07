@@ -9,6 +9,26 @@ local state = require("pyworks.core.state")
 -- Maximum file size to scan for imports (1MB) - prevents blocking on large files
 local MAX_FILE_SIZE_BYTES = 1024 * 1024
 
+-- Default custom package prefixes (can be extended via configure())
+local config = {
+	custom_package_prefixes = {
+		"^my_",
+		"^custom_",
+		"^local_",
+		"^internal_",
+		"^private_",
+		"^app_",
+		"^lib_",
+		"^src$",
+		"^utils$",
+		"^helpers$",
+	},
+}
+
+function M.configure(opts)
+	config = vim.tbl_deep_extend("force", config, opts or {})
+end
+
 -- Package name mappings for common mismatches (import name -> PyPI package name)
 -- Updated for 2025 with AI/ML packages
 local package_mappings = {
@@ -543,22 +563,15 @@ function M.is_custom_package(module_name, language)
 			return true
 		end
 
-		-- Common custom/local package prefixes
-		if
-			module_name:match("^seell_") -- SEELL specific
-			or module_name:match("^my_") -- Common custom prefix
-			or module_name:match("^custom_") -- Common custom prefix
-			or module_name:match("^local_") -- Common local prefix
-			or module_name:match("^internal_") -- Internal packages
-			or module_name:match("^private_") -- Private packages
-			or module_name:match("^app_") -- App-specific modules
-			or module_name:match("^lib_") -- Local libraries
-			or module_name:match("^src$") -- Source directory as module
-			or module_name:match("^utils$") -- Common local utils (if not in stdlib)
-			or module_name:match("^helpers$") -- Common local helpers
-			or module_name:match("^config$") -- Local config module
-			or module_name:match("^settings$") -- Local settings module
-		then
+		-- Configurable custom/local package prefixes
+		for _, pattern in ipairs(config.custom_package_prefixes) do
+			if module_name:match(pattern) then
+				return true
+			end
+		end
+
+		-- Common local module names
+		if module_name == "config" or module_name == "settings" then
 			return true
 		end
 
