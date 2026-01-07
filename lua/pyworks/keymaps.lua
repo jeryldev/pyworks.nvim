@@ -412,11 +412,18 @@ function M.setup_buffer_keymaps()
 		-- Fallback keymaps when Molten is not available (select text for manual copying)
 
 		vim.keymap.set("n", "<leader>jv", function()
-			vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>")
-			vim.cmd("normal! V")
-			vim.cmd("normal! /^# %%\\|^```\\|^```{<CR>")
-			vim.cmd("normal! k")
-			vim.notify("Molten not available. Cell selected for manual copy.", vim.log.levels.WARN)
+			-- Use pcall to handle E486 (pattern not found) gracefully
+			local ok = pcall(function()
+				vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>")
+				vim.cmd("normal! V")
+				vim.cmd("normal! /^# %%\\|^```\\|^```{<CR>")
+				vim.cmd("normal! k")
+			end)
+			if ok then
+				vim.notify("Molten not available. Cell selected for manual copy.", vim.log.levels.WARN)
+			else
+				vim.notify("No cell markers found", vim.log.levels.INFO)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Select current cell (Molten not available)" }))
 
 		vim.keymap.set("v", "<leader>jr", function()
@@ -479,15 +486,24 @@ function M.setup_molten_keymaps()
 		end, vim.tbl_extend("force", opts, { desc = "Initialize kernel" }))
 
 		vim.keymap.set("n", "<leader>mr", function()
-			vim.cmd("MoltenRestart")
+			local ok = pcall(vim.cmd, "MoltenRestart")
+			if not ok then
+				vim.notify("No kernel to restart. Initialize with <leader>mi first.", vim.log.levels.WARN)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Restart kernel" }))
 
 		vim.keymap.set("n", "<leader>mx", function()
-			vim.cmd("MoltenInterrupt")
+			local ok = pcall(vim.cmd, "MoltenInterrupt")
+			if not ok then
+				vim.notify("No kernel to interrupt. Initialize with <leader>mi first.", vim.log.levels.WARN)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Interrupt execution" }))
 
 		vim.keymap.set("n", "<leader>mI", function()
-			vim.cmd("MoltenInfo")
+			local ok = pcall(vim.cmd, "MoltenInfo")
+			if not ok then
+				vim.notify("No kernel info available. Initialize with <leader>mi first.", vim.log.levels.WARN)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Show kernel info" }))
 	end
 end

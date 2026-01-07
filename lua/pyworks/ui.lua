@@ -27,7 +27,10 @@ M.executed_cells = {}
 local cell_numbers_ns = nil
 
 -- Clean up executed_cells when buffer is deleted
+-- Use augroup to prevent duplicate autocmds on module reload
+local cleanup_augroup = vim.api.nvim_create_augroup("PyworksExecutedCellsCleanup", { clear = true })
 vim.api.nvim_create_autocmd("BufDelete", {
+	group = cleanup_augroup,
 	callback = function(ev)
 		M.executed_cells[ev.buf] = nil
 	end,
@@ -168,7 +171,7 @@ function M.toggle_cell_folding()
 	local foldexpr = vim.wo.foldexpr or ""
 	if vim.wo.foldmethod == "expr" and foldexpr:match("pyworks") then
 		vim.wo.foldmethod = "manual"
-		vim.cmd("normal! zE") -- Eliminate all folds
+		pcall(vim.cmd, "normal! zE") -- Eliminate all folds (pcall in case no folds exist)
 		vim.notify("Cell folding disabled", vim.log.levels.INFO)
 	else
 		M.setup_cell_folding()
