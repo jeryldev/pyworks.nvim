@@ -7,7 +7,7 @@ local utils = require("pyworks.utils")
 -- Check if jupytext CLI is available (delegates to jupytext module)
 function M.check_jupytext_cli(filepath)
 	local jupytext = require("pyworks.notebook.jupytext")
-	return jupytext.is_jupytext_installed()
+	return jupytext.is_jupytext_installed(filepath)
 end
 
 -- Handle notebook opening with fallback
