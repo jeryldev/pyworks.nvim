@@ -6,6 +6,13 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Added
 
+- **Configurable Custom Package Prefixes**: Package detection now supports user-defined prefixes
+  - Configure via `packages.custom_package_prefixes` in setup()
+  - Default prefixes: `^my_`, `^custom_`, `^local_`, `^internal_`, `^private_`, `^app_`, `^lib_`, `^src$`, `^utils$`, `^helpers$`
+  - Prevents suggesting installation of company-internal or local packages
+- **Test Coverage for UI Module**: Added comprehensive tests for ui.lua
+  - Tests for cell highlighting, execution tracking, numbering, and folding
+  - 11 new test cases covering all major UI functions
 - **Run All Cells (`<leader>jR`)**: Execute all cells sequentially from top to bottom
   - Automatically finds and counts all cells in the buffer
   - Runs cells with 200ms delay to prevent kernel overload
@@ -28,6 +35,12 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Fixed
 
+- **Security: Pip Action Whitelist**: Added validation for pip command actions
+  - Only allows safe actions: install, uninstall, list, show, freeze
+  - Prevents potential command injection via malicious package names
+- **Security: File Size Check**: Added size limit before reading files for import scanning
+  - Prevents memory issues with very large files
+  - Default limit: 1MB (configurable)
 - **Cell Toggle (`<leader>jt`)**: Fixed toggle not working from markdown back to code
   - Simplified pattern matching to check for `[markdown]` substring instead of complex regex
   - Now correctly toggles between `# %%` and `# %% [markdown]` in both directions
@@ -49,6 +62,9 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Changed
 
+- **Code Quality: Extracted filter_pip_stderr Helper**: Reduced complexity in python.lua
+  - Filters out pip noise (WARNING, Resolved, Installed, Collecting messages)
+  - Cleaner error output for package installation failures
 - **Breaking**: `<leader>jc` changed from "select cell" to "run cell and move to next"
   - Use `<leader>jv` for visual select cell (better vim semantics)
   - This provides Jupyter-like Shift+Enter behavior
@@ -64,6 +80,10 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Documentation
 
+- **Fixed Neovim Version Requirement**: Updated from ≥0.9.0 to ≥0.10.0 (code uses `vim.system()` and `vim.uv` APIs)
+- **Expanded Project Detection Markers**: Documented all 16+ supported markers including uv.lock, poetry.lock, manage.py, etc.
+- **Added Missing Keymaps to Help Doc**: Added `<leader>jR`, `<leader>jf`, `<leader>jzc`, `<leader>jze`, `<leader>jn`
+- **Synced Configuration Section**: README now matches actual init.lua defaults
 - Added active development warning to README
 - Updated all keybinding tables with comprehensive new set (24 total keybindings)
 - Reorganized keybindings into logical categories (Execution, Navigation, Output, Creation, Operations, Kernel)
