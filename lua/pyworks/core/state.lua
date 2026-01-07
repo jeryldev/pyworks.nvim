@@ -137,60 +137,10 @@ function M.set(key, value)
 	end
 end
 
--- Check if key exists
-function M.has(key)
-	vim.validate({ key = { key, "string" } })
-	return state[key] ~= nil
-end
-
 -- Remove state value
 function M.remove(key)
 	vim.validate({ key = { key, "string" } })
 	state[key] = nil
-end
-
--- Clear all state
-function M.clear()
-	state = {}
-	save_persistent_state()
-end
-
--- Clear volatile state (keep persistent)
-function M.clear_volatile()
-	local persistent = {}
-	for key, value in pairs(state) do
-		if key:match("^persistent_") or key:match("^initialized_") then
-			persistent[key] = value
-		end
-	end
-	state = persistent
-end
-
--- Get all state (for debugging)
-function M.get_all()
-	return vim.deepcopy(state)
-end
-
--- Track active jobs
-function M.add_job(id, info)
-	local jobs = state.active_jobs or {}
-	jobs[id] = info
-	state.active_jobs = jobs
-end
-
-function M.remove_job(id)
-	local jobs = state.active_jobs or {}
-	jobs[id] = nil
-	state.active_jobs = jobs
-end
-
-function M.get_jobs()
-	return state.active_jobs or {}
-end
-
-function M.has_active_jobs()
-	local jobs = state.active_jobs or {}
-	return next(jobs) ~= nil
 end
 
 -- Track environment status
@@ -199,27 +149,12 @@ function M.set_env_status(language, status)
 	state["env_" .. language .. "_time"] = os.time()
 end
 
-function M.get_env_status(language)
-	return state["env_" .. language]
-end
-
 -- Track package installation
 function M.mark_package_installed(language, package)
 	local key = "installed_" .. language
 	local installed = state[key] or {}
 	installed[package] = os.time()
 	state[key] = installed
-end
-
-function M.is_package_installed(language, package)
-	local key = "installed_" .. language
-	local installed = state[key] or {}
-	return installed[package] ~= nil
-end
-
-function M.get_installed_packages(language)
-	local key = "installed_" .. language
-	return state[key] or {}
 end
 
 -- Track last check times
@@ -253,17 +188,6 @@ function M.get_session_duration()
 		return os.time() - state.session_start
 	end
 	return 0
-end
-
--- Cleanup function for plugin unload
-function M.cleanup()
-	if save_timer then
-		save_timer:stop()
-		save_timer:close()
-		save_timer = nil
-	end
-	-- Save any pending state before exit
-	save_persistent_state()
 end
 
 return M

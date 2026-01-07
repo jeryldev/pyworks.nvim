@@ -7,31 +7,10 @@
 local M = {}
 
 local error_handler = require("pyworks.core.error_handler")
+local ui = require("pyworks.ui")
 
 local BUFFER_SETTLE_DELAY_MS = 100
 local CELL_EXECUTION_DELAY_MS = 200
-
--- Helper to go to the first line (first cell) and enter insert mode
-local function enter_first_cell()
-	vim.api.nvim_win_set_cursor(0, { 1, 0 })
-	vim.notify("First cell", vim.log.levels.INFO)
-	vim.cmd("startinsert")
-end
-
--- Helper to move below a cell marker and enter insert mode
--- If marker is at end of file, adds an empty line first
-local function enter_cell(marker_line)
-	local last_line = vim.api.nvim_buf_line_count(0)
-	local next_line = marker_line + 1
-
-	-- If marker is at or past the last line, add an empty line below
-	if next_line > last_line then
-		vim.fn.append(marker_line, "")
-	end
-
-	vim.api.nvim_win_set_cursor(0, { next_line, 0 })
-	vim.cmd("startinsert")
-end
 
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
@@ -158,7 +137,6 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			local ui = require("pyworks.ui")
 			local cell_num = ui.get_current_cell_number()
 			ui.mark_cell_executed(cell_num)
 
@@ -171,7 +149,7 @@ function M.setup_buffer_keymaps()
 				if found == 0 then
 					vim.notify("Last cell", vim.log.levels.INFO)
 				else
-					enter_cell(found)
+					ui.enter_cell(found)
 				end
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
@@ -184,7 +162,6 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			local ui = require("pyworks.ui")
 			local cell_num = ui.get_current_cell_number()
 			ui.mark_cell_executed(cell_num)
 
@@ -222,7 +199,6 @@ function M.setup_buffer_keymaps()
 			vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
 			vim.cmd("normal! gg")
 
-			local ui = require("pyworks.ui")
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
 					vim.fn.setpos(".", save_pos)
@@ -471,7 +447,7 @@ function M.setup_buffer_keymaps()
 		if found == 0 then
 			vim.notify("No more cells", vim.log.levels.INFO)
 		else
-			enter_cell(found)
+			ui.enter_cell(found)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
@@ -485,17 +461,17 @@ function M.setup_buffer_keymaps()
 		local found = vim.fn.search("^# %%", "bW")
 
 		if found == 0 then
-			enter_first_cell()
+			ui.enter_first_cell()
 		elseif found == current_marker and current_line <= current_marker + 1 then
 			-- We were at or just below a marker, search again for the previous one
 			local prev_found = vim.fn.search("^# %%", "bW")
 			if prev_found == 0 then
-				enter_first_cell()
+				ui.enter_first_cell()
 			else
-				enter_cell(prev_found)
+				ui.enter_cell(prev_found)
 			end
 		else
-			enter_cell(found)
+			ui.enter_cell(found)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end

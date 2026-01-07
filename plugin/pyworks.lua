@@ -143,28 +143,3 @@ vim.api.nvim_create_autocmd("FileType", {
 	end,
 	desc = "Pyworks: Set up language-specific keymaps and auto-init for notebooks",
 })
-
--- Clean up cache periodically
-vim.api.nvim_create_autocmd("VimEnter", {
-	group = augroup,
-	callback = function()
-		vim.defer_fn(function()
-			local cache = require("pyworks.core.cache")
-			cache.start_periodic_cleanup(300) -- Every 5 minutes
-		end, 5000)
-	end,
-	desc = "Pyworks: Start cache cleanup timer",
-})
-
--- Clean up timers on exit
-vim.api.nvim_create_autocmd("VimLeavePre", {
-	group = augroup,
-	callback = function()
-		local cache = require("pyworks.core.cache")
-		cache.stop_periodic_cleanup()
-
-		local state = require("pyworks.core.state")
-		state.cleanup()
-	end,
-	desc = "Pyworks: Clean up timers on exit",
-})

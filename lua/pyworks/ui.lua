@@ -203,6 +203,46 @@ function M.setup_buffer(opts)
 	-- since # is a comment character and will use the colorscheme's comment color
 end
 
+-- Find the line number of the first cell marker (# %%)
+-- Returns nil if no cell marker found
+-- Does not move cursor - uses buffer inspection
+function M.find_first_cell()
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	for i, line in ipairs(lines) do
+		if line:match("^# %%") then
+			return i
+		end
+	end
+	return nil
+end
+
+-- Move cursor below a cell marker and enter insert mode
+-- If marker is at end of file, adds an empty line first
+function M.enter_cell(marker_line)
+	local last_line = vim.api.nvim_buf_line_count(0)
+	local next_line = marker_line + 1
+
+	-- If marker is at or past the last line, add an empty line below
+	if next_line > last_line then
+		vim.fn.append(marker_line, "")
+	end
+
+	vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+	vim.cmd("startinsert")
+end
+
+-- Go to the first cell and enter insert mode on the line below the marker
+function M.enter_first_cell()
+	local marker_line = M.find_first_cell()
+	if marker_line then
+		M.enter_cell(marker_line)
+	else
+		-- No cell marker, just go to line 1 and insert
+		vim.api.nvim_win_set_cursor(0, { 1, 0 })
+		vim.cmd("startinsert")
+	end
+end
+
 -- Create a centered floating window with content
 -- @param title: Window title (string)
 -- @param content: Array of lines to display

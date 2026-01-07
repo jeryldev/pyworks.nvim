@@ -2,23 +2,22 @@
 local M = {}
 
 local jupytext = require("pyworks.notebook.jupytext")
+local ui = require("pyworks.ui")
 
 local VENV_CHECK_MAX_ATTEMPTS = 30
 local VENV_CHECK_INTERVAL_MS = 1000
 
--- Helper function to position cursor below first cell marker
-local function position_cursor_at_first_cell()
-	-- Find first cell marker (# %% for Python, or markdown marker)
-	vim.cmd("normal! gg")
-	local found = vim.fn.search("^# %%", "W")
-	if found > 0 then
-		-- Move to line below the marker
-		local next_line = found + 1
-		local last_line = vim.api.nvim_buf_line_count(0)
-		if next_line <= last_line then
-			vim.api.nvim_win_set_cursor(0, { next_line, 0 })
+-- Helper function to ensure parent directories exist
+local function ensure_parent_dirs(filepath)
+	local parent = vim.fn.fnamemodify(filepath, ":h")
+	if parent ~= "." and parent ~= "" and vim.fn.isdirectory(parent) == 0 then
+		local ok = vim.fn.mkdir(parent, "p")
+		if ok == 0 then
+			vim.notify("❌ Failed to create directory: " .. parent, vim.log.levels.ERROR)
+			return false
 		end
 	end
+	return true
 end
 
 -- Helper function to validate filename
@@ -32,6 +31,11 @@ local function validate_filename(filename, extension)
 	-- Ensure correct extension
 	if not filename:match("%." .. extension .. "$") then
 		filename = filename .. "." .. extension
+	end
+
+	-- Ensure parent directories exist
+	if not ensure_parent_dirs(filename) then
+		return nil
 	end
 
 	-- Check if file already exists
@@ -51,7 +55,7 @@ local function create_file_with_template(filename, template_lines, filetype)
 
 	-- Create or open file
 	if filename then
-		ok, err = pcall(vim.cmd, "edit " .. filename)
+		ok, err = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filename))
 		if not ok then
 			vim.notify("❌ Failed to create file: " .. (err or "unknown error"), vim.log.levels.ERROR)
 			return false
@@ -73,6 +77,14 @@ local function create_file_with_template(filename, template_lines, filetype)
 
 	-- Set filetype for syntax highlighting
 	vim.bo.filetype = filetype
+
+	-- Auto-save if filename was provided
+	if filename then
+		ok, err = pcall(vim.cmd, "write")
+		if not ok then
+			vim.notify("⚠️ File created but could not save: " .. (err or "unknown error"), vim.log.levels.WARN)
+		end
+	end
 
 	return true
 end
@@ -102,17 +114,18 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 
 	-- Create file with template
 	if create_file_with_template(filename, template, "python") then
-		position_cursor_at_first_cell()
 		if filename then
 			vim.notify("✅ Created Python notebook: " .. filename, vim.log.levels.INFO)
 		else
 			vim.notify("✅ Created new Python notebook (use :w to save)", vim.log.levels.INFO)
 		end
+		ui.enter_first_cell()
 	end
 end, { nargs = "?", desc = "Create new Python file with cells" })
 
 -- Generate unique cell ID (required in nbformat 4.5+)
 local function generate_cell_id()
+	math.randomseed(vim.uv.hrtime())
 	local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	local id = ""
 	for _ = 1, 8 do
@@ -186,7 +199,7 @@ local function open_and_verify_notebook(filename, language)
 		return true
 	end
 
-	local open_ok, open_err = pcall(vim.cmd, "edit " .. filename)
+	local open_ok, open_err = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filename))
 	if not open_ok then
 		vim.notify("⚠️ Notebook created but failed to open: " .. (open_err or "unknown error"), vim.log.levels.WARN)
 		vim.notify("You can open it manually: " .. filename, vim.log.levels.INFO)
@@ -202,10 +215,10 @@ local function open_and_verify_notebook(filename, language)
 		if check_line:match("^%s*{") then
 			vim.notify("⚠️ Notebook showing as JSON. Try :edit! to reload.", vim.log.levels.WARN)
 		else
-			position_cursor_at_first_cell()
+			ui.enter_first_cell()
 		end
 	else
-		position_cursor_at_first_cell()
+		ui.enter_first_cell()
 	end
 	vim.notify("✅ Created " .. language .. " notebook: " .. filename, vim.log.levels.INFO)
 	return true
@@ -215,6 +228,11 @@ end
 local function create_ipynb_file(filename, language, kernel_info, imports)
 	if not filename:match("%.ipynb$") then
 		filename = filename .. ".ipynb"
+	end
+
+	-- Ensure parent directories exist
+	if not ensure_parent_dirs(filename) then
+		return false
 	end
 
 	if vim.fn.filereadable(filename) == 1 then

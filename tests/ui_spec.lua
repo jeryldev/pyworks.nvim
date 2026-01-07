@@ -186,4 +186,109 @@ describe("ui", function()
 			assert.equals(">1", fold_level)
 		end)
 	end)
+
+	describe("find_first_cell", function()
+		it("should return line number of first cell marker", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %% Cell 1",
+				"print('hello')",
+				"# %% Cell 2",
+			})
+
+			local line = ui.find_first_cell()
+
+			assert.equals(1, line)
+		end)
+
+		it("should return nil when no cell markers exist", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"print('hello')",
+				"x = 1",
+			})
+
+			local line = ui.find_first_cell()
+
+			assert.is_nil(line)
+		end)
+
+		it("should not move cursor", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"print('hello')",
+				"# %% Cell 1",
+				"x = 1",
+			})
+			vim.api.nvim_win_set_cursor(0, { 3, 0 })
+
+			ui.find_first_cell()
+
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			assert.equals(3, cursor[1])
+		end)
+
+		it("should find cell even if not on first line", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# Header comment",
+				"import os",
+				"# %% Cell 1",
+				"print('hello')",
+			})
+
+			local line = ui.find_first_cell()
+
+			assert.equals(3, line)
+		end)
+	end)
+
+	describe("enter_cell", function()
+		it("should position cursor below marker line", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %% Cell 1",
+				"print('hello')",
+				"# %% Cell 2",
+			})
+
+			ui.enter_cell(1)
+
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			assert.equals(2, cursor[1])
+		end)
+
+		it("should add empty line if marker is at end of file", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %% Cell 1",
+			})
+
+			ui.enter_cell(1)
+
+			local lines = vim.api.nvim_buf_get_lines(test_bufnr, 0, -1, false)
+			assert.equals(2, #lines)
+			assert.equals("", lines[2])
+		end)
+	end)
+
+	describe("enter_first_cell", function()
+		it("should position cursor below first cell marker", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %% Cell 1",
+				"print('hello')",
+			})
+
+			ui.enter_first_cell()
+
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			assert.equals(2, cursor[1])
+		end)
+
+		it("should go to line 1 when no cell markers exist", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"print('hello')",
+				"x = 1",
+			})
+
+			ui.enter_first_cell()
+
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			assert.equals(1, cursor[1])
+		end)
+	end)
 end)

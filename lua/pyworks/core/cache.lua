@@ -6,9 +6,6 @@ local M = {}
 -- Cache storage
 local cache = {}
 
--- Mutex flag to prevent concurrent modifications during cleanup
-local is_cleaning = false
-
 -- Maximum cache entries to prevent unbounded growth
 local MAX_CACHE_SIZE = 1000
 
@@ -105,11 +102,6 @@ function M.set(key, value)
 	}
 end
 
--- Check if key exists and is not expired
-function M.has(key)
-	return M.get(key) ~= nil
-end
-
 -- Clear specific cache entry
 function M.invalidate(key)
 	vim.validate({ key = { key, "string" } })
@@ -133,11 +125,6 @@ function M.invalidate_pattern(pattern)
 	end
 end
 
--- Clear entire cache
-function M.clear()
-	cache = {}
-end
-
 -- Get cache statistics
 function M.stats()
 	local count = 0
@@ -159,87 +146,12 @@ function M.stats()
 	}
 end
 
--- Clean expired entries (thread-safe)
-function M.cleanup()
-	-- Prevent concurrent cleanup runs
-	if is_cleaning then
-		return 0
-	end
-	is_cleaning = true
-
-	local now = os.time()
-	local cleaned = 0
-
-	-- Collect keys to delete first (safer than modifying during iteration)
-	local keys_to_delete = {}
-	for key, entry in pairs(cache) do
-		local ttl = get_ttl(key)
-		if now - entry.timestamp > ttl then
-			table.insert(keys_to_delete, key)
-		end
-	end
-
-	-- Delete collected keys
-	for _, key in ipairs(keys_to_delete) do
-		cache[key] = nil
-		cleaned = cleaned + 1
-	end
-
-	is_cleaning = false
-	return cleaned
-end
-
 -- Override default TTL values
 function M.configure(ttl_overrides)
 	for key, value in pairs(ttl_overrides or {}) do
 		if default_ttl[key] then
 			default_ttl[key] = value
 		end
-	end
-end
-
--- Wrap a function with caching
-function M.cached(key, fn)
-	vim.validate({ key = { key, "string" }, fn = { fn, "function" } })
-	local cached_value = M.get(key)
-	if cached_value ~= nil then
-		return cached_value
-	end
-
-	local value = fn()
-	if value ~= nil then
-		M.set(key, value)
-	end
-
-	return value
-end
-
--- Periodic cleanup (optional)
-local cleanup_timer = nil
-function M.start_periodic_cleanup(interval_seconds)
-	vim.validate({ interval_seconds = { interval_seconds, "number", true } })
-	interval_seconds = interval_seconds or 300 -- 5 minutes default
-
-	M.stop_periodic_cleanup()
-
-	cleanup_timer = vim.uv.new_timer()
-	if cleanup_timer then
-		cleanup_timer:start(
-			interval_seconds * 1000,
-			interval_seconds * 1000,
-			vim.schedule_wrap(function()
-				M.cleanup()
-			end)
-		)
-	end
-end
-
--- Stop periodic cleanup and release timer resources
-function M.stop_periodic_cleanup()
-	if cleanup_timer then
-		cleanup_timer:stop()
-		cleanup_timer:close()
-		cleanup_timer = nil
 	end
 end
 
