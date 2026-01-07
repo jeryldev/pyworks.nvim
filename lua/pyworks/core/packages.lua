@@ -6,6 +6,9 @@ local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 
+-- Maximum file size to scan for imports (1MB) - prevents blocking on large files
+local MAX_FILE_SIZE_BYTES = 1024 * 1024
+
 -- Package name mappings for common mismatches (import name -> PyPI package name)
 -- Updated for 2025 with AI/ML packages
 local package_mappings = {
@@ -435,6 +438,19 @@ function M.scan_imports(filepath, language)
 		end
 	else
 		-- Regular files: read from disk
+		-- Check file size first to avoid blocking on large files
+		local stat = vim.uv.fs_stat(filepath)
+		if not stat then
+			return {}
+		end
+		if stat.size > MAX_FILE_SIZE_BYTES then
+			notifications.notify(
+				string.format("Skipping large file for import scan: %s (%.1f MB)", filepath, stat.size / 1024 / 1024),
+				vim.log.levels.DEBUG
+			)
+			return {}
+		end
+
 		local file = io.open(filepath, "r")
 		if not file then
 			return {}
