@@ -19,6 +19,24 @@ local IMPORT_CHECK_TIMEOUT_MS = 5000 -- 5 seconds for import check
 local PIP_LIST_TIMEOUT_MS = 15000 -- 15 seconds for pip list
 local VENV_CREATE_TIMEOUT_MS = 60000 -- 60 seconds for venv creation
 
+local function filter_pip_stderr(stderr)
+	if not stderr or stderr == "" then
+		return {}
+	end
+	local filtered = {}
+	for line in stderr:gmatch("[^\r\n]+") do
+		local is_noise = line:match("WARNING")
+			or line:match("Resolved")
+			or line:match("Installed")
+			or line:match("Collecting")
+			or line:match("Installing")
+		if not is_noise then
+			table.insert(filtered, line)
+		end
+	end
+	return filtered
+end
+
 -- Helper to get current buffer's filepath
 local function get_current_filepath()
 	local path = vim.fn.expand("%:p")
@@ -346,19 +364,7 @@ function M.install_essentials(filepath)
 				cache.invalidate("installed_packages_python")
 			else
 				local error_msg = "Failed to install essential packages."
-				local stderr = obj.stderr or ""
-				local filtered_errors = {}
-				for line in stderr:gmatch("[^\r\n]+") do
-					if
-						not line:match("WARNING")
-						and not line:match("Resolved")
-						and not line:match("Installed")
-						and not line:match("Collecting")
-						and not line:match("Installing")
-					then
-						table.insert(filtered_errors, line)
-					end
-				end
+				local filtered_errors = filter_pip_stderr(obj.stderr)
 				if #filtered_errors > 0 then
 					error_msg = error_msg .. "\nError: " .. table.concat(filtered_errors, "\n")
 				end
