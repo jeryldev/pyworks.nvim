@@ -130,10 +130,10 @@ function M.setup_buffer_keymaps()
 		)
 
 		-- Run current cell and move to next (classic Jupyter Shift+Enter behavior)
-		vim.keymap.set("n", "<leader>jc", function()
+		vim.keymap.set("n", "<leader>jj", function()
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
-				vim.notify("⚠️  No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
+				vim.notify("No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
 				return
 			end
 
@@ -154,31 +154,11 @@ function M.setup_buffer_keymaps()
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
-		-- Re-evaluate current cell (stay in place)
-		vim.keymap.set("n", "<leader>je", function()
-			local bufnr = vim.api.nvim_get_current_buf()
-			if not vim.b[bufnr].molten_initialized then
-				vim.notify("⚠️  No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
-				return
-			end
-
-			local cell_num = ui.get_current_cell_number()
-			ui.mark_cell_executed(cell_num)
-
-			local cursor_pos = vim.api.nvim_win_get_cursor(0)
-			evaluate_percent_cell()
-
-			-- Restore cursor position after evaluation completes
-			vim.defer_fn(function()
-				vim.api.nvim_win_set_cursor(0, cursor_pos)
-			end, BUFFER_SETTLE_DELAY_MS)
-		end, vim.tbl_extend("force", opts, { desc = "Re-evaluate current cell" }))
-
 		-- Run all cells in the buffer sequentially
 		vim.keymap.set("n", "<leader>jR", function()
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
-				vim.notify("⚠️  No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
+				vim.notify("No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
 				return
 			end
 
@@ -202,7 +182,7 @@ function M.setup_buffer_keymaps()
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
 					vim.fn.setpos(".", save_pos)
-					vim.notify("✓ All cells executed", vim.log.levels.INFO)
+					vim.notify("All cells executed", vim.log.levels.INFO)
 					return
 				end
 
@@ -230,7 +210,7 @@ function M.setup_buffer_keymaps()
 		-- Visual select current cell
 		vim.keymap.set("n", "<leader>jv", function()
 			if vim.bo.filetype == "python" and not vim.g.python3_host_prog then
-				vim.notify("⚠️  Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
+				vim.notify("Python host not configured. Run :PyworksSetup first", vim.log.levels.WARN)
 				return
 			end
 
@@ -301,7 +281,7 @@ function M.setup_buffer_keymaps()
 		-- ============================================================================
 
 		vim.keymap.set("n", "<leader>jd", function()
-			pcall(vim.cmd, "silent! MoltenDelete")
+			pcall(vim.cmd, "MoltenDelete")
 		end, vim.tbl_extend("force", opts, { desc = "Delete cell output" }))
 
 		vim.keymap.set("n", "<leader>jh", function()
@@ -312,7 +292,7 @@ function M.setup_buffer_keymaps()
 		end, vim.tbl_extend("force", opts, { desc = "Hide output window" }))
 
 		vim.keymap.set("n", "<leader>jo", function()
-			pcall(vim.cmd, "silent! noautocmd MoltenEnterOutput")
+			pcall(vim.cmd, "noautocmd MoltenEnterOutput")
 		end, vim.tbl_extend("force", opts, { desc = "Enter output window" }))
 
 		-- Show Molten output or fall back to LSP hover
@@ -405,19 +385,27 @@ function M.setup_buffer_keymaps()
 		-- ============================================================================
 
 		vim.keymap.set("n", "<leader>jf", function()
-			require("pyworks.ui").toggle_cell_folding()
+			ui.toggle_cell_folding()
 		end, vim.tbl_extend("force", opts, { desc = "Toggle cell folding" }))
 
-		vim.keymap.set("n", "<leader>jzc", function()
-			require("pyworks.ui").collapse_all_cells()
+		vim.keymap.set("n", "<leader>jc", function()
+			ui.collapse_cell()
+		end, vim.tbl_extend("force", opts, { desc = "Collapse current cell" }))
+
+		vim.keymap.set("n", "<leader>jC", function()
+			ui.collapse_all_cells()
 		end, vim.tbl_extend("force", opts, { desc = "Collapse all cells" }))
 
-		vim.keymap.set("n", "<leader>jze", function()
-			require("pyworks.ui").expand_all_cells()
+		vim.keymap.set("n", "<leader>je", function()
+			ui.expand_cell()
+		end, vim.tbl_extend("force", opts, { desc = "Expand current cell" }))
+
+		vim.keymap.set("n", "<leader>jE", function()
+			ui.expand_all_cells()
 		end, vim.tbl_extend("force", opts, { desc = "Expand all cells" }))
 
 		vim.keymap.set("n", "<leader>jn", function()
-			require("pyworks.ui").number_cells()
+			ui.number_cells()
 			vim.notify("Cell numbers refreshed", vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Refresh cell numbers" }))
 	else

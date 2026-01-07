@@ -4,6 +4,17 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: Reorganized Cell Execution and Folding Keymaps**:
+  - `<leader>jj` - Run cell and move to next (was `<leader>jc`)
+  - `<leader>jc` - Collapse current cell (NEW)
+  - `<leader>jC` - Collapse all cells (was `<leader>jzc`)
+  - `<leader>je` - Expand current cell (was "re-evaluate current cell")
+  - `<leader>jE` - Expand all cells (was `<leader>jze`)
+  - Removed `<leader>je` for re-evaluate (redundant with `<leader>jj`)
+- **Improved Cell Folding**: Collapse/expand commands now auto-enable folding if not already active
+
 ### Added
 
 - **Configurable Custom Package Prefixes**: Package detection now supports user-defined prefixes
@@ -19,14 +30,14 @@ All notable changes to pyworks.nvim will be documented in this file.
   - Shows progress notification and restores cursor position when complete
   - Works with both code and markdown cells (markdown cells are skipped by kernel)
 - **Cell Folding & UI Enhancements**: New visual features for better cell organization
-  - Cell folding: Collapse/expand cells with `<leader>jf`, `<leader>jzc`, `<leader>jze`
+  - Cell folding: Collapse/expand cells with `<leader>jf`, `<leader>jc/jC`, `<leader>je/jE`
   - Cell numbering: Automatic inline cell numbering with type indicators (code/markdown)
   - Execution status: Cell numbers change from red (unrun) to green (executed) when cells are run
   - Tracks execution state per buffer - visual feedback for which cells have been executed
   - Custom fold text showing cell type, line count, and content preview
   - Configurable via `setup({ show_cell_numbers = true, enable_cell_folding = false })`
 - **15 New Jupyter-like Keybindings**: Comprehensive cell manipulation and execution
-  - Cell execution: `<leader>jc` (run and move next), `<leader>je` (re-evaluate in place)
+  - Cell execution: `<leader>jj` (run and move next)
   - Cell creation: `<leader>ja/jb` (insert code cells above/below), `<leader>jma/jmb` (insert markdown cells)
   - Cell operations: `<leader>jt` (toggle type), `<leader>jJ` (merge below), `<leader>js` (split at cursor)
   - Output management: `<leader>jd` (delete), `<leader>jh` (hide), `<leader>jo` (enter window)
@@ -65,9 +76,9 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Code Quality: Extracted filter_pip_stderr Helper**: Reduced complexity in python.lua
   - Filters out pip noise (WARNING, Resolved, Installed, Collecting messages)
   - Cleaner error output for package installation failures
-- **Breaking**: `<leader>jc` changed from "select cell" to "run cell and move to next"
+- **Breaking**: `<leader>jj` is now "run cell and move to next" (was `<leader>jc`)
+  - `<leader>jc` is now "collapse current cell"
   - Use `<leader>jv` for visual select cell (better vim semantics)
-  - This provides Jupyter-like Shift+Enter behavior
 - **Documentation**: Simplified README and help docs by removing verbose sections
   - Removed "Why This Simple Configuration Works" section
   - Removed "What's New in v3.0" marketing language
@@ -82,7 +93,7 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 - **Fixed Neovim Version Requirement**: Updated from ≥0.9.0 to ≥0.10.0 (code uses `vim.system()` and `vim.uv` APIs)
 - **Expanded Project Detection Markers**: Documented all 16+ supported markers including uv.lock, poetry.lock, manage.py, etc.
-- **Added Missing Keymaps to Help Doc**: Added `<leader>jR`, `<leader>jf`, `<leader>jzc`, `<leader>jze`, `<leader>jn`
+- **Added Missing Keymaps to Help Doc**: Added `<leader>jR`, `<leader>jf`, `<leader>jc/jC`, `<leader>je/jE`, `<leader>jn`
 - **Synced Configuration Section**: README now matches actual init.lua defaults
 - Added active development warning to README
 - Updated all keybinding tables with comprehensive new set (24 total keybindings)

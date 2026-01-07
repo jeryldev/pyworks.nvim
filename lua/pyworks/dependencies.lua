@@ -206,19 +206,17 @@ function M.ensure_dependencies()
 	-- Report status with separated notifications for clarity
 	if #issues > 0 then
 		-- Critical issues that need manual intervention
-		local msg = string.format(
-			"⚠️  Pyworks: Missing dependencies - %s\nRun :Lazy sync to install",
-			table.concat(issues, ", ")
-		)
+		local msg =
+			string.format("Pyworks: Missing dependencies - %s\nRun :Lazy sync to install", table.concat(issues, ", "))
 		vim.notify(msg, vim.log.levels.ERROR)
 	elseif #actions_taken > 0 and needs_restart then
 		-- Only show configuration message if restart is needed (first-time setup)
-		local msg = "🔧 Pyworks: Configuring notebook environment\n• " .. table.concat(actions_taken, "\n• ")
+		local msg = "Pyworks: Configuring notebook environment\n- " .. table.concat(actions_taken, "\n- ")
 		vim.notify(msg, vim.log.levels.INFO)
 
 		-- Separate notification for restart
 		vim.defer_fn(function()
-			local restart_msg = "⚠️  One-time setup: Please restart Neovim to activate Molten\n"
+			local restart_msg = "One-time setup: Please restart Neovim to activate Molten\n"
 				.. "   This is only needed once after initial installation"
 			vim.notify(restart_msg, vim.log.levels.WARN)
 		end, 200)
@@ -252,7 +250,7 @@ function M.register_molten()
 			local success, err = pcall(vim.cmd, "UpdateRemotePlugins")
 
 			if not success then
-				vim.notify("❌ Failed to register Molten: " .. tostring(err), vim.log.levels.ERROR)
+				vim.notify("Failed to register Molten: " .. tostring(err), vim.log.levels.ERROR)
 			end
 		end)
 		return true
@@ -274,9 +272,9 @@ function M.check_health()
 
 	for plugin, is_ok in pairs(plugins) do
 		if is_ok then
-			table.insert(health, string.format("✅ %s: Installed and loaded", plugin))
+			table.insert(health, string.format("OK: %s: Installed and loaded", plugin))
 		else
-			table.insert(health, string.format("❌ %s: Not available", plugin))
+			table.insert(health, string.format("ERROR: %s: Not available", plugin))
 		end
 	end
 
@@ -284,17 +282,17 @@ function M.check_health()
 	local python_deps = { "pynvim", "jupyter_client", "ipykernel", "jupytext" }
 	for _, dep in ipairs(python_deps) do
 		if utils.check_python_import(dep) then
-			table.insert(health, string.format("✅ Python %s: Installed", dep))
+			table.insert(health, string.format("OK: Python %s: Installed", dep))
 		else
-			table.insert(health, string.format("❌ Python %s: Not installed", dep))
+			table.insert(health, string.format("ERROR: Python %s: Not installed", dep))
 		end
 	end
 
 	-- Check jupytext CLI using safe executable check
 	if vim.fn.executable("jupytext") == 1 then
-		table.insert(health, "✅ Jupytext CLI: Available in PATH")
+		table.insert(health, "OK: Jupytext CLI: Available in PATH")
 	else
-		table.insert(health, "❌ Jupytext CLI: Not found in PATH")
+		table.insert(health, "ERROR: Jupytext CLI: Not found in PATH")
 	end
 
 	return health
@@ -314,7 +312,7 @@ end
 function M.install_dependencies()
 	local all_ok = M.ensure_dependencies()
 	if all_ok then
-		vim.notify("✅ Pyworks: All dependencies are properly configured!", vim.log.levels.INFO)
+		vim.notify("Pyworks: All dependencies are properly configured!", vim.log.levels.INFO)
 	end
 end
 

@@ -23,6 +23,16 @@ end
 -- Track executed cells per buffer
 M.executed_cells = {}
 
+-- Namespace for cell numbering (cached)
+local cell_numbers_ns = nil
+
+-- Clean up executed_cells when buffer is deleted
+vim.api.nvim_create_autocmd("BufDelete", {
+	callback = function(ev)
+		M.executed_cells[ev.buf] = nil
+	end,
+})
+
 -- Mark a cell as executed
 function M.mark_cell_executed(cell_num)
 	local bufnr = vim.api.nvim_get_current_buf()
@@ -55,9 +65,13 @@ function M.number_cells()
 	local bufnr = vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
+	-- Get or create namespace (cached for performance)
+	if not cell_numbers_ns then
+		cell_numbers_ns = vim.api.nvim_create_namespace("pyworks_cell_numbers")
+	end
+
 	-- Clear existing virtual text from pyworks
-	local ns = vim.api.nvim_create_namespace("pyworks_cell_numbers")
-	vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+	vim.api.nvim_buf_clear_namespace(bufnr, cell_numbers_ns, 0, -1)
 
 	-- Get executed cells for this buffer
 	local executed = M.executed_cells[bufnr] or {}
@@ -73,7 +87,7 @@ function M.number_cells()
 			local hl_group = executed[cell_num] and "PyworksCellNumberExecuted" or "PyworksCellNumberUnrun"
 			local virt_text = { { string.format(" [Cell %d: %s]", cell_num, cell_type), hl_group } }
 
-			vim.api.nvim_buf_set_extmark(bufnr, ns, i - 1, 0, {
+			vim.api.nvim_buf_set_extmark(bufnr, cell_numbers_ns, i - 1, 0, {
 				virt_text = virt_text,
 				virt_text_pos = "eol",
 			})
@@ -86,7 +100,8 @@ end
 -- Setup cell folding based on # %% markers
 function M.setup_cell_folding()
 	-- Only set up folding if it's not already configured
-	if vim.wo.foldmethod == "expr" and vim.wo.foldexpr:match("pyworks") then
+	local foldexpr = vim.wo.foldexpr or ""
+	if vim.wo.foldmethod == "expr" and foldexpr:match("pyworks") then
 		return
 	end
 
@@ -150,7 +165,8 @@ end
 
 -- Toggle cell folding on/off
 function M.toggle_cell_folding()
-	if vim.wo.foldmethod == "expr" then
+	local foldexpr = vim.wo.foldexpr or ""
+	if vim.wo.foldmethod == "expr" and foldexpr:match("pyworks") then
 		vim.wo.foldmethod = "manual"
 		vim.cmd("normal! zE") -- Eliminate all folds
 		vim.notify("Cell folding disabled", vim.log.levels.INFO)
@@ -160,14 +176,28 @@ function M.toggle_cell_folding()
 	end
 end
 
+-- Collapse current cell
+function M.collapse_cell()
+	M.setup_cell_folding()
+	vim.cmd("normal! zc")
+end
+
 -- Collapse all cells
 function M.collapse_all_cells()
+	M.setup_cell_folding()
 	vim.cmd("normal! zM")
 	vim.notify("All cells collapsed", vim.log.levels.INFO)
 end
 
+-- Expand current cell
+function M.expand_cell()
+	M.setup_cell_folding()
+	vim.cmd("normal! zo")
+end
+
 -- Expand all cells
 function M.expand_all_cells()
+	M.setup_cell_folding()
 	vim.cmd("normal! zR")
 	vim.notify("All cells expanded", vim.log.levels.INFO)
 end

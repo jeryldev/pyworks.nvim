@@ -88,11 +88,11 @@ function M.handle_notebook(filepath)
 		local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
 
 		notifications.notify(
-			string.format("❌ Cannot open %s notebook: jupytext not found", project_type),
+			string.format("Cannot open %s notebook: jupytext not found", project_type),
 			vim.log.levels.ERROR
 		)
 		notifications.notify(
-			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			string.format("Run :PyworksSetup to create venv at: %s/.venv", project_rel),
 			vim.log.levels.INFO
 		)
 		return
@@ -145,7 +145,7 @@ local function find_python_in_venv(venv_path, filepath)
 
 	-- No Python found - create venv
 	notifications.notify(
-		string.format("⚠️ No Python found in venv: %s", venv_path),
+		string.format("No Python found in venv: %s", venv_path),
 		vim.log.levels.WARN,
 		{ action_required = true }
 	)
@@ -174,7 +174,7 @@ local function find_matching_kernel(venv_path, python_path)
 
 				if notifications.get_config().debug_mode then
 					notifications.notify(
-						string.format("🔍 Kernel '%s' uses: %s", name, kernel_python),
+						string.format("Kernel '%s' uses: %s", name, kernel_python),
 						vim.log.levels.DEBUG
 					)
 				end
@@ -182,11 +182,11 @@ local function find_matching_kernel(venv_path, python_path)
 				local is_exact_match = (kernel_python == python_path)
 				local is_venv_match = kernel_python:match("^" .. vim.pesc(venv_path))
 				if is_exact_match or is_venv_match then
-					notifications.notify(string.format("✅ Found kernel '%s'", name), vim.log.levels.INFO)
+					notifications.notify(string.format("Found kernel '%s'", name), vim.log.levels.INFO)
 					return name
 				elseif notifications.get_config().debug_mode then
 					notifications.notify(
-						string.format("❌ Kernel '%s' uses %s, not %s", name, kernel_python, python_path),
+						string.format("Kernel '%s' uses %s, not %s", name, kernel_python, python_path),
 						vim.log.levels.DEBUG
 					)
 				end
@@ -215,7 +215,7 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 	local check_success, _, _ = utils.system_with_timeout(check_cmd, KERNEL_LIST_TIMEOUT_MS)
 	if not check_success then
 		notifications.notify(
-			string.format("❌ ipykernel not found in venv. Run: %s/bin/pip install ipykernel", venv_path),
+			string.format("ipykernel not found in venv. Run: %s/bin/pip install ipykernel", venv_path),
 			vim.log.levels.ERROR,
 			{ action_required = true }
 		)
@@ -223,7 +223,7 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 	end
 
 	notifications.notify(
-		string.format("🔨 Creating kernel '%s' for venv: %s", kernel_name, venv_path),
+		string.format("Creating kernel '%s' for venv: %s", kernel_name, venv_path),
 		vim.log.levels.INFO
 	)
 
@@ -236,15 +236,12 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 
 	local create_success, output, _ = utils.system_with_timeout(cmd, KERNEL_CREATE_TIMEOUT_MS)
 	if create_success then
-		notifications.notify(
-			string.format("✅ Created kernel '%s' -> %s", kernel_name, python_path),
-			vim.log.levels.INFO
-		)
+		notifications.notify(string.format("Created kernel '%s' -> %s", kernel_name, python_path), vim.log.levels.INFO)
 		cache.invalidate("kernel_list")
 		return kernel_name
 	end
 
-	notifications.notify(string.format("❌ Failed to create kernel: %s", vim.trim(output)), vim.log.levels.ERROR)
+	notifications.notify(string.format("Failed to create kernel: %s", vim.trim(output)), vim.log.levels.ERROR)
 	return nil
 end
 
@@ -260,7 +257,7 @@ local function get_kernel_for_language(language, filepath)
 		local lang = language:lower()
 		local kernel = cached_kernels[lang]
 		if kernel then
-			notifications.notify(string.format("🎯 Using %s kernel: %s", language, kernel), vim.log.levels.INFO)
+			notifications.notify(string.format("Using %s kernel: %s", language, kernel), vim.log.levels.INFO)
 		end
 		return kernel
 	end
@@ -279,7 +276,7 @@ local function get_kernel_for_language(language, filepath)
 
 	if notifications.get_config().debug_mode then
 		notifications.notify(
-			string.format("🔍 Looking for kernel matching venv Python: %s", python_path),
+			string.format("Looking for kernel matching venv Python: %s", python_path),
 			vim.log.levels.DEBUG
 		)
 	end
@@ -291,7 +288,7 @@ local function get_kernel_for_language(language, filepath)
 	end
 
 	-- No matching kernel found - create one
-	notifications.notify(string.format("📦 No kernel found for %s", project_dir), vim.log.levels.INFO)
+	notifications.notify(string.format("No kernel found for %s", project_dir), vim.log.levels.INFO)
 	return create_kernel_for_project(project_dir, venv_path, python_path)
 end
 
@@ -330,7 +327,7 @@ local function auto_init_molten(language, filepath)
 
 				-- Show clear notification that kernel is ready
 				notifications.notify(
-					string.format("✅ Molten ready with %s kernel - Use <leader>jl to run code", kernel),
+					string.format("Molten ready with %s kernel - Use <leader>jl to run code", kernel),
 					vim.log.levels.INFO
 				)
 			else
@@ -372,17 +369,17 @@ function M.handle_python(filepath)
 	-- Show detection results (deduplication handles repeats)
 	if venv_exists then
 		notifications.notify(
-			string.format("🐍 %s project: venv at %s/.venv", project_type, project_rel),
+			string.format("%s project: venv at %s/.venv", project_type, project_rel),
 			vim.log.levels.INFO
 		)
 	else
 		notifications.notify(
-			string.format("⚠️  %s project: No venv for %s", project_type, file_rel),
+			string.format("%s project: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
 			{ action_required = true }
 		)
 		notifications.notify(
-			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			string.format("Run :PyworksSetup to create venv at: %s/.venv", project_rel),
 			vim.log.levels.INFO
 		)
 		-- Don't auto-create on file open, but still set up for manual creation
@@ -415,17 +412,17 @@ function M.handle_python_notebook(filepath)
 	-- Show detection results (first time only, not forced)
 	if venv_exists then
 		notifications.notify(
-			string.format("📓 %s notebook: venv at %s/.venv", project_type, project_rel),
+			string.format("%s notebook: venv at %s/.venv", project_type, project_rel),
 			vim.log.levels.INFO
 		)
 	else
 		notifications.notify(
-			string.format("⚠️  %s notebook: No venv for %s", project_type, file_rel),
+			string.format("%s notebook: No venv for %s", project_type, file_rel),
 			vim.log.levels.WARN,
 			{ action_required = true }
 		)
 		notifications.notify(
-			string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+			string.format("Run :PyworksSetup to create venv at: %s/.venv", project_rel),
 			vim.log.levels.INFO
 		)
 		-- Don't auto-create for notebooks, let user decide

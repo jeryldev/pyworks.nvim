@@ -101,9 +101,8 @@ For inline plot/image display:
    ```
 
 3. **Execute code**:
-   - `<leader>jl` - Run current line
-   - `<leader>jc` - Run current cell and move to next (Shift+Enter in Jupyter)
-   - `<leader>je` - Re-run current cell
+   - `<leader>jl` - Auto-initialize kernel
+   - `<leader>jj` - Run current cell and move to next (Shift+Enter in Jupyter)
 
 4. **Create new cells**:
    - `<leader>ja` - Insert code cell above
@@ -121,10 +120,9 @@ For inline plot/image display:
 
 | Keymap       | Mode   | Description                      |
 | ------------ | ------ | -------------------------------- |
-| `<leader>jl` | Normal | Run current line                 |
+| `<leader>jl` | Normal | Auto-initialize kernel           |
 | `<leader>jr` | Visual | Run selection                    |
-| `<leader>jc` | Normal | Run current cell and move to next |
-| `<leader>je` | Normal | Re-evaluate current cell (stay in place) |
+| `<leader>jj` | Normal | Run current cell and move to next |
 | `<leader>jR` | Normal | Run all cells in buffer          |
 
 ### Cell Selection & Navigation
@@ -167,8 +165,10 @@ For inline plot/image display:
 | Keymap        | Description                    |
 | ------------- | ------------------------------ |
 | `<leader>jf`  | Toggle cell folding on/off     |
-| `<leader>jzc` | Collapse all cells             |
-| `<leader>jze` | Expand all cells               |
+| `<leader>jc`  | Collapse current cell          |
+| `<leader>jC`  | Collapse all cells             |
+| `<leader>je`  | Expand current cell            |
+| `<leader>jE`  | Expand all cells               |
 | `<leader>jn`  | Refresh cell numbers           |
 
 ### Kernel Management
@@ -287,7 +287,7 @@ Pyworks finds your project root by looking for these markers (in priority order)
 
 ### Common Issues
 
-**Q: "No kernel initialized" warning when using `<leader>jc` or `<leader>je`**
+**Q: "No kernel initialized" warning when using `<leader>jj`**
 A: Press `<leader>jl` first to auto-initialize the kernel for the current file type.
 
 **Q: Jupytext command not found**

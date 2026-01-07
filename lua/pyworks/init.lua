@@ -231,7 +231,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 	-- If no file is open, use cwd as the project directory
 	if filepath == "" then
 		local cwd = vim.fn.getcwd()
-		vim.notify("📁 Setting up Python environment in: " .. cwd, vim.log.levels.INFO)
+		vim.notify("Setting up Python environment in: " .. cwd, vim.log.levels.INFO)
 
 		-- Create venv in cwd
 		local python = require("pyworks.languages.python")
@@ -241,7 +241,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local dummy_filepath = cwd .. "/setup.py"
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
 		if ok then
-			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
+			vim.notify("Python environment ready", vim.log.levels.INFO)
 			-- Re-configure jupytext.nvim after packages are installed (async)
 			vim.defer_fn(function()
 				local jupytext = require("pyworks.notebook.jupytext")
@@ -267,7 +267,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local python = require("pyworks.languages.python")
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
 		if ok then
-			vim.notify("✅ Python environment ready", vim.log.levels.INFO)
+			vim.notify("Python environment ready", vim.log.levels.INFO)
 			-- Re-configure jupytext.nvim after packages are installed (async)
 			vim.defer_fn(function()
 				local jupytext = require("pyworks.notebook.jupytext")
@@ -280,7 +280,7 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 			end, POST_SETUP_DELAY_MS)
 		end
 	else
-		vim.notify("ℹ️ Pyworks only supports Python files", vim.log.levels.INFO)
+		vim.notify("Pyworks only supports Python files", vim.log.levels.INFO)
 	end
 end, {
 	desc = "Manually trigger Pyworks environment setup for current file or cwd",

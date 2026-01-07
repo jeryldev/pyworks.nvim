@@ -712,7 +712,7 @@ function M.install_python_packages(packages_str)
 	local applied_mappings
 	pkg_list, applied_mappings = get_packages().map_packages(pkg_list, "python")
 	for original, mapped in pairs(applied_mappings) do
-		notifications.notify(string.format("📦 Mapping '%s' → '%s'", original, mapped), vim.log.levels.INFO)
+		notifications.notify(string.format("Mapping '%s' -> '%s'", original, mapped), vim.log.levels.INFO)
 	end
 
 	-- Validate packages

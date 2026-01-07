@@ -43,10 +43,10 @@ function M.check()
 	local dependencies = require("pyworks.dependencies")
 	local dep_health = dependencies.check_health()
 	for _, status in ipairs(dep_health) do
-		if status:match("^✅") then
-			health.ok(status:gsub("^✅ ", ""))
+		if status:match("^OK:") then
+			health.ok(status:gsub("^OK: ", ""))
 		else
-			health.error(status:gsub("^❌ ", ""), {
+			health.error(status:gsub("^ERROR: ", ""), {
 				"Run :PyworksDiagnostics for detailed status",
 				"Or manually install the missing dependency",
 			})
