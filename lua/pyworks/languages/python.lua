@@ -171,12 +171,23 @@ function M.get_package_manager(filepath)
 	end
 end
 
+-- Valid pip actions whitelist for security
+local VALID_PIP_ACTIONS = {
+	install = true,
+	uninstall = true,
+	list = true,
+}
+
 -- Build pip/uv command with proper syntax
 -- action: "install", "uninstall", "list"
 -- packages: string of packages (for install/uninstall) or nil (for list)
 -- filepath: file path to determine venv location
 -- opts: { format = "freeze", quiet = true }
 local function build_pip_command(action, packages, filepath, opts)
+	if not VALID_PIP_ACTIONS[action] then
+		error(string.format("Invalid pip action: %s. Must be one of: install, uninstall, list", action))
+	end
+
 	opts = opts or {}
 	local _, venv_path = utils.get_project_paths(filepath)
 	local python_path = venv_path .. "/bin/python"
