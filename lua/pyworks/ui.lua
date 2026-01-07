@@ -179,27 +179,41 @@ end
 -- Collapse current cell
 function M.collapse_cell()
 	M.setup_cell_folding()
-	vim.cmd("normal! zc")
+	local ok = pcall(vim.cmd, "normal! zc")
+	if not ok then
+		vim.notify("No cell fold found at cursor position", vim.log.levels.INFO)
+	end
 end
 
 -- Collapse all cells
 function M.collapse_all_cells()
 	M.setup_cell_folding()
-	vim.cmd("normal! zM")
-	vim.notify("All cells collapsed", vim.log.levels.INFO)
+	local ok = pcall(vim.cmd, "normal! zM")
+	if ok then
+		vim.notify("All cells collapsed", vim.log.levels.INFO)
+	else
+		vim.notify("No cells to collapse", vim.log.levels.INFO)
+	end
 end
 
 -- Expand current cell
 function M.expand_cell()
 	M.setup_cell_folding()
-	vim.cmd("normal! zo")
+	local ok = pcall(vim.cmd, "normal! zo")
+	if not ok then
+		vim.notify("No cell fold found at cursor position", vim.log.levels.INFO)
+	end
 end
 
 -- Expand all cells
 function M.expand_all_cells()
 	M.setup_cell_folding()
-	vim.cmd("normal! zR")
-	vim.notify("All cells expanded", vim.log.levels.INFO)
+	local ok = pcall(vim.cmd, "normal! zR")
+	if ok then
+		vim.notify("All cells expanded", vim.log.levels.INFO)
+	else
+		vim.notify("No cells to expand", vim.log.levels.INFO)
+	end
 end
 
 -- Setup UI enhancements for a buffer
