@@ -4,7 +4,6 @@ local M = {}
 
 local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
-local state = require("pyworks.core.state")
 
 -- Maximum file size to scan for imports (1MB) - prevents blocking on large files
 local MAX_FILE_SIZE_BYTES = 1024 * 1024
