@@ -20,14 +20,27 @@ local error_handler = require("pyworks.core.error_handler")
 -- Default configuration
 local default_config = {
 	python = {
-		use_uv = false,
+		use_uv = true, -- Use uv for faster package management (10-100x faster than pip)
 		preferred_venv_name = ".venv",
 		auto_install_essentials = true,
 		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
 	},
+	packages = {
+		custom_package_prefixes = {
+			"^my_",
+			"^custom_",
+			"^local_",
+			"^internal_",
+			"^private_",
+			"^app_",
+			"^lib_",
+			"^src$",
+			"^utils$",
+			"^helpers$",
+		},
+	},
 	cache = {
-		-- Cache TTL overrides (in seconds)
-		kernel_list = 60,
+		kernel_list = 60, -- Cache TTL in seconds
 		installed_packages = 300,
 	},
 	notifications = {
@@ -186,6 +199,10 @@ function M.setup(opts)
 	-- Configure language modules
 	local python = require("pyworks.languages.python")
 	python.configure(config.python)
+
+	-- Configure packages module
+	local packages = require("pyworks.core.packages")
+	packages.configure(config.packages)
 
 	-- Initialize state (load persistent data, then start session)
 	local state = require("pyworks.core.state")

@@ -221,10 +221,21 @@ For inline plot/image display:
 ```lua
 require("pyworks").setup({
   python = {
+    use_uv = true,  -- Use uv for faster package management (10-100x faster than pip)
     preferred_venv_name = ".venv",
-    use_uv = true,  -- 10-100x faster than pip
     auto_install_essentials = true,
-    essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext" },
+    essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
+  },
+  packages = {
+    -- Patterns for detecting custom/local packages (won't suggest installing these)
+    custom_package_prefixes = {
+      "^my_", "^custom_", "^local_", "^internal_", "^private_",
+      "^app_", "^lib_", "^src$", "^utils$", "^helpers$",
+    },
+  },
+  cache = {
+    kernel_list = 60,        -- Cache TTL in seconds
+    installed_packages = 300,
   },
   notifications = {
     verbose_first_time = true,
@@ -232,6 +243,8 @@ require("pyworks").setup({
     show_progress = true,
     debug_mode = false,
   },
+  auto_detect = true,  -- Automatically detect and setup on file open
+
   -- Optional: Skip auto-configuration of specific dependencies
   skip_molten = false,
   skip_jupytext = false,
