@@ -10,7 +10,9 @@ local error_handler = require("pyworks.core.error_handler")
 local ui = require("pyworks.ui")
 
 local BUFFER_SETTLE_DELAY_MS = 100
-local CELL_EXECUTION_DELAY_MS = 200
+local CELL_EXECUTION_BASE_DELAY_MS = 300 -- Base delay between cells in run-all
+local CELL_EXECUTION_MAX_DELAY_MS = 3000 -- Max delay with backoff
+local CELL_EXECUTION_BACKOFF_FACTOR = 1.5 -- Multiplier for each retry
 
 -- Helper to suppress Molten events during navigation
 -- This prevents IndexError when Molten accesses invalid extmarks (Molten bug workaround)
@@ -190,7 +192,9 @@ function M.setup_buffer_keymaps()
 				vim.cmd("normal! gg")
 			end)
 
-			local function run_next_cell(cell_num)
+			-- Recursive function with exponential backoff
+			-- Starts with base delay, increases each cell to give long-running cells more time
+			local function run_next_cell(cell_num, current_delay)
 				if cell_num > cell_count then
 					-- Go to last cell and position cursor below the marker
 					with_suppressed_events(function()
@@ -214,13 +218,18 @@ function M.setup_buffer_keymaps()
 				ui.mark_cell_executed(cell_num)
 				evaluate_percent_cell()
 
-				-- Delay between cells to avoid overwhelming the kernel
+				-- Calculate next delay with exponential backoff
+				-- Later cells get more time since they're typically heavier (data processing, plots)
+				local next_delay =
+					math.min(math.floor(current_delay * CELL_EXECUTION_BACKOFF_FACTOR), CELL_EXECUTION_MAX_DELAY_MS)
+
 				vim.defer_fn(function()
-					run_next_cell(cell_num + 1)
-				end, CELL_EXECUTION_DELAY_MS)
+					run_next_cell(cell_num + 1, next_delay)
+				end, current_delay)
 			end
 
-			run_next_cell(1)
+			-- Start with base delay, backoff increases for each subsequent cell
+			run_next_cell(1, CELL_EXECUTION_BASE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run all cells" }))
 
 		-- ============================================================================
