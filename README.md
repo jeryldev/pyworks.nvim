@@ -36,10 +36,6 @@ return {
   {
     "jeryldev/pyworks.nvim",
     dependencies = {
-      {
-        "GCBallesteros/jupytext.nvim",
-        config = false, -- Let pyworks handle jupytext configuration
-      },
       "benlubas/molten-nvim",
       "3rd/image.nvim",
     },
@@ -58,8 +54,8 @@ return {
 ```
 
 Pyworks automatically:
+- **Handles .ipynb files directly** - Uses jupytext CLI to convert notebooks to percent-style Python (`# %%`)
 - **Detects jupytext CLI** - Checks PATH and common venv locations
-- **Configures jupytext.nvim** - Sets up percent-style cells (`# %%`) for Python
 - **Provides graceful fallback** - If jupytext CLI isn't installed, notebooks open as read-only JSON with helpful messages guiding you to run `:PyworksSetup`
 
 ### Terminal Requirements for Images
@@ -247,7 +243,7 @@ require("pyworks").setup({
 
   -- Optional: Skip auto-configuration of specific dependencies
   skip_molten = false,
-  skip_jupytext = false,
+  skip_jupytext = false,  -- Set to true if using jupytext.nvim plugin instead
   skip_image = false,
   skip_keymaps = false,
 })
@@ -321,8 +317,17 @@ Or temporarily:
 | Plugin          | Purpose                        | Required           |
 | --------------- | ------------------------------ | ------------------ |
 | `molten-nvim`   | Code execution                 | Yes (for notebooks)|
-| `jupytext.nvim` | Open/save .ipynb files         | Yes (for notebooks)|
 | `image.nvim`    | Display plots inline           | Yes (for plots)    |
+
+Note: pyworks.nvim handles .ipynb files directly using the jupytext CLI (automatically installed as a Python package). No separate jupytext.nvim plugin is required.
+
+### Migrating from jupytext.nvim
+
+If you previously used jupytext.nvim, pyworks now handles notebooks directly:
+
+1. **Remove jupytext.nvim** from your plugin dependencies
+2. Pyworks will auto-detect and warn if jupytext.nvim is still installed
+3. If you prefer jupytext.nvim, set `skip_jupytext = true` in your pyworks config
 
 ### Works Well With
 
@@ -337,6 +342,6 @@ MIT License - see [LICENSE](LICENSE) for details
 ## Acknowledgments
 
 - [molten-nvim](https://github.com/benlubas/molten-nvim) - Jupyter integration for Neovim
-- [jupytext.nvim](https://github.com/GCBallesteros/jupytext.nvim) - Seamless .ipynb file support
 - [image.nvim](https://github.com/3rd/image.nvim) - Inline image rendering
+- [jupytext](https://github.com/mwouts/jupytext) - Jupyter notebook conversion CLI
 - [uv](https://github.com/astral-sh/uv) - Lightning-fast Python package management

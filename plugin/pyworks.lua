@@ -147,9 +147,15 @@ vim.api.nvim_create_autocmd("FileType", {
 -- Helper function to reload a notebook buffer properly
 -- Follows the same pattern as open_and_verify_notebook in commands/create.lua
 local function reload_notebook_buffer(filepath)
-	-- Ensure jupytext.nvim is configured before reloading
+	-- Deinitialize Molten first to clean up stale extmarks
+	-- This prevents IndexError when Molten tries to access invalid extmark positions
+	if vim.fn.exists(":MoltenDeinit") == 2 then
+		pcall(vim.cmd, "MoltenDeinit")
+	end
+
+	-- Ensure notebook handler is configured before reloading
 	local jupytext = require("pyworks.notebook.jupytext")
-	jupytext.configure_jupytext_nvim()
+	jupytext.configure_notebook_handler()
 
 	-- Use :edit to open fresh from disk - this triggers BufReadCmd
 	local ok = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filepath))
@@ -159,7 +165,7 @@ local function reload_notebook_buffer(filepath)
 		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 		if first_line:match("^%s*{") then
 			-- Still JSON, try configuring and reloading once more
-			jupytext.configure_jupytext_nvim()
+			jupytext.configure_notebook_handler()
 			pcall(vim.cmd, "edit!")
 		end
 	end
@@ -191,6 +197,23 @@ end, { desc = "Reload current notebook with jupytext conversion" })
 vim.api.nvim_create_autocmd("SessionLoadPost", {
 	group = augroup,
 	callback = function()
+		-- IMMEDIATELY deinit Molten for all .ipynb buffers to clean up stale extmarks
+		-- This prevents IndexError when Molten tries to access invalid extmark positions
+		-- Must run synchronously before any Molten operations
+		if vim.fn.exists(":MoltenDeinit") == 2 then
+			for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+				if vim.api.nvim_buf_is_loaded(bufnr) then
+					local filepath = vim.api.nvim_buf_get_name(bufnr)
+					if filepath:match("%.ipynb$") then
+						vim.api.nvim_buf_call(bufnr, function()
+							pcall(vim.cmd, "MoltenDeinit")
+						end)
+					end
+				end
+			end
+		end
+
+		-- Then defer the buffer reloading
 		vim.defer_fn(function()
 			-- Find all .ipynb buffers and re-process them
 			for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do

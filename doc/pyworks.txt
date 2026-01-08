@@ -48,10 +48,6 @@ With lazy.nvim, create ~/.config/nvim/lua/plugins/pyworks.lua:
       {
         "jeryldev/pyworks.nvim",
         dependencies = {
-          {
-            "GCBallesteros/jupytext.nvim",
-            config = false, -- Let pyworks handle jupytext configuration
-          },
           "benlubas/molten-nvim",
           "3rd/image.nvim",
         },
@@ -246,7 +242,7 @@ Default configuration (all optional):
       },
       -- Optional: Skip auto-configuration of dependencies
       skip_molten = false,
-      skip_jupytext = false,
+      skip_jupytext = false,  -- Set true if using jupytext.nvim plugin
       skip_image = false,
       skip_keymaps = false,
     })
@@ -273,6 +269,10 @@ A: Use |<leader>jc| to select cell, then |<leader>jr| while in visual mode
 Q: Jupytext command not found
 A: Pyworks adds .venv/bin to PATH automatically. Run |:PyworksSetup|
 
+Q: "jupytext.nvim detected" warning
+A: Pyworks now handles notebooks directly. Either remove jupytext.nvim from
+   your config, or set `skip_jupytext = true` if you prefer jupytext.nvim.
+
 Q: Images open in external viewer
 A: Fixed by default. Ensure using Kitty or Ghostty terminal
 
@@ -298,8 +298,10 @@ DEPENDENCIES~
 Plugin          Purpose                 Required
 ---------------------------------------------------------
 molten-nvim     Code execution          Yes (for notebooks)
-jupytext.nvim   Open/save .ipynb files  Yes (for notebooks)
 image.nvim      Display plots inline    Yes (for plots)
+
+Note: pyworks.nvim handles .ipynb files directly using the jupytext CLI
+(automatically installed as a Python package). No jupytext.nvim required.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

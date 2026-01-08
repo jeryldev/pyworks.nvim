@@ -122,12 +122,12 @@ function M.configure_dependencies(opts)
 		vim.g.molten_tick_rate = 100
 	end
 
-	-- Configure jupytext with automatic fallback handling
-	-- If jupytext CLI is not available, sets up a graceful fallback that shows
-	-- notebooks as read-only JSON with helpful messages
+	-- Configure notebook handling (pyworks handles .ipynb files directly)
+	-- If jupytext CLI is not available, notebooks open as read-only JSON
+	-- with helpful messages guiding users to run :PyworksSetup
 	if not opts.skip_jupytext then
 		local jupytext_module = require("pyworks.notebook.jupytext")
-		jupytext_module.configure_jupytext_nvim()
+		jupytext_module.configure_notebook_handler()
 	end
 
 	-- Configure image.nvim with optimal settings
@@ -169,7 +169,7 @@ function M.setup(opts)
 	end
 
 	-- Ensure all dependencies are installed and configured
-	-- This handles molten-nvim, jupytext.nvim, image.nvim automatically
+	-- This handles molten-nvim, image.nvim, and jupytext CLI automatically
 	dependencies.setup(opts)
 
 	-- Auto-configure dependencies with proven settings
@@ -242,12 +242,12 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
 		if ok then
 			vim.notify("Python environment ready", vim.log.levels.INFO)
-			-- Re-configure jupytext.nvim after packages are installed (async)
+			-- Re-configure notebook handler after packages are installed (async)
 			vim.defer_fn(function()
 				local jupytext = require("pyworks.notebook.jupytext")
 				local cache = require("pyworks.core.cache")
-				cache.invalidate("jupytext_check")
-				jupytext.configure_jupytext_nvim()
+				cache.invalidate("jupytext_installed")
+				jupytext.configure_notebook_handler()
 			end, 2000) -- Wait for async package installation
 		end
 		return
@@ -268,12 +268,12 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
 		if ok then
 			vim.notify("Python environment ready", vim.log.levels.INFO)
-			-- Re-configure jupytext.nvim after packages are installed (async)
+			-- Re-configure notebook handler after packages are installed (async)
 			vim.defer_fn(function()
 				local jupytext = require("pyworks.notebook.jupytext")
 				local cache = require("pyworks.core.cache")
-				cache.invalidate("jupytext_check")
-				jupytext.configure_jupytext_nvim()
+				cache.invalidate("jupytext_installed")
+				jupytext.configure_notebook_handler()
 				-- Then trigger file detection
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)

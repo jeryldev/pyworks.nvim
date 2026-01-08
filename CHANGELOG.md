@@ -6,6 +6,23 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Changed
 
+- **Breaking: Removed jupytext.nvim dependency** - pyworks.nvim now handles .ipynb files directly
+  - Uses jupytext CLI directly for notebook conversion (automatically installed as Python package)
+  - No longer requires jupytext.nvim plugin in dependencies
+  - Prevents autocmd conflicts and E325 swap file errors
+  - Disables swap files for .ipynb buffers to avoid interactive prompt issues
+  - Provides graceful fallback to JSON view when jupytext CLI is not installed
+  - Auto-detects jupytext.nvim and warns about potential conflicts
+  - Set `skip_jupytext = true` if you prefer to use jupytext.nvim instead
+  - Update your lazy.nvim config to remove jupytext.nvim from dependencies
+
+### Fixed
+
+- **Molten extmark bug workaround**: Added event suppression during run-all cell execution
+  - Prevents IndexError when Molten accesses invalid extmarks during rapid cursor navigation
+  - Calls MoltenDeinit before notebook buffer reloads and on session restore
+  - Workaround for upstream Molten bug in position.py
+
 - **Breaking: Reorganized Cell Execution and Folding Keymaps**:
   - `<leader>jj` - Run cell and move to next (was `<leader>jc`)
   - `<leader>jc` - Collapse current cell (NEW)

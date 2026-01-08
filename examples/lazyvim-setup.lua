@@ -8,10 +8,6 @@ return {
     -- "jeryldev/pyworks.nvim",  -- GitHub version (uncomment for production)
     dependencies = {
       {
-        "GCBallesteros/jupytext.nvim",
-        config = true, -- IMPORTANT: Must call setup()
-      },
-      {
         "benlubas/molten-nvim",     -- Required: Code execution
         build = ":UpdateRemotePlugins", -- IMPORTANT: Required for Molten to work
       },
@@ -28,7 +24,7 @@ return {
 
         -- Optional: Skip auto-configuration of specific dependencies
         -- skip_molten = false,
-        -- skip_jupytext = false,
+        -- skip_jupytext = false,  -- Set true if using jupytext.nvim plugin instead
         -- skip_image = false,
         -- skip_keymaps = false,
       })

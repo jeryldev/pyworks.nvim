@@ -212,7 +212,7 @@ local function open_and_verify_notebook(filename, language)
 	-- Check if jupytext conversion worked (buffer should NOT start with '{')
 	local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 	if first_line:match("^%s*{") then
-		jupytext.configure_jupytext_nvim()
+		jupytext.configure_notebook_handler()
 		vim.cmd("edit!")
 		local check_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
 		if check_line:match("^%s*{") then
@@ -343,8 +343,8 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 								timer:stop()
 								timer:close()
 								vim.notify("jupytext installed!", vim.log.levels.INFO)
-								-- Re-configure jupytext.nvim to update PATH with venv's bin directory
-								jupytext.configure_jupytext_nvim()
+								-- Re-configure notebook handler to update PATH with venv's bin directory
+								jupytext.configure_notebook_handler()
 								do_create_notebook(filename)
 							elseif attempts >= VENV_CHECK_MAX_ATTEMPTS then
 								timer:stop()

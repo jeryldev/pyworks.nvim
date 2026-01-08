@@ -19,16 +19,16 @@ local function check_plugin_dependencies()
 		table.insert(results, "  molten-nvim: NOT INSTALLED")
 	end
 
-	-- jupytext.nvim
-	if utils.is_plugin_installed("jupytext.nvim") then
-		local ok = pcall(require, "jupytext")
-		if ok then
-			table.insert(results, "  jupytext.nvim: OK")
-		else
-			table.insert(results, "  jupytext.nvim: INSTALLED but not configured")
-		end
+	-- jupytext CLI (pyworks handles notebooks directly)
+	if vim.fn.executable("jupytext") == 1 then
+		table.insert(results, "  jupytext CLI: OK (in PATH)")
 	else
-		table.insert(results, "  jupytext.nvim: NOT INSTALLED")
+		local venv_jupytext = vim.fn.getcwd() .. "/.venv/bin/jupytext"
+		if vim.fn.executable(venv_jupytext) == 1 then
+			table.insert(results, "  jupytext CLI: OK (in .venv)")
+		else
+			table.insert(results, "  jupytext CLI: NOT FOUND (run :PyworksSetup)")
+		end
 	end
 
 	-- image.nvim

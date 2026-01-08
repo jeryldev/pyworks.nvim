@@ -88,38 +88,22 @@ function M.ensure_dependencies()
 			end,
 		},
 		{
-			name = "jupytext.nvim",
+			name = "jupytext CLI",
 			check = function()
-				if not utils.is_plugin_installed("jupytext.nvim") then
-					return false, "not installed"
+				-- Check if jupytext CLI is available
+				if vim.fn.executable("jupytext") == 1 then
+					return true
 				end
-				local ok = pcall(require, "jupytext")
-				if not ok then
-					return false, "not configured"
+				-- Check common venv locations
+				local venv_jupytext = vim.fn.getcwd() .. "/.venv/bin/jupytext"
+				if vim.fn.executable(venv_jupytext) == 1 then
+					return true
 				end
-				-- Check if jupytext CLI is available (use vim.fn.executable for safety)
-				if vim.fn.executable("jupytext") ~= 1 then
-					return false, "CLI not found"
-				end
-				return true
+				return false, "CLI not found"
 			end,
 			fix = function()
-				if not utils.is_plugin_installed("jupytext.nvim") then
-					table.insert(issues, "Jupytext not installed")
-					return false
-				end
-				-- Try to configure if not already done
-				local ok = pcall(require, "jupytext")
-				if ok then
-					local jup = require("jupytext")
-					if jup.setup then
-						pcall(jup.setup, {})
-						table.insert(actions_taken, "Jupytext: Configured for .ipynb files")
-					end
-				end
-				-- Check for jupytext CLI using safe executable check
+				-- jupytext CLI will be installed by pyworks' essential packages
 				if vim.fn.executable("jupytext") ~= 1 then
-					-- Will be installed by pyworks' essential packages
 					table.insert(actions_taken, "Jupytext CLI: Will auto-install with Python packages")
 				end
 				return true
@@ -266,7 +250,7 @@ function M.check_health()
 	-- Check each plugin
 	local plugins = {
 		["molten-nvim"] = vim.fn.exists(":MoltenInit") == 2,
-		["jupytext.nvim"] = pcall(require, "jupytext"),
+		["jupytext CLI"] = vim.fn.executable("jupytext") == 1,
 		["image.nvim"] = pcall(require, "image"),
 	}
 

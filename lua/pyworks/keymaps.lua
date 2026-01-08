@@ -12,6 +12,15 @@ local ui = require("pyworks.ui")
 local BUFFER_SETTLE_DELAY_MS = 100
 local CELL_EXECUTION_DELAY_MS = 200
 
+-- Helper to suppress Molten events during navigation
+-- This prevents IndexError when Molten accesses invalid extmarks (Molten bug workaround)
+local function with_suppressed_events(fn)
+	local saved = vim.o.eventignore
+	vim.o.eventignore = "CursorMoved,CursorMovedI,WinScrolled"
+	fn()
+	vim.o.eventignore = saved
+end
+
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
 local function evaluate_percent_cell()
@@ -176,12 +185,17 @@ function M.setup_buffer_keymaps()
 			end
 
 			vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
-			vim.cmd("normal! gg")
+
+			with_suppressed_events(function()
+				vim.cmd("normal! gg")
+			end)
 
 			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
 					-- Go to last cell and position cursor below the marker
-					vim.cmd("normal! G")
+					with_suppressed_events(function()
+						vim.cmd("normal! G")
+					end)
 					local last_cell_line = vim.fn.search("^# %%", "bW")
 					if last_cell_line > 0 then
 						ui.enter_cell(last_cell_line, { insert_mode = false })
@@ -190,10 +204,12 @@ function M.setup_buffer_keymaps()
 					return
 				end
 
-				vim.cmd("normal! gg")
-				for _ = 1, cell_num do
-					vim.fn.search("^# %%", "W")
-				end
+				with_suppressed_events(function()
+					vim.cmd("normal! gg")
+					for _ = 1, cell_num do
+						vim.fn.search("^# %%", "W")
+					end
+				end)
 
 				ui.mark_cell_executed(cell_num)
 				evaluate_percent_cell()
