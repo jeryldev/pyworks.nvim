@@ -6,21 +6,22 @@
 
 local M = {}
 
+local detector = require("pyworks.core.detector")
 local error_handler = require("pyworks.core.error_handler")
 local ui = require("pyworks.ui")
 
 local BUFFER_SETTLE_DELAY_MS = 100
-local CELL_EXECUTION_BASE_DELAY_MS = 300 -- Base delay between cells in run-all
-local CELL_EXECUTION_MAX_DELAY_MS = 3000 -- Max delay with backoff
-local CELL_EXECUTION_BACKOFF_FACTOR = 1.5 -- Multiplier for each retry
+local CELL_EXECUTION_DELAY_MS = 500 -- Delay between cells in run-all (increase if seeing "running cell" warnings)
 
--- Helper to suppress Molten events during navigation
--- This prevents IndexError when Molten accesses invalid extmarks (Molten bug workaround)
+-- Suppress Molten events during navigation (workaround for Molten extmark bug)
 local function with_suppressed_events(fn)
 	local saved = vim.o.eventignore
 	vim.o.eventignore = "CursorMoved,CursorMovedI,WinScrolled"
-	fn()
+	local ok, err = pcall(fn)
 	vim.o.eventignore = saved
+	if not ok then
+		error(err)
+	end
 end
 
 -- Helper function to find and execute code between # %% markers
@@ -88,7 +89,6 @@ function M.setup_buffer_keymaps()
 			if not vim.b[bufnr].molten_initialized then
 				local ft = vim.bo.filetype
 				local filepath = vim.api.nvim_buf_get_name(bufnr)
-				local detector = require("pyworks.core.detector")
 				local kernel = detector.get_kernel_for_language(ft, filepath)
 
 				if kernel then
@@ -113,7 +113,7 @@ function M.setup_buffer_keymaps()
 				end
 			end
 
-			vim.cmd("MoltenEvaluateLine")
+			pcall(vim.cmd, "MoltenEvaluateLine")
 
 			-- Auto-advance to next line
 			local cursor = vim.api.nvim_win_get_cursor(0)
@@ -192,9 +192,7 @@ function M.setup_buffer_keymaps()
 				vim.cmd("normal! gg")
 			end)
 
-			-- Recursive function with exponential backoff
-			-- Starts with base delay, increases each cell to give long-running cells more time
-			local function run_next_cell(cell_num, current_delay)
+			local function run_next_cell(cell_num)
 				if cell_num > cell_count then
 					-- Go to last cell and position cursor below the marker
 					with_suppressed_events(function()
@@ -218,18 +216,12 @@ function M.setup_buffer_keymaps()
 				ui.mark_cell_executed(cell_num)
 				evaluate_percent_cell()
 
-				-- Calculate next delay with exponential backoff
-				-- Later cells get more time since they're typically heavier (data processing, plots)
-				local next_delay =
-					math.min(math.floor(current_delay * CELL_EXECUTION_BACKOFF_FACTOR), CELL_EXECUTION_MAX_DELAY_MS)
-
 				vim.defer_fn(function()
-					run_next_cell(cell_num + 1, next_delay)
-				end, current_delay)
+					run_next_cell(cell_num + 1)
+				end, CELL_EXECUTION_DELAY_MS)
 			end
 
-			-- Start with base delay, backoff increases for each subsequent cell
-			run_next_cell(1, CELL_EXECUTION_BASE_DELAY_MS)
+			run_next_cell(1)
 		end, vim.tbl_extend("force", opts, { desc = "Run all cells" }))
 
 		-- ============================================================================
@@ -326,7 +318,7 @@ function M.setup_buffer_keymaps()
 
 		-- Show Molten output or fall back to LSP hover
 		vim.keymap.set("n", "K", function()
-			local ok, _ = pcall(vim.cmd, "MoltenShowOutput")
+			local ok = pcall(vim.cmd, "MoltenShowOutput")
 			if not ok then
 				vim.lsp.buf.hover()
 			end
