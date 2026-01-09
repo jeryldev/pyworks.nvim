@@ -25,6 +25,10 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Fixed
 
+- **Cell execution now shows diagrams and tables**: Changed from `nvim_feedkeys` visual mode
+  simulation to `MoltenEvaluateRange` function call, making `<leader>jj` and `<leader>jR`
+  display output consistently with `<leader>jv` + `<leader>jr`
+
 - **Molten extmark bug workaround**: Added event suppression during run-all cell execution
   - Prevents IndexError when Molten accesses invalid extmarks during rapid cursor navigation
   - Calls MoltenDeinit before notebook buffer reloads and on session restore
@@ -48,11 +52,11 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Test Coverage for UI Module**: Added comprehensive tests for ui.lua
   - Tests for cell highlighting, execution tracking, numbering, and folding
   - 11 new test cases covering all major UI functions
-- **Run All Cells (`<leader>jR`)**: Execute all cells sequentially from top to bottom
+- **Run All Cells (`<leader>jR`)**: Execute all cells from top to bottom
   - Automatically finds and counts all cells in the buffer
-  - Runs cells with 200ms delay to prevent kernel overload
-  - Shows progress notification and restores cursor position when complete
-  - Works with both code and markdown cells (markdown cells are skipped by kernel)
+  - Runs cells with 500ms delay between each (rapid-fire, does not wait for kernel completion)
+  - Shows progress notification and positions cursor at last cell when complete
+  - Note: Unlike PyCharm/Jupyter which wait for each cell to complete, this uses fixed delays
 - **Cell Folding & UI Enhancements**: New visual features for better cell organization
   - Cell folding: Collapse/expand cells with `<leader>jf`, `<leader>jc/jC`, `<leader>je/jE`
   - Cell numbering: Automatic inline cell numbering with type indicators (code/markdown)
@@ -60,12 +64,12 @@ All notable changes to pyworks.nvim will be documented in this file.
   - Tracks execution state per buffer - visual feedback for which cells have been executed
   - Custom fold text showing cell type, line count, and content preview
   - Configurable via `setup({ show_cell_numbers = true, enable_cell_folding = false })`
-- **15 New Jupyter-like Keybindings**: Comprehensive cell manipulation and execution
-  - Cell execution: `<leader>jj` (run and move next)
+- **Jupyter-like Keybindings**: Comprehensive cell manipulation and execution
+  - Cell execution: `<leader>jj` (run and move next), `<leader>jR` (run all)
   - Cell creation: `<leader>ja/jb` (insert code cells above/below), `<leader>jma/jmb` (insert markdown cells)
   - Cell operations: `<leader>jt` (toggle type), `<leader>jJ` (merge below), `<leader>js` (split at cursor)
-  - Output management: `<leader>jd` (delete), `<leader>jh` (hide), `<leader>jo` (enter window)
-  - Navigation: `<leader>jg` (go to cell N - now works without running cells)
+  - Output management: `<leader>jd` (clear output)
+  - Navigation: `<leader>jg` (go to cell N), `<leader>j]/j[` (next/prev cell)
   - Kernel management: `<leader>mi` (initialize), `<leader>mI` (show info)
 
 ### Fixed
