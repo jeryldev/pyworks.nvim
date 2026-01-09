@@ -306,15 +306,12 @@ function M.setup_buffer_keymaps()
 		end, vim.tbl_extend("force", opts, { desc = "Delete cell output" }))
 
 		vim.keymap.set("n", "<leader>jh", function()
-			local ok = pcall(vim.cmd, "MoltenHideOutput")
-			if not ok then
-				vim.notify("No output window to hide", vim.log.levels.INFO)
-			end
+			pcall(vim.cmd, "MoltenHideOutput")
 		end, vim.tbl_extend("force", opts, { desc = "Hide output window" }))
 
 		vim.keymap.set("n", "<leader>jo", function()
-			pcall(vim.cmd, "noautocmd MoltenEnterOutput")
-		end, vim.tbl_extend("force", opts, { desc = "Enter output window" }))
+			pcall(vim.cmd, "MoltenShowOutput")
+		end, vim.tbl_extend("force", opts, { desc = "Show output window" }))
 
 		-- Show Molten output or fall back to LSP hover
 		vim.keymap.set("n", "K", function()

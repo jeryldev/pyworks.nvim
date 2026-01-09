@@ -138,9 +138,9 @@ CELL SELECTION & NAVIGATION~
 
 OUTPUT MANAGEMENT~
 
-*<leader>jd*  Delete cell output
+*<leader>jo*  Show output window
 *<leader>jh*  Hide output window
-*<leader>jo*  Enter output window
+*<leader>jd*  Delete cell output
 *K*           Show Molten output or LSP hover (context-aware)
 
 CELL CREATION~
