@@ -281,6 +281,9 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 				if still_empty or still_json then
 					reload_notebook_buffer(filepath)
 				end
+
+				-- Clear processing flag after completion
+				pcall(vim.api.nvim_buf_del_var, ev.buf, "pyworks_notebook_processing")
 			end, 500) -- Longer delay
 		end
 	end,
