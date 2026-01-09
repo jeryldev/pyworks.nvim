@@ -14,14 +14,6 @@ local augroup = vim.api.nvim_create_augroup("PyworksNotebook", { clear = true })
 -- Track buffers we're currently processing to prevent recursion
 local processing_buffers = {}
 
--- Clean up buffer-specific state on BufDelete to prevent memory leaks
-vim.api.nvim_create_autocmd("BufDelete", {
-	group = augroup,
-	callback = function(ev)
-		processing_buffers[ev.buf] = nil
-	end,
-})
-
 -- Check if jupytext CLI is available
 -- filepath: optional, used to check the file's project venv
 function M.is_jupytext_installed(filepath)
@@ -304,8 +296,13 @@ local function write_notebook(bufnr, filepath)
 		return false
 	end
 
-	file:write(ipynb_content)
+	local write_ok, write_err = file:write(ipynb_content)
 	file:close()
+
+	if not write_ok then
+		notifications.notify_error("Failed to write content: " .. (write_err or "unknown error"))
+		return false
+	end
 
 	vim.bo[bufnr].modified = false
 	notifications.notify("Notebook saved: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
@@ -316,6 +313,15 @@ end
 function M.setup_notebook_handler()
 	-- Clear any existing autocmds in our group
 	vim.api.nvim_clear_autocmds({ group = augroup })
+
+	-- Clean up buffer-specific state on BufDelete to prevent memory leaks
+	vim.api.nvim_create_autocmd("BufDelete", {
+		group = augroup,
+		callback = function(ev)
+			processing_buffers[ev.buf] = nil
+		end,
+		desc = "Pyworks: Clean up notebook buffer state",
+	})
 
 	-- BufReadCmd: Intercept .ipynb file reads and convert to percent format
 	vim.api.nvim_create_autocmd("BufReadCmd", {
