@@ -14,31 +14,121 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
 
--- Find the highest completed Out[N] number in the buffer's virtual text
--- Looks for "Out[N]: ✓ Done" pattern which indicates cell execution completed
--- Returns the highest completed number found, or 0 if none
-local function get_highest_completed_output(bufnr)
-	local highest = 0
-	local namespaces = vim.api.nvim_get_namespaces()
+-- Cache for Molten namespace ID (cleared on buffer change to handle namespace recreation)
+local molten_ns_cache = nil
 
-	for _, ns_id in pairs(namespaces) do
-		-- Search entire buffer for Out[N] patterns
+-- Concatenate virtual text parts into a single string
+local function concat_virt_text(virt_text)
+	local text = ""
+	for _, vt in ipairs(virt_text) do
+		text = text .. (vt[1] or "")
+	end
+	return text
+end
+
+-- Get Molten namespace ID (cached for performance in hot path)
+-- Returns namespace ID or nil if Molten namespace not found
+local function get_molten_namespace()
+	if molten_ns_cache then
+		return molten_ns_cache
+	end
+	local namespaces = vim.api.nvim_get_namespaces()
+	for name, id in pairs(namespaces) do
+		if name:match("^molten") then
+			molten_ns_cache = id
+			return id
+		end
+	end
+	return nil
+end
+
+-- Debug: dump all extmarks with virtual text/lines to see actual Molten output format
+local function debug_dump_extmarks(bufnr)
+	local namespaces = vim.api.nvim_get_namespaces()
+	local found_any = false
+
+	for ns_name, ns_id in pairs(namespaces) do
 		local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
 		for _, mark in ipairs(marks) do
 			local details = mark[4]
+			-- Check virt_text (text at end of line)
 			if details and details.virt_text then
-				-- Concatenate all virtual text parts to check full pattern
-				local full_text = ""
-				for _, vt in ipairs(details.virt_text) do
-					full_text = full_text .. (vt[1] or "")
+				found_any = true
+				local full_text = concat_virt_text(details.virt_text)
+				vim.notify(
+					string.format("[DEBUG] ns=%s line=%d virt_text='%s'", ns_name, mark[2] + 1, full_text),
+					vim.log.levels.INFO
+				)
+			end
+			-- Check virt_lines (entire lines below the actual line)
+			if details and details.virt_lines then
+				found_any = true
+				for line_idx, virt_line in ipairs(details.virt_lines) do
+					local line_text = concat_virt_text(virt_line)
+					vim.notify(
+						string.format(
+							"[DEBUG] ns=%s line=%d virt_lines[%d]='%s'",
+							ns_name,
+							mark[2] + 1,
+							line_idx,
+							line_text
+						),
+						vim.log.levels.INFO
+					)
 				end
-				-- Look for "Out[N]" followed by checkmark/Done indicator
-				local num = full_text:match("Out%[(%d+)%]")
-				if num and (full_text:match("✓") or full_text:match("Done")) then
-					local n = tonumber(num)
-					if n and n > highest then
-						highest = n
-					end
+			end
+		end
+	end
+
+	if not found_any then
+		vim.notify("[DEBUG] No extmarks with virtual text/lines found in any namespace", vim.log.levels.INFO)
+	end
+end
+
+-- Check if text contains completed output pattern and extract the number
+-- Returns the Out[N] number if completed, nil otherwise
+local function extract_completed_output_num(text)
+	local num = text:match("Out%[(%d+)%]")
+	if num and (text:match("✓") or text:match("Done")) then
+		return tonumber(num)
+	end
+	return nil
+end
+
+-- Find the highest completed Out[N] number in the buffer's virtual text/lines
+-- Looks for "Out[N]: ✓ Done" pattern which indicates cell execution completed
+-- Optimized: Only checks Molten namespace (not LSP diagnostics etc.)
+-- Returns the highest completed number found, or 0 if none
+local function get_highest_completed_output(bufnr)
+	local highest = 0
+
+	-- Only check Molten namespace for performance (skip LSP diagnostics etc.)
+	local ns_id = get_molten_namespace()
+	if not ns_id then
+		return 0
+	end
+
+	local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
+	for _, mark in ipairs(marks) do
+		local details = mark[4]
+
+		-- Check virt_text (text at end of line)
+		if details and details.virt_text then
+			local full_text = concat_virt_text(details.virt_text)
+			local n = extract_completed_output_num(full_text)
+			if n and n > highest then
+				highest = n
+			end
+		end
+
+		-- Check virt_lines (entire virtual lines below the actual line)
+		-- This is what Molten uses for output display
+		if details and details.virt_lines then
+			for _, virt_line in ipairs(details.virt_lines) do
+				local line_text = concat_virt_text(virt_line)
+				local n = extract_completed_output_num(line_text)
+				if n and n > highest then
+					highest = n
 				end
 			end
 		end
@@ -53,6 +143,15 @@ local function wait_for_cell_completion(bufnr, callback)
 	local start_time = vim.uv.now()
 	local initial_completed = get_highest_completed_output(bufnr)
 
+	-- Debug: log initial state and dump extmarks
+	if vim.g.pyworks_debug then
+		vim.notify(
+			string.format("[DEBUG] wait_for_cell_completion: initial_completed=%d", initial_completed),
+			vim.log.levels.DEBUG
+		)
+		debug_dump_extmarks(bufnr)
+	end
+
 	local timer = vim.uv.new_timer()
 	timer:start(
 		POLL_INTERVAL_MS,
@@ -62,6 +161,11 @@ local function wait_for_cell_completion(bufnr, callback)
 			if vim.uv.now() - start_time > CELL_TIMEOUT_MS then
 				timer:stop()
 				timer:close()
+				-- Debug: dump extmarks on timeout to see what we missed
+				if vim.g.pyworks_debug then
+					vim.notify("[DEBUG] Timeout reached, dumping extmarks:", vim.log.levels.DEBUG)
+					debug_dump_extmarks(bufnr)
+				end
 				callback(false, "timeout")
 				return
 			end
@@ -79,6 +183,12 @@ local function wait_for_cell_completion(bufnr, callback)
 			if current_completed > initial_completed then
 				timer:stop()
 				timer:close()
+				if vim.g.pyworks_debug then
+					vim.notify(
+						string.format("[DEBUG] Cell completed! Out[%d] detected", current_completed),
+						vim.log.levels.DEBUG
+					)
+				end
 				callback(true)
 				return
 			end
@@ -413,7 +523,17 @@ function M.setup_buffer_keymaps()
 		-- ============================================================================
 
 		vim.keymap.set("n", "<leader>jd", function()
-			pcall(vim.cmd, "MoltenDelete")
+			local cell_num = ui.get_current_cell_number()
+			if cell_num == 0 then
+				vim.notify("Not in a cell", vim.log.levels.INFO)
+				return
+			end
+			local ok = pcall(vim.cmd, "MoltenDelete")
+			if ok then
+				ui.mark_cell_cleared(cell_num)
+			else
+				vim.notify("No output to delete", vim.log.levels.INFO)
+			end
 		end, vim.tbl_extend("force", opts, { desc = "Clear cell output" }))
 
 		-- ============================================================================
@@ -622,6 +742,24 @@ function M.setup_molten_keymaps()
 			end
 		end, vim.tbl_extend("force", opts, { desc = "Show kernel info" }))
 	end
+end
+
+-- Export internal functions for testing
+M._get_highest_completed_output = get_highest_completed_output
+M._is_markdown_cell = is_markdown_cell
+M._wait_for_cell_completion = wait_for_cell_completion
+M._debug_dump_extmarks = debug_dump_extmarks
+
+-- Debug command: dump all extmarks to see Molten's output format
+-- Only available when vim.g.pyworks_debug is set
+if vim.g.pyworks_debug then
+	vim.api.nvim_create_user_command("PyworksDebugExtmarks", function()
+		local bufnr = vim.api.nvim_get_current_buf()
+		vim.notify("[DEBUG] Dumping all extmarks with virtual text:", vim.log.levels.INFO)
+		debug_dump_extmarks(bufnr)
+		local highest = get_highest_completed_output(bufnr)
+		vim.notify(string.format("[DEBUG] Highest completed output: Out[%d]", highest), vim.log.levels.INFO)
+	end, { desc = "Debug: dump all extmarks to see Molten output format" })
 end
 
 return M

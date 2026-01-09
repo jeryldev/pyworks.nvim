@@ -36,13 +36,23 @@ vim.api.nvim_create_autocmd("BufDelete", {
 	end,
 })
 
--- Mark a cell as executed
+-- Mark a cell as executed (green)
 function M.mark_cell_executed(cell_num)
 	local bufnr = vim.api.nvim_get_current_buf()
 	if not M.executed_cells[bufnr] then
 		M.executed_cells[bufnr] = {}
 	end
 	M.executed_cells[bufnr][cell_num] = true
+	-- Refresh cell numbers to update colors
+	M.number_cells()
+end
+
+-- Mark a cell as cleared/unexecuted (red)
+function M.mark_cell_cleared(cell_num)
+	local bufnr = vim.api.nvim_get_current_buf()
+	if M.executed_cells[bufnr] then
+		M.executed_cells[bufnr][cell_num] = nil
+	end
 	-- Refresh cell numbers to update colors
 	M.number_cells()
 end
