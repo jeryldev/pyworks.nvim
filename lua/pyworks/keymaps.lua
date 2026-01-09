@@ -57,16 +57,15 @@ local function evaluate_percent_cell()
 		return
 	end
 
-	-- Execute the range by entering visual mode and calling MoltenEvaluateVisual from within it
-	-- We use vim.api.nvim_feedkeys to simulate the user's keystrokes
-	-- This keeps us in visual mode when MoltenEvaluateVisual is called
-	local keys = vim.api.nvim_replace_termcodes(
-		string.format("%dGV%dG:<C-u>MoltenEvaluateVisual<CR>", start_line, end_line),
-		true,
-		false,
-		true
-	)
-	vim.api.nvim_feedkeys(keys, "x", false)
+	-- Use MoltenEvaluateRange function (more reliable than visual mode simulation)
+	-- This is a Vim function exposed by Molten, not a command
+	local ok = pcall(vim.fn.MoltenEvaluateRange, start_line, end_line)
+	if not ok then
+		-- Fallback: set visual marks and run MoltenEvaluateVisual
+		vim.fn.setpos("'<", { 0, start_line, 1, 0 })
+		vim.fn.setpos("'>", { 0, end_line, vim.fn.col({ end_line, "$" }) - 1, 0 })
+		pcall(vim.cmd, "'<,'>MoltenEvaluateVisual")
+	end
 end
 
 -- Set up keymaps for a buffer
