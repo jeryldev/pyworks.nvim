@@ -134,10 +134,7 @@ For inline plot/image display:
 
 | Keymap       | Description              |
 | ------------ | ------------------------ |
-| `<leader>jd` | Delete cell output       |
-| `<leader>jh` | Hide output window       |
-| `<leader>jo` | Enter output window      |
-| `K`          | Show output or LSP hover |
+| `<leader>jd` | Clear cell output        |
 
 ### Cell Creation
 

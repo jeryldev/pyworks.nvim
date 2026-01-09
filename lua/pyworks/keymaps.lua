@@ -303,23 +303,8 @@ function M.setup_buffer_keymaps()
 
 		vim.keymap.set("n", "<leader>jd", function()
 			pcall(vim.cmd, "MoltenDelete")
-		end, vim.tbl_extend("force", opts, { desc = "Delete cell output" }))
+		end, vim.tbl_extend("force", opts, { desc = "Clear cell output" }))
 
-		vim.keymap.set("n", "<leader>jh", function()
-			pcall(vim.cmd, "MoltenHideOutput")
-		end, vim.tbl_extend("force", opts, { desc = "Hide output window" }))
-
-		vim.keymap.set("n", "<leader>jo", function()
-			pcall(vim.cmd, "MoltenShowOutput")
-		end, vim.tbl_extend("force", opts, { desc = "Show output window" }))
-
-		-- Show Molten output or fall back to LSP hover
-		vim.keymap.set("n", "K", function()
-			local ok = pcall(vim.cmd, "MoltenShowOutput")
-			if not ok then
-				vim.lsp.buf.hover()
-			end
-		end, vim.tbl_extend("force", opts, { desc = "Show Molten output or LSP hover" }))
 		-- ============================================================================
 		-- CELL CREATION
 		-- ============================================================================

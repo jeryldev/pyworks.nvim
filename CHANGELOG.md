@@ -6,6 +6,13 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Changed
 
+- **Removed floating window keymaps (`<leader>jo`, `<leader>jh`, `K`)** - These controlled Molten's
+  floating output window which is not Jupyter-like. Output now follows Jupyter behavior:
+  - Output appears inline below cells (Molten's default)
+  - Use `<leader>jd` to clear output
+  - Use `<leader>jj` to re-run cell and see output again
+  - Removed `K` override - use your existing LSP hover configuration
+
 - **Breaking: Removed jupytext.nvim dependency** - pyworks.nvim now handles .ipynb files directly
   - Uses jupytext CLI directly for notebook conversion (automatically installed as Python package)
   - No longer requires jupytext.nvim plugin in dependencies
