@@ -124,11 +124,11 @@ vim.api.nvim_create_autocmd("FileType", {
 				local project_rel = vim.fn.fnamemodify(project_dir, ":~:.")
 
 				vim.notify(
-					string.format("❌ %s notebook not converted: jupytext missing", project_type),
+					string.format("[Error] %s notebook not converted: jupytext missing", project_type),
 					vim.log.levels.ERROR
 				)
 				vim.notify(
-					string.format("💡 Run :PyworksSetup to create venv at: %s/.venv", project_rel),
+					string.format("[Hint] Run :PyworksSetup to create venv at: %s/.venv", project_rel),
 					vim.log.levels.INFO
 				)
 				return
