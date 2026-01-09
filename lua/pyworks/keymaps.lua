@@ -14,21 +14,15 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
 
--- Count extmarks in a buffer region (used to detect when output appears)
-local function count_extmarks_in_range(bufnr, start_line, end_line)
+-- Check cell output status in a single pass through all namespaces
+-- Returns: extmark_count, has_output (count of extmarks, whether output indicator found)
+local function check_cell_output(bufnr, start_line, end_line)
 	local count = 0
+	local has_output = false
 	local namespaces = vim.api.nvim_get_namespaces()
-	for _, ns_id in pairs(namespaces) do
-		local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, { start_line - 1, 0 }, { end_line, -1 }, {})
-		count = count + #marks
-	end
-	return count
-end
 
--- Check if virtual text contains completion indicators
-local function has_output_in_range(bufnr, start_line, end_line)
-	local namespaces = vim.api.nvim_get_namespaces()
 	for _, ns_id in pairs(namespaces) do
+		-- Get extmarks with details to check both count and output indicators
 		local marks = vim.api.nvim_buf_get_extmarks(
 			bufnr,
 			ns_id,
@@ -36,31 +30,39 @@ local function has_output_in_range(bufnr, start_line, end_line)
 			{ end_line + 5, -1 },
 			{ details = true }
 		)
-		for _, mark in ipairs(marks) do
-			local details = mark[4]
-			if details and details.virt_text then
-				for _, vt in ipairs(details.virt_text) do
-					local text = vt[1] or ""
-					-- Look for "Out[" which indicates execution completed
-					if text:match("Out%[%d+%]") or text:match("Done") then
-						return true
+		count = count + #marks
+
+		-- Check for output indicators if not already found
+		if not has_output then
+			for _, mark in ipairs(marks) do
+				local details = mark[4]
+				if details and details.virt_text then
+					for _, vt in ipairs(details.virt_text) do
+						local text = vt[1] or ""
+						if text:match("Out%[%d+%]") or text:match("Done") then
+							has_output = true
+							break
+						end
 					end
 				end
-			end
-			-- Also check virt_lines for output
-			if details and details.virt_lines then
-				return true -- Any virtual lines means output exists
+				if not has_output and details and details.virt_lines then
+					has_output = true
+				end
+				if has_output then
+					break
+				end
 			end
 		end
 	end
-	return false
+
+	return count, has_output
 end
 
 -- Wait for cell execution to complete by monitoring extmarks/output
 -- Calls callback(success) when done or timeout
 local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, callback)
 	local start_time = vim.uv.now()
-	local initial_mark_count = count_extmarks_in_range(bufnr, cell_start_line, cell_end_line + 10)
+	local initial_mark_count, _ = check_cell_output(bufnr, cell_start_line, cell_end_line + 10)
 
 	local timer = vim.uv.new_timer()
 	timer:start(
@@ -83,17 +85,9 @@ local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, c
 				return
 			end
 
-			-- Check for new extmarks (output appeared)
-			local current_mark_count = count_extmarks_in_range(bufnr, cell_start_line, cell_end_line + 10)
-			if current_mark_count > initial_mark_count then
-				timer:stop()
-				timer:close()
-				callback(true)
-				return
-			end
-
-			-- Also check for output indicators in virtual text
-			if has_output_in_range(bufnr, cell_start_line, cell_end_line) then
+			-- Single pass: check for new extmarks and output indicators
+			local current_mark_count, has_output = check_cell_output(bufnr, cell_start_line, cell_end_line + 10)
+			if current_mark_count > initial_mark_count or has_output then
 				timer:stop()
 				timer:close()
 				callback(true)
