@@ -103,6 +103,16 @@ local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, c
 	)
 end
 
+-- Check if current cell is a markdown cell (no executable code)
+local function is_markdown_cell()
+	local cell_start = vim.fn.search("^# %%", "bnW")
+	if cell_start == 0 then
+		return false
+	end
+	local line = vim.fn.getline(cell_start)
+	return line:match("%[markdown%]") ~= nil
+end
+
 -- Suppress Molten events during navigation (workaround for Molten extmark bug)
 local function with_suppressed_events(fn)
 	local saved = vim.o.eventignore
@@ -304,6 +314,15 @@ function M.setup_buffer_keymaps()
 						vim.fn.search("^# %%", "W")
 					end
 				end)
+
+				-- Check if this is a markdown cell (skip execution, no output expected)
+				if is_markdown_cell() then
+					ui.mark_cell_executed(cell_num)
+					vim.defer_fn(function()
+						run_next_cell(cell_num + 1)
+					end, BUFFER_SETTLE_DELAY_MS)
+					return
+				end
 
 				ui.mark_cell_executed(cell_num)
 				local cell_start, cell_end = evaluate_percent_cell()
