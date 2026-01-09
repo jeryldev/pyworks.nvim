@@ -14,55 +14,44 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
 
--- Check cell output status in a single pass through all namespaces
--- Returns: extmark_count, has_output (count of extmarks, whether output indicator found)
-local function check_cell_output(bufnr, start_line, end_line)
-	local count = 0
-	local has_output = false
+-- Find the highest completed Out[N] number in the buffer's virtual text
+-- Looks for "Out[N]: ✓ Done" pattern which indicates cell execution completed
+-- Returns the highest completed number found, or 0 if none
+local function get_highest_completed_output(bufnr)
+	local highest = 0
 	local namespaces = vim.api.nvim_get_namespaces()
 
 	for _, ns_id in pairs(namespaces) do
-		-- Get extmarks with details to check both count and output indicators
-		local marks = vim.api.nvim_buf_get_extmarks(
-			bufnr,
-			ns_id,
-			{ start_line - 1, 0 },
-			{ end_line + 5, -1 },
-			{ details = true }
-		)
-		count = count + #marks
-
-		-- Check for output indicators if not already found
-		if not has_output then
-			for _, mark in ipairs(marks) do
-				local details = mark[4]
-				if details and details.virt_text then
-					for _, vt in ipairs(details.virt_text) do
-						local text = vt[1] or ""
-						if text:match("Out%[%d+%]") or text:match("Done") then
-							has_output = true
-							break
-						end
+		-- Search entire buffer for Out[N] patterns
+		local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
+		for _, mark in ipairs(marks) do
+			local details = mark[4]
+			if details and details.virt_text then
+				-- Concatenate all virtual text parts to check full pattern
+				local full_text = ""
+				for _, vt in ipairs(details.virt_text) do
+					full_text = full_text .. (vt[1] or "")
+				end
+				-- Look for "Out[N]" followed by checkmark/Done indicator
+				local num = full_text:match("Out%[(%d+)%]")
+				if num and (full_text:match("✓") or full_text:match("Done")) then
+					local n = tonumber(num)
+					if n and n > highest then
+						highest = n
 					end
-				end
-				if not has_output and details and details.virt_lines then
-					has_output = true
-				end
-				if has_output then
-					break
 				end
 			end
 		end
 	end
 
-	return count, has_output
+	return highest
 end
 
--- Wait for cell execution to complete by monitoring extmarks/output
--- Calls callback(success) when done or timeout
-local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, callback)
+-- Wait for cell execution to complete by monitoring Out[N] ✓ Done pattern
+-- Calls callback(success) when a new completed output appears or timeout
+local function wait_for_cell_completion(bufnr, callback)
 	local start_time = vim.uv.now()
-	local initial_mark_count, _ = check_cell_output(bufnr, cell_start_line, cell_end_line + 10)
+	local initial_completed = get_highest_completed_output(bufnr)
 
 	local timer = vim.uv.new_timer()
 	timer:start(
@@ -85,9 +74,9 @@ local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, c
 				return
 			end
 
-			-- Single pass: check for new extmarks and output indicators
-			local current_mark_count, has_output = check_cell_output(bufnr, cell_start_line, cell_end_line + 10)
-			if current_mark_count > initial_mark_count or has_output then
+			-- Check if a new Out[N] ✓ Done appeared (completion indicator)
+			local current_completed = get_highest_completed_output(bufnr)
+			if current_completed > initial_completed then
 				timer:stop()
 				timer:close()
 				callback(true)
@@ -319,11 +308,11 @@ function M.setup_buffer_keymaps()
 				end
 
 				ui.mark_cell_executed(cell_num)
-				local cell_start, cell_end = evaluate_percent_cell()
+				local cell_start, _ = evaluate_percent_cell()
 
-				if cell_start and cell_end then
-					-- Wait for cell execution to complete before running next cell
-					wait_for_cell_completion(bufnr, cell_start, cell_end, function(success, reason)
+				if cell_start then
+					-- Wait for cell execution to complete (Out[N] ✓ Done) before running next cell
+					wait_for_cell_completion(bufnr, function(success, reason)
 						if not success and reason == "timeout" then
 							vim.notify(
 								string.format("Cell %d timed out after 30s, continuing...", cell_num),
