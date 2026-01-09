@@ -52,11 +52,11 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **Test Coverage for UI Module**: Added comprehensive tests for ui.lua
   - Tests for cell highlighting, execution tracking, numbering, and folding
   - 11 new test cases covering all major UI functions
-- **Run All Cells (`<leader>jR`)**: Execute all cells from top to bottom
-  - Automatically finds and counts all cells in the buffer
-  - Runs cells with 500ms delay between each (rapid-fire, does not wait for kernel completion)
+- **Run All Cells (`<leader>jR`)**: Execute all cells sequentially from top to bottom
+  - Waits for each cell to complete before running the next (like PyCharm/Jupyter)
+  - Detects completion by monitoring Molten's extmarks for output (`Out[N]:`)
+  - 30-second timeout per cell prevents hanging on long-running cells
   - Shows progress notification and positions cursor at last cell when complete
-  - Note: Unlike PyCharm/Jupyter which wait for each cell to complete, this uses fixed delays
 - **Cell Folding & UI Enhancements**: New visual features for better cell organization
   - Cell folding: Collapse/expand cells with `<leader>jf`, `<leader>jc/jC`, `<leader>je/jE`
   - Cell numbering: Automatic inline cell numbering with type indicators (code/markdown)

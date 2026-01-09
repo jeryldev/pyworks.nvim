@@ -11,7 +11,97 @@ local error_handler = require("pyworks.core.error_handler")
 local ui = require("pyworks.ui")
 
 local BUFFER_SETTLE_DELAY_MS = 100
-local CELL_EXECUTION_DELAY_MS = 500 -- Delay between cells in run-all (increase if seeing "running cell" warnings)
+local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
+local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
+
+-- Count extmarks in a buffer region (used to detect when output appears)
+local function count_extmarks_in_range(bufnr, start_line, end_line)
+	local count = 0
+	local namespaces = vim.api.nvim_get_namespaces()
+	for _, ns_id in pairs(namespaces) do
+		local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, { start_line - 1, 0 }, { end_line, -1 }, {})
+		count = count + #marks
+	end
+	return count
+end
+
+-- Check if virtual text contains completion indicators
+local function has_output_in_range(bufnr, start_line, end_line)
+	local namespaces = vim.api.nvim_get_namespaces()
+	for _, ns_id in pairs(namespaces) do
+		local marks = vim.api.nvim_buf_get_extmarks(
+			bufnr,
+			ns_id,
+			{ start_line - 1, 0 },
+			{ end_line + 5, -1 },
+			{ details = true }
+		)
+		for _, mark in ipairs(marks) do
+			local details = mark[4]
+			if details and details.virt_text then
+				for _, vt in ipairs(details.virt_text) do
+					local text = vt[1] or ""
+					-- Look for "Out[" which indicates execution completed
+					if text:match("Out%[%d+%]") or text:match("Done") then
+						return true
+					end
+				end
+			end
+			-- Also check virt_lines for output
+			if details and details.virt_lines then
+				return true -- Any virtual lines means output exists
+			end
+		end
+	end
+	return false
+end
+
+-- Wait for cell execution to complete by monitoring extmarks/output
+-- Calls callback(success) when done or timeout
+local function wait_for_cell_completion(bufnr, cell_start_line, cell_end_line, callback)
+	local start_time = vim.uv.now()
+	local initial_mark_count = count_extmarks_in_range(bufnr, cell_start_line, cell_end_line + 10)
+
+	local timer = vim.uv.new_timer()
+	timer:start(
+		POLL_INTERVAL_MS,
+		POLL_INTERVAL_MS,
+		vim.schedule_wrap(function()
+			-- Check timeout
+			if vim.uv.now() - start_time > CELL_TIMEOUT_MS then
+				timer:stop()
+				timer:close()
+				callback(false, "timeout")
+				return
+			end
+
+			-- Check if buffer is still valid
+			if not vim.api.nvim_buf_is_valid(bufnr) then
+				timer:stop()
+				timer:close()
+				callback(false, "buffer_invalid")
+				return
+			end
+
+			-- Check for new extmarks (output appeared)
+			local current_mark_count = count_extmarks_in_range(bufnr, cell_start_line, cell_end_line + 10)
+			if current_mark_count > initial_mark_count then
+				timer:stop()
+				timer:close()
+				callback(true)
+				return
+			end
+
+			-- Also check for output indicators in virtual text
+			if has_output_in_range(bufnr, cell_start_line, cell_end_line) then
+				timer:stop()
+				timer:close()
+				callback(true)
+				return
+			end
+		end)
+	)
+end
 
 -- Suppress Molten events during navigation (workaround for Molten extmark bug)
 local function with_suppressed_events(fn)
@@ -26,6 +116,7 @@ end
 
 -- Helper function to find and execute code between # %% markers
 -- This creates a Molten cell if one doesn't exist yet
+-- Returns start_line, end_line of the executed cell (or nil if empty/error)
 local function evaluate_percent_cell()
 	-- Find cell boundaries
 	local cell_start = vim.fn.search("^# %%", "bnW") -- Search backwards for cell start
@@ -54,7 +145,7 @@ local function evaluate_percent_cell()
 	-- Ensure we have valid content to execute (not just empty lines or markers)
 	if start_line > end_line then
 		vim.notify("Empty cell", vim.log.levels.WARN)
-		return
+		return nil, nil
 	end
 
 	-- Use MoltenEvaluateRange function (more reliable than visual mode simulation)
@@ -66,6 +157,8 @@ local function evaluate_percent_cell()
 		vim.fn.setpos("'>", { 0, end_line, vim.fn.col({ end_line, "$" }) - 1, 0 })
 		pcall(vim.cmd, "'<,'>MoltenEvaluateVisual")
 	end
+
+	return start_line, end_line
 end
 
 -- Set up keymaps for a buffer
@@ -213,11 +306,28 @@ function M.setup_buffer_keymaps()
 				end)
 
 				ui.mark_cell_executed(cell_num)
-				evaluate_percent_cell()
+				local cell_start, cell_end = evaluate_percent_cell()
 
-				vim.defer_fn(function()
-					run_next_cell(cell_num + 1)
-				end, CELL_EXECUTION_DELAY_MS)
+				if cell_start and cell_end then
+					-- Wait for cell execution to complete before running next cell
+					wait_for_cell_completion(bufnr, cell_start, cell_end, function(success, reason)
+						if not success and reason == "timeout" then
+							vim.notify(
+								string.format("Cell %d timed out after 30s, continuing...", cell_num),
+								vim.log.levels.WARN
+							)
+						end
+						-- Small delay to let output render, then continue
+						vim.defer_fn(function()
+							run_next_cell(cell_num + 1)
+						end, BUFFER_SETTLE_DELAY_MS)
+					end)
+				else
+					-- Empty cell, skip to next
+					vim.defer_fn(function()
+						run_next_cell(cell_num + 1)
+					end, BUFFER_SETTLE_DELAY_MS)
+				end
 			end
 
 			run_next_cell(1)
