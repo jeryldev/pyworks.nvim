@@ -26,13 +26,16 @@ M.executed_cells = {}
 -- Namespace for cell numbering (cached)
 local cell_numbers_ns = nil
 
--- Clean up executed_cells when buffer is deleted
+-- Clean up buffer-specific state when buffer is deleted
 -- Use augroup to prevent duplicate autocmds on module reload
 local cleanup_augroup = vim.api.nvim_create_augroup("PyworksExecutedCellsCleanup", { clear = true })
 vim.api.nvim_create_autocmd("BufDelete", {
 	group = cleanup_augroup,
 	callback = function(ev)
 		M.executed_cells[ev.buf] = nil
+		-- Clean up buffer-specific augroup to prevent orphaned augroups
+		local augroup_name = "PyworksCellNumbering_" .. ev.buf
+		pcall(vim.api.nvim_del_augroup_by_name, augroup_name)
 	end,
 })
 

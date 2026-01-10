@@ -14,8 +14,22 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
 
--- Cache for Molten namespace ID (cleared on buffer change to handle namespace recreation)
+-- Cache for Molten namespace ID (invalidated on buffer change to handle namespace recreation)
 local molten_ns_cache = nil
+
+-- Invalidate namespace cache (called on buffer switch to handle Molten restart)
+local function invalidate_molten_ns_cache()
+	molten_ns_cache = nil
+end
+
+-- Set up cache invalidation on buffer changes
+local ns_cache_augroup = vim.api.nvim_create_augroup("PyworksMoltenNsCache", { clear = true })
+vim.api.nvim_create_autocmd("BufEnter", {
+	group = ns_cache_augroup,
+	pattern = { "*.py", "*.ipynb" },
+	callback = invalidate_molten_ns_cache,
+	desc = "Pyworks: Invalidate Molten namespace cache on buffer switch",
+})
 
 -- Concatenate virtual text parts into a single string
 local function concat_virt_text(virt_text)
