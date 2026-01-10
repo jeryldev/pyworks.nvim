@@ -14,6 +14,19 @@ local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
 
+-- Debug log file (set vim.g.pyworks_debug_file = "/tmp/pyworks.log" to enable)
+local function debug_log(msg)
+	local log_file = vim.g.pyworks_debug_file
+	if not log_file then
+		return
+	end
+	local f = io.open(log_file, "a")
+	if f then
+		f:write(string.format("[%s] %s\n", os.date("%H:%M:%S"), msg))
+		f:close()
+	end
+end
+
 -- Cache for Molten namespace ID (invalidated on buffer change to handle namespace recreation)
 local molten_ns_cache = nil
 
@@ -40,19 +53,34 @@ local function concat_virt_text(virt_text)
 	return text
 end
 
--- Get Molten namespace ID (cached for performance in hot path)
--- Returns namespace ID or nil if Molten namespace not found
+-- Get Molten extmarks namespace ID (cached for performance in hot path)
+-- Must match "molten-extmarks" specifically - this is where Out[N] markers appear
+-- NOT "molten-highlights" which is a different namespace for syntax highlighting
 local function get_molten_namespace()
-	if molten_ns_cache then
-		return molten_ns_cache
-	end
 	local namespaces = vim.api.nvim_get_namespaces()
+
+	-- Validate cache: ensure cached ID still exists and matches molten-extmarks
+	if molten_ns_cache then
+		for name, id in pairs(namespaces) do
+			if id == molten_ns_cache and name == "molten-extmarks" then
+				debug_log(string.format("get_molten_namespace: cache HIT id=%d", molten_ns_cache))
+				return molten_ns_cache
+			end
+		end
+		-- Cache is stale, clear it
+		debug_log(string.format("get_molten_namespace: cache STALE (was %d)", molten_ns_cache))
+		molten_ns_cache = nil
+	end
+
+	-- Look up molten-extmarks namespace specifically
 	for name, id in pairs(namespaces) do
-		if type(name) == "string" and name:match("^molten") then
+		if name == "molten-extmarks" then
 			molten_ns_cache = id
+			debug_log(string.format("get_molten_namespace: found FRESH id=%d name=%s", id, name))
 			return id
 		end
 	end
+	debug_log("get_molten_namespace: NOT FOUND (molten-extmarks)")
 	return nil
 end
 
@@ -159,6 +187,8 @@ local function wait_for_cell_completion(bufnr, callback)
 	local start_time = vim.uv.now()
 	local initial_completed = get_highest_completed_output(bufnr)
 
+	debug_log(string.format("wait_for_cell_completion: START initial_completed=%d", initial_completed))
+
 	-- Debug: log initial state and dump extmarks
 	if vim.g.pyworks_debug then
 		vim.notify(
@@ -177,6 +207,7 @@ local function wait_for_cell_completion(bufnr, callback)
 			if vim.uv.now() - start_time > CELL_TIMEOUT_MS then
 				timer:stop()
 				timer:close()
+				debug_log("wait_for_cell_completion: TIMEOUT")
 				-- Debug: dump extmarks on timeout to see what we missed
 				if vim.g.pyworks_debug then
 					vim.notify("[DEBUG] Timeout reached, dumping extmarks:", vim.log.levels.DEBUG)
@@ -190,15 +221,18 @@ local function wait_for_cell_completion(bufnr, callback)
 			if not vim.api.nvim_buf_is_valid(bufnr) then
 				timer:stop()
 				timer:close()
+				debug_log("wait_for_cell_completion: BUFFER_INVALID")
 				callback(false, "buffer_invalid")
 				return
 			end
 
 			-- Check if a new Out[N] ✓ Done appeared (completion indicator)
 			local current_completed = get_highest_completed_output(bufnr)
+			debug_log(string.format("POLL: initial=%d current=%d", initial_completed, current_completed))
 			if current_completed > initial_completed then
 				timer:stop()
 				timer:close()
+				debug_log(string.format("wait_for_cell_completion: SUCCESS Out[%d]", current_completed))
 				if vim.g.pyworks_debug then
 					vim.notify(
 						string.format("[DEBUG] Cell completed! Out[%d] detected", current_completed),
@@ -767,15 +801,13 @@ M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
 
 -- Debug command: dump all extmarks to see Molten's output format
--- Only available when vim.g.pyworks_debug is set
-if vim.g.pyworks_debug then
-	vim.api.nvim_create_user_command("PyworksDebugExtmarks", function()
-		local bufnr = vim.api.nvim_get_current_buf()
-		vim.notify("[DEBUG] Dumping all extmarks with virtual text:", vim.log.levels.INFO)
-		debug_dump_extmarks(bufnr)
-		local highest = get_highest_completed_output(bufnr)
-		vim.notify(string.format("[DEBUG] Highest completed output: Out[%d]", highest), vim.log.levels.INFO)
-	end, { desc = "Debug: dump all extmarks to see Molten output format" })
-end
+-- Always available for troubleshooting completion detection
+vim.api.nvim_create_user_command("PyworksDebugExtmarks", function()
+	local bufnr = vim.api.nvim_get_current_buf()
+	vim.notify("[DEBUG] Dumping all extmarks with virtual text:", vim.log.levels.INFO)
+	debug_dump_extmarks(bufnr)
+	local highest = get_highest_completed_output(bufnr)
+	vim.notify(string.format("[DEBUG] Highest completed output: Out[%d]", highest), vim.log.levels.INFO)
+end, { desc = "Debug: dump all extmarks to see Molten output format" })
 
 return M
