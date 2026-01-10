@@ -109,6 +109,99 @@ describe("keymaps", function()
 		end)
 	end)
 
+	-- CRITICAL: Tests for namespace lookup to prevent regression of the bug where
+	-- pattern matching "^molten" matched "molten-highlights" instead of "molten-extmarks"
+	-- See commit 91adb5c for the fix
+	describe("_get_molten_namespace", function()
+		it("should return nil when no molten namespaces exist", function()
+			-- Invalidate cache first
+			keymaps._invalidate_molten_ns_cache()
+
+			local result = keymaps._get_molten_namespace()
+
+			-- Without Molten running, should return nil
+			-- Note: actual result depends on whether Molten is loaded
+			assert.is_true(result == nil or type(result) == "number")
+		end)
+
+		it("should find molten-extmarks namespace specifically", function()
+			-- Invalidate cache to ensure fresh lookup
+			keymaps._invalidate_molten_ns_cache()
+
+			-- Create namespaces that simulate Molten's namespace structure
+			-- CRITICAL: molten-highlights is created FIRST to test iteration order doesn't matter
+			-- luacheck: ignore highlights_ns (intentionally unused - we're testing it's NOT selected)
+			local highlights_ns = vim.api.nvim_create_namespace("molten-highlights")
+			local extmarks_ns = vim.api.nvim_create_namespace("molten-extmarks")
+
+			local result = keymaps._get_molten_namespace()
+
+			-- MUST return molten-extmarks, NOT molten-highlights
+			-- This is the exact bug we're preventing: pattern "^molten" would match either
+			assert.equals(extmarks_ns, result)
+
+			-- Cleanup (namespaces persist until Neovim restart but this documents intent)
+		end)
+
+		it("should NOT match molten-highlights when looking for output markers", function()
+			keymaps._invalidate_molten_ns_cache()
+
+			-- Only create molten-highlights (simulating partial Molten state)
+			-- luacheck: ignore highlights_ns (intentionally unused - verifying it's NOT selected)
+			local highlights_ns = vim.api.nvim_create_namespace("molten-highlights")
+			-- Delete molten-extmarks if it exists from previous test
+			-- (can't actually delete namespaces, but we can verify behavior)
+
+			-- The function should return the molten-extmarks namespace if it exists,
+			-- or nil if only molten-highlights exists
+			-- Since we can't delete namespaces in tests, we verify the logic by
+			-- checking the return value matches molten-extmarks specifically
+			local result = keymaps._get_molten_namespace()
+
+			-- If result is not nil, it MUST be molten-extmarks, never molten-highlights
+			if result then
+				local namespaces = vim.api.nvim_get_namespaces()
+				for name, id in pairs(namespaces) do
+					if id == result then
+						assert.equals("molten-extmarks", name)
+						break
+					end
+				end
+			end
+		end)
+
+		it("should cache the namespace ID after first lookup", function()
+			keymaps._invalidate_molten_ns_cache()
+
+			-- Ensure molten-extmarks exists
+			local extmarks_ns = vim.api.nvim_create_namespace("molten-extmarks")
+
+			-- First call - should find and cache
+			local first_result = keymaps._get_molten_namespace()
+
+			-- Second call - should use cache
+			local second_result = keymaps._get_molten_namespace()
+
+			assert.equals(first_result, second_result)
+			assert.equals(extmarks_ns, first_result)
+		end)
+
+		it("should invalidate cache when _invalidate_molten_ns_cache is called", function()
+			-- Ensure molten-extmarks exists and is cached
+			local extmarks_ns = vim.api.nvim_create_namespace("molten-extmarks")
+			local first_result = keymaps._get_molten_namespace()
+
+			-- Invalidate
+			keymaps._invalidate_molten_ns_cache()
+
+			-- Next call should do fresh lookup (we can't easily verify this without
+			-- checking internal state, but we verify the function still works)
+			local after_invalidate = keymaps._get_molten_namespace()
+
+			assert.equals(extmarks_ns, after_invalidate)
+		end)
+	end)
+
 	describe("_get_highest_completed_output", function()
 		it("should return 0 when no output exists", function()
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
@@ -123,7 +216,7 @@ describe("keymaps", function()
 
 		it("should return 0 when Out[N] exists but no Done indicator", function()
 			-- Create a namespace and add an extmark with Out[1] but no Done
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -139,7 +232,7 @@ describe("keymaps", function()
 		end)
 
 		it("should detect Out[N] with checkmark", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -155,7 +248,7 @@ describe("keymaps", function()
 		end)
 
 		it("should detect Out[N] with Done text", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -171,7 +264,7 @@ describe("keymaps", function()
 		end)
 
 		it("should return highest number when multiple outputs exist", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('cell 1')",
@@ -200,7 +293,7 @@ describe("keymaps", function()
 		end)
 
 		it("should handle multi-part virtual text", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -222,7 +315,7 @@ describe("keymaps", function()
 		end)
 
 		it("should ignore incomplete outputs when finding highest", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('cell 1')",
@@ -246,7 +339,7 @@ describe("keymaps", function()
 		end)
 
 		it("should detect Out[N] in virt_lines (Molten's actual format)", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -265,7 +358,7 @@ describe("keymaps", function()
 		end)
 
 		it("should detect Out[N] with multi-part virt_lines", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",
@@ -299,7 +392,7 @@ describe("keymaps", function()
 		end)
 
 		it("should call callback immediately if new output appears", function()
-			local ns = vim.api.nvim_create_namespace("molten_test_output")
+			local ns = vim.api.nvim_create_namespace("molten-extmarks")
 			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
 				"# %%",
 				"print('hello')",

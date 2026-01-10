@@ -28,6 +28,19 @@ local function debug_log(msg)
 end
 
 -- Cache for Molten namespace ID (invalidated on buffer change to handle namespace recreation)
+--
+-- IMPORTANT: Molten creates multiple namespaces with similar names:
+--   - "molten-extmarks": Contains cell output markers (Out[N]: ✓ Done) - THIS IS WHAT WE NEED
+--   - "molten-highlights": Contains syntax highlighting for code cells
+--   - potentially others
+--
+-- We MUST use exact string match "molten-extmarks", NOT a pattern like "^molten".
+-- Pattern matching is dangerous because Lua table iteration order is non-deterministic,
+-- so "^molten" might match "molten-highlights" first, causing completion detection to fail
+-- since that namespace doesn't contain the Out[N] markers we're looking for.
+--
+-- Bug history: Prior to commit 91adb5c, we used pattern `name:match("^molten")` which
+-- sometimes matched the wrong namespace, causing 30-second timeouts on every cell.
 local molten_ns_cache = nil
 
 -- Invalidate namespace cache (called on buffer switch to handle Molten restart)
@@ -54,8 +67,15 @@ local function concat_virt_text(virt_text)
 end
 
 -- Get Molten extmarks namespace ID (cached for performance in hot path)
--- Must match "molten-extmarks" specifically - this is where Out[N] markers appear
--- NOT "molten-highlights" which is a different namespace for syntax highlighting
+--
+-- CRITICAL: Must match "molten-extmarks" EXACTLY - this is where Out[N] markers appear.
+-- DO NOT use pattern matching like name:match("^molten") - see comment above molten_ns_cache.
+--
+-- This function is called every 150ms during cell execution polling, so we cache the
+-- namespace ID for performance. The cache is validated on each call to handle Molten
+-- restarts that might recreate namespaces with different IDs.
+--
+-- @return number|nil The namespace ID, or nil if molten-extmarks not found
 local function get_molten_namespace()
 	local namespaces = vim.api.nvim_get_namespaces()
 
@@ -799,6 +819,8 @@ M._get_highest_completed_output = get_highest_completed_output
 M._is_markdown_cell = is_markdown_cell
 M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
+M._get_molten_namespace = get_molten_namespace
+M._invalidate_molten_ns_cache = invalidate_molten_ns_cache
 
 -- Debug command: dump all extmarks to see Molten's output format
 -- Always available for troubleshooting completion detection
