@@ -34,7 +34,7 @@ local function get_molten_namespace()
 	end
 	local namespaces = vim.api.nvim_get_namespaces()
 	for name, id in pairs(namespaces) do
-		if name:match("^molten") then
+		if type(name) == "string" and name:match("^molten") then
 			molten_ns_cache = id
 			return id
 		end
@@ -48,33 +48,35 @@ local function debug_dump_extmarks(bufnr)
 	local found_any = false
 
 	for ns_name, ns_id in pairs(namespaces) do
-		local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
-		for _, mark in ipairs(marks) do
-			local details = mark[4]
-			-- Check virt_text (text at end of line)
-			if details and details.virt_text then
-				found_any = true
-				local full_text = concat_virt_text(details.virt_text)
-				vim.notify(
-					string.format("[DEBUG] ns=%s line=%d virt_text='%s'", ns_name, mark[2] + 1, full_text),
-					vim.log.levels.INFO
-				)
-			end
-			-- Check virt_lines (entire lines below the actual line)
-			if details and details.virt_lines then
-				found_any = true
-				for line_idx, virt_line in ipairs(details.virt_lines) do
-					local line_text = concat_virt_text(virt_line)
+		if type(ns_name) == "string" then
+			local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })
+			for _, mark in ipairs(marks) do
+				local details = mark[4]
+				-- Check virt_text (text at end of line)
+				if details and details.virt_text then
+					found_any = true
+					local full_text = concat_virt_text(details.virt_text)
 					vim.notify(
-						string.format(
-							"[DEBUG] ns=%s line=%d virt_lines[%d]='%s'",
-							ns_name,
-							mark[2] + 1,
-							line_idx,
-							line_text
-						),
+						string.format("[DEBUG] ns=%s line=%d virt_text='%s'", ns_name, mark[2] + 1, full_text),
 						vim.log.levels.INFO
 					)
+				end
+				-- Check virt_lines (entire lines below the actual line)
+				if details and details.virt_lines then
+					found_any = true
+					for line_idx, virt_line in ipairs(details.virt_lines) do
+						local line_text = concat_virt_text(virt_line)
+						vim.notify(
+							string.format(
+								"[DEBUG] ns=%s line=%d virt_lines[%d]='%s'",
+								ns_name,
+								mark[2] + 1,
+								line_idx,
+								line_text
+							),
+							vim.log.levels.INFO
+						)
+					end
 				end
 			end
 		end
