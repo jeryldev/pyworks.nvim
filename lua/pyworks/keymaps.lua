@@ -219,14 +219,29 @@ local function wait_for_cell_completion(bufnr, callback)
 	end
 
 	local timer = vim.uv.new_timer()
+
+	-- Helper to safely close timer (prevents double-close errors from race conditions)
+	-- Uses libuv's is_closing() API per official Neovim documentation
+	local function close_timer()
+		if timer:is_closing() then
+			return
+		end
+		timer:stop()
+		timer:close()
+	end
+
 	timer:start(
 		POLL_INTERVAL_MS,
 		POLL_INTERVAL_MS,
 		vim.schedule_wrap(function()
+			-- Skip if timer already closing (callback was scheduled before close)
+			if timer:is_closing() then
+				return
+			end
+
 			-- Check timeout
 			if vim.uv.now() - start_time > CELL_TIMEOUT_MS then
-				timer:stop()
-				timer:close()
+				close_timer()
 				debug_log("wait_for_cell_completion: TIMEOUT")
 				-- Debug: dump extmarks on timeout to see what we missed
 				if vim.g.pyworks_debug then
@@ -239,8 +254,7 @@ local function wait_for_cell_completion(bufnr, callback)
 
 			-- Check if buffer is still valid
 			if not vim.api.nvim_buf_is_valid(bufnr) then
-				timer:stop()
-				timer:close()
+				close_timer()
 				debug_log("wait_for_cell_completion: BUFFER_INVALID")
 				callback(false, "buffer_invalid")
 				return
@@ -250,8 +264,7 @@ local function wait_for_cell_completion(bufnr, callback)
 			local current_completed = get_highest_completed_output(bufnr)
 			debug_log(string.format("POLL: initial=%d current=%d", initial_completed, current_completed))
 			if current_completed > initial_completed then
-				timer:stop()
-				timer:close()
+				close_timer()
 				debug_log(string.format("wait_for_cell_completion: SUCCESS Out[%d]", current_completed))
 				if vim.g.pyworks_debug then
 					vim.notify(

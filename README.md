@@ -97,13 +97,10 @@ For inline plot/image display:
    ```
 
 3. **Execute code**:
-   - `<leader>jl` - Auto-initialize kernel
-   - `<leader>jj` - Run current cell and move to next (Shift+Enter in Jupyter)
+   - `<leader>jl` - Run current line (auto-initializes kernel on first use)
+   - `<leader>jj` - Run cell and move to next (Shift+Enter in Jupyter)
 
-4. **Create new cells**:
-   - `<leader>ja` - Insert code cell above
-   - `<leader>jb` - Insert code cell below
-   - `<leader>jma` - Insert markdown cell above
+4. **Create new cells**: `<leader>ja` / `jb` / `jma` / `jmb` (above/below, code/markdown)
 
 5. **Package management**:
    - Missing packages detected automatically
@@ -116,9 +113,9 @@ For inline plot/image display:
 
 | Keymap       | Mode   | Description                      |
 | ------------ | ------ | -------------------------------- |
-| `<leader>jl` | Normal | Auto-initialize kernel           |
+| `<leader>jl` | Normal | Run current line (auto-inits kernel) |
 | `<leader>jr` | Visual | Run selection                    |
-| `<leader>jj` | Normal | Run current cell and move to next |
+| `<leader>jj` | Normal | Run cell and move to next        |
 | `<leader>jR` | Normal | Run all cells in buffer          |
 
 ### Cell Selection & Navigation

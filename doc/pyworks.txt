@@ -101,13 +101,10 @@ TYPICAL WORKFLOW~
 <
 
 3. Execute code:
-   - |<leader>jl| - Auto-initialize kernel
-   - |<leader>jj| - Run current cell and move to next (Shift+Enter in Jupyter)
+   - |<leader>jl| - Run current line (auto-initializes kernel on first use)
+   - |<leader>jj| - Run cell and move to next (Shift+Enter in Jupyter)
 
-4. Create new cells:
-   - |<leader>ja| - Insert code cell above
-   - |<leader>jb| - Insert code cell below
-   - |<leader>jma| - Insert markdown cell above
+4. Create new cells: |<leader>ja| / jb / jma / jmb (above/below, code/markdown)
 
 5. Navigate:
    - |<leader>j]| - Next cell
@@ -124,9 +121,9 @@ TYPICAL WORKFLOW~
 
 CELL EXECUTION~
 
-*<leader>jl*  Auto-initialize kernel (Normal mode)
+*<leader>jl*  Run current line, auto-inits kernel on first use (Normal mode)
 *<leader>jr*  Run selection (Visual mode)
-*<leader>jj*  Run current cell and move to next (Normal mode)
+*<leader>jj*  Run cell and move to next (Normal mode)
 *<leader>jR*  Run all cells in buffer (Normal mode)
 
 CELL SELECTION & NAVIGATION~
