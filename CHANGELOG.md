@@ -4,8 +4,17 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Timer double-close error**: Use libuv's `is_closing()` API to prevent "handle is already closing"
+  errors when Molten crashes during cell execution polling
+
 ### Changed
 
+- **`<leader>jR` cursor positioning**: Now moves cursor to next cell immediately after starting
+  execution (matching `<leader>jj` behavior), so output appears above the cursor as cells run
+- **Documentation accuracy**: Updated `<leader>jl` description from "Auto-initialize kernel" to
+  "Run current line (auto-initializes kernel on first use)" across README, help file, and keymaps
 - **Removed floating window keymaps (`<leader>jo`, `<leader>jh`, `K`)** - These controlled Molten's
   floating output window which is not Jupyter-like. Output now follows Jupyter behavior:
   - Output appears inline below cells (Molten's default)

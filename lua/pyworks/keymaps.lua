@@ -503,6 +503,14 @@ function M.setup_buffer_keymaps()
 				ui.mark_cell_executed(cell_num)
 				local cell_start, _ = evaluate_percent_cell()
 
+				-- Move cursor to next cell immediately after starting execution
+				-- Matches <leader>jj behavior: user sees output appearing above cursor
+				-- Uses "nW" flag to search without moving cursor, then ui.enter_cell positions it
+				local next_cell_line = vim.fn.search("^# %%", "nW")
+				if next_cell_line > 0 then
+					ui.enter_cell(next_cell_line, { insert_mode = false })
+				end
+
 				if cell_start then
 					-- Wait for cell execution to complete (Out[N] ✓ Done) before running next cell
 					wait_for_cell_completion(bufnr, function(success, reason)
