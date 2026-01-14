@@ -303,6 +303,7 @@ local function is_markdown_cell()
 end
 
 -- Suppress Molten events during navigation (workaround for Molten extmark bug)
+-- Uses API calls instead of normal! commands to work from any mode (including terminal)
 local function with_suppressed_events(fn)
 	local saved = vim.o.eventignore
 	vim.o.eventignore = "CursorMoved,CursorMovedI,WinScrolled"
@@ -456,7 +457,33 @@ function M.setup_buffer_keymaps()
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
-		-- Run all cells in the buffer sequentially
+		-- ============================================================================
+		-- RUN ALL CELLS (<leader>jR)
+		-- ============================================================================
+		-- Executes all cells in the buffer sequentially, waiting for each to complete.
+		--
+		-- HOW IT WORKS:
+		-- 1. Count all "# %%" cell markers in the buffer
+		-- 2. Start recursive execution with run_next_cell(1)
+		-- 3. For each cell:
+		--    a. Navigate to the cell (search from line 1, N times for cell N)
+		--    b. Execute the cell code via Molten
+		--    c. Poll for completion by watching Molten's extmarks for "Out[N]: ✓ Done"
+		--    d. On completion (or 30s timeout), proceed to next cell
+		-- 4. When all cells done, position cursor at last cell
+		--
+		-- COMPLETION DETECTION:
+		-- - Molten displays output as virtual text in the "molten-extmarks" namespace
+		-- - When a cell completes, it shows "Out[N]: ✓ Done (X.Xs)" pattern
+		-- - We poll every 150ms checking if a new Out[N] appeared
+		-- - Example: Before cell 1 runs, highest=0. After completion, highest=1.
+		--
+		-- EVENT SUPPRESSION:
+		-- - Cursor movements trigger CursorMoved events that can confuse Molten
+		-- - We suppress these events during navigation using vim.o.eventignore
+		-- - Uses API calls (nvim_win_set_cursor) instead of normal! commands
+		--   to work from any mode including terminal mode
+		-- ============================================================================
 		vim.keymap.set("n", "<leader>jR", function()
 			local bufnr = vim.api.nvim_get_current_buf()
 			if not vim.b[bufnr].molten_initialized then
@@ -464,6 +491,7 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
+			-- Step 1: Count all cells in the buffer
 			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 			local cell_count = 0
 			for _, line in ipairs(lines) do
@@ -479,15 +507,22 @@ function M.setup_buffer_keymaps()
 
 			vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
 
+			-- Step 2: Position cursor at buffer start
+			-- Use API call (not normal!) to work from any mode including terminal
+			-- Suppress events to prevent Molten's CursorMoved handlers from interfering
 			with_suppressed_events(function()
-				vim.cmd("normal! gg")
+				vim.api.nvim_win_set_cursor(0, { 1, 0 })
 			end)
 
+			-- Step 3: Recursive function to execute cells one by one
+			-- Each call handles one cell, then schedules the next via vim.defer_fn
 			local function run_next_cell(cell_num)
+				-- Base case: all cells executed
 				if cell_num > cell_count then
-					-- Go to last cell and position cursor below the marker
+					-- Position cursor at the last cell for user convenience
 					with_suppressed_events(function()
-						vim.cmd("normal! G")
+						local last_line = vim.api.nvim_buf_line_count(0)
+						vim.api.nvim_win_set_cursor(0, { last_line, 0 })
 					end)
 					local last_cell_line = vim.fn.search("^# %%", "bW")
 					if last_cell_line > 0 then
@@ -497,14 +532,16 @@ function M.setup_buffer_keymaps()
 					return
 				end
 
+				-- Navigate to target cell: go to line 1, then search forward N times
+				-- This ensures we always find the Nth cell regardless of cursor position
 				with_suppressed_events(function()
-					vim.cmd("normal! gg")
+					vim.api.nvim_win_set_cursor(0, { 1, 0 })
 					for _ = 1, cell_num do
 						vim.fn.search("^# %%", "W")
 					end
 				end)
 
-				-- Check if this is a markdown cell (skip execution, no output expected)
+				-- Skip markdown cells (no executable code, no output expected)
 				if is_markdown_cell() then
 					ui.mark_cell_executed(cell_num)
 					vim.defer_fn(function()
@@ -513,19 +550,19 @@ function M.setup_buffer_keymaps()
 					return
 				end
 
+				-- Execute the cell
 				ui.mark_cell_executed(cell_num)
 				local cell_start, _ = evaluate_percent_cell()
 
-				-- Move cursor to next cell immediately after starting execution
-				-- Matches <leader>jj behavior: user sees output appearing above cursor
-				-- Uses "nW" flag to search without moving cursor, then ui.enter_cell positions it
+				-- Move cursor to next cell for visual feedback (output appears above)
 				local next_cell_line = vim.fn.search("^# %%", "nW")
 				if next_cell_line > 0 then
 					ui.enter_cell(next_cell_line, { insert_mode = false })
 				end
 
 				if cell_start then
-					-- Wait for cell execution to complete (Out[N] ✓ Done) before running next cell
+					-- Wait for completion by polling Molten's extmarks
+					-- Looks for "Out[N]: ✓ Done" pattern to detect when cell finishes
 					wait_for_cell_completion(bufnr, function(success, reason)
 						if not success and reason == "timeout" then
 							vim.notify(
@@ -533,7 +570,7 @@ function M.setup_buffer_keymaps()
 								vim.log.levels.WARN
 							)
 						end
-						-- Small delay to let output render, then continue
+						-- Small delay to let output render, then continue to next cell
 						vim.defer_fn(function()
 							run_next_cell(cell_num + 1)
 						end, BUFFER_SETTLE_DELAY_MS)
@@ -546,6 +583,7 @@ function M.setup_buffer_keymaps()
 				end
 			end
 
+			-- Start execution from cell 1
 			run_next_cell(1)
 		end, vim.tbl_extend("force", opts, { desc = "Run all cells" }))
 

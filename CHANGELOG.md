@@ -6,6 +6,11 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Fixed
 
+- **Terminal mode error in `<leader>jR`**: Fixed "Can't re-enter normal mode from terminal mode"
+  error when running all cells. Now uses `vim.api.nvim_win_set_cursor()` API calls instead of
+  `normal!` commands, which work from any mode including terminal mode.
+- **Faster Molten tick rate during reload**: Reduced safe tick rate from 1000ms to 500ms for
+  better responsiveness during notebook reload operations.
 - **Timer double-close error**: Use libuv's `is_closing()` API to prevent "handle is already closing"
   errors when Molten crashes during cell execution polling
 
@@ -38,8 +43,9 @@ All notable changes to pyworks.nvim will be documented in this file.
   simulation to `MoltenEvaluateRange` function call, making `<leader>jj` and `<leader>jR`
   display output consistently with `<leader>jv` + `<leader>jr`
 
-- **Molten extmark bug workaround**: Added event suppression during run-all cell execution
-  - Prevents IndexError when Molten accesses invalid extmarks during rapid cursor navigation
+- **Molten extmark bug workaround**: Event suppression during run-all cell execution
+  - Suppresses CursorMoved events during navigation to prevent Molten extmark issues
+  - Uses API calls instead of `normal!` commands to work from any mode
   - Calls MoltenDeinit before notebook buffer reloads and on session restore
   - Workaround for upstream Molten bug in position.py
 

@@ -124,7 +124,10 @@ CELL EXECUTION~
 *<leader>jl*  Run current line, auto-inits kernel on first use (Normal mode)
 *<leader>jr*  Run selection (Visual mode)
 *<leader>jj*  Run cell and move to next (Normal mode)
-*<leader>jR*  Run all cells in buffer (Normal mode)
+*<leader>jR*  Run all cells in buffer sequentially (Normal mode)
+              Waits for each cell to complete before running next.
+              Detects completion by monitoring Molten's "Out[N]: ✓ Done" output.
+              30-second timeout per cell.
 
 CELL SELECTION & NAVIGATION~
 
@@ -304,6 +307,28 @@ Or temporarily:
 >vim
     :lua vim.g.pyworks_debug = true
 <
+
+Debug commands:
+>vim
+    :PyworksDebugExtmarks    " Dump Molten extmarks to see output format
+<
+
+HOW RUN ALL CELLS WORKS~
+
+When you press |<leader>jR|, pyworks executes cells sequentially:
+
+1. Counts all `# %%` markers in the buffer
+2. For each cell (1 to N):
+   a. Navigates to the cell (searches from line 1, N times)
+   b. Executes the cell code via Molten
+   c. Polls every 150ms for completion
+   d. Detects completion when "Out[N]: ✓ Done" appears in Molten's extmarks
+   e. On completion (or 30s timeout), proceeds to next cell
+3. Positions cursor at last cell when done
+
+The completion detection monitors Molten's `molten-extmarks` namespace for
+virtual text containing the "Out[N]: ✓ Done" pattern that Molten displays
+when a cell finishes executing.
 
 DEPENDENCIES~
 

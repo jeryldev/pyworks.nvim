@@ -12,7 +12,7 @@ local M = {}
 
 -- Constants
 local DEFAULT_DEBOUNCE_MS = 500
-local DEFAULT_SAFE_TICK_RATE = 1000
+local DEFAULT_SAFE_TICK_RATE = 500
 local DEFAULT_MAX_RECURSION_DEPTH = 3
 
 -- State tracking for reload operations
