@@ -163,6 +163,8 @@ end
 
 -- Setup function
 function M.setup(opts)
+	opts = opts or {} -- Default to empty table if called without arguments
+
 	-- Prevent multiple setup calls
 	if vim.g.pyworks_setup_complete then
 		return
