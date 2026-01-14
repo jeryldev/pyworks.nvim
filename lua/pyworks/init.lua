@@ -379,6 +379,7 @@ vim.api.nvim_create_user_command("PyworksHelp", function()
 		"    :PyworksNewPythonNotebook     Create .ipynb file     :PyworksStatus       Package status",
 		"    :PyworksAdd/Remove [pkg]      Add/remove packages    :PyworksList         List packages",
 		"    :PyworksSync                  Install missing        :PyworksDiagnostics  Run diagnostics",
+		"    :PyworksReloadNotebook        Reload notebook        :PyworksResetReloadGuard  Fix stuck reload",
 		"",
 		"  CELL EXECUTION                                  CELL NAVIGATION",
 		"    <leader>jl   Run line (auto-init kernel)        <leader>j]   Next cell",

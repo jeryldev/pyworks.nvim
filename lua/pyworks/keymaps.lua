@@ -49,11 +49,24 @@ local function invalidate_molten_ns_cache()
 end
 
 -- Set up cache invalidation on buffer changes
+-- IMPORTANT: Skip invalidation during notebook reload to prevent contributing
+-- to the autocmd cascade that causes E132 maxfuncdepth errors with MoltenTick
 local ns_cache_augroup = vim.api.nvim_create_augroup("PyworksMoltenNsCache", { clear = true })
 vim.api.nvim_create_autocmd("BufEnter", {
 	group = ns_cache_augroup,
 	pattern = { "*.py", "*.ipynb" },
-	callback = invalidate_molten_ns_cache,
+	callback = function()
+		-- Skip cache invalidation during notebook reload operations
+		-- This prevents adding to the call stack during reload cascades
+		local ok, guard = pcall(require, "pyworks.core.recursion_guard")
+		if ok and guard.is_reloading() then
+			if vim.g.pyworks_debug then
+				debug_log("BufEnter: skipping cache invalidation (reload in progress)")
+			end
+			return
+		end
+		invalidate_molten_ns_cache()
+	end,
 	desc = "Pyworks: Invalidate Molten namespace cache on buffer switch",
 })
 

@@ -146,31 +146,69 @@ vim.api.nvim_create_autocmd("FileType", {
 
 -- Helper function to reload a notebook buffer properly
 -- Follows the same pattern as open_and_verify_notebook in commands/create.lua
-local function reload_notebook_buffer(filepath)
-	-- Deinitialize Molten first to clean up stale extmarks
-	-- This prevents IndexError when Molten tries to access invalid extmark positions
-	if vim.fn.exists(":MoltenDeinit") == 2 then
-		pcall(vim.cmd, "MoltenDeinit")
-	end
+--
+-- IMPORTANT: This function can trigger cascading autocmds (BufReadCmd, BufEnter, etc.)
+-- which could cause infinite recursion with MoltenTick. The recursion_guard module
+-- prevents this by:
+--   1. Checking if a reload is already in progress (global and per-buffer locks)
+--   2. Debouncing rapid successive reload attempts
+--   3. Temporarily slowing Molten's tick rate during reload
+--   4. Limiting maximum recursion depth
+local function reload_notebook_buffer(filepath, opts)
+	opts = opts or {}
+	local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
 
-	-- Ensure notebook handler is configured before reloading
-	local jupytext = require("pyworks.notebook.jupytext")
-	jupytext.configure_notebook_handler()
+	-- Use recursion guard to prevent infinite loops
+	local guard = require("pyworks.core.recursion_guard")
 
-	-- Use :edit to open fresh from disk - this triggers BufReadCmd
-	local ok = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filepath))
-
-	if ok then
-		-- Verify conversion worked (buffer should NOT start with '{')
-		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
-		if first_line:match("^%s*{") then
-			-- Still JSON, try configuring and reloading once more
-			jupytext.configure_notebook_handler()
-			pcall(vim.cmd, "edit!")
+	-- Check if reload is safe (not already in progress, not debounced)
+	if not guard.can_reload(bufnr) then
+		if vim.g.pyworks_debug then
+			vim.notify("[pyworks] Reload blocked by recursion guard: " .. filepath, vim.log.levels.DEBUG)
 		end
+		return false
 	end
 
-	return ok
+	-- Begin protected reload operation
+	local release = guard.begin_reload(bufnr)
+
+	-- Wrap in pcall to ensure we always release the guard
+	local success, result = pcall(function()
+		-- Deinitialize Molten first to clean up stale extmarks
+		-- This prevents IndexError when Molten tries to access invalid extmark positions
+		if vim.fn.exists(":MoltenDeinit") == 2 then
+			pcall(vim.cmd, "MoltenDeinit")
+		end
+
+		-- Ensure notebook handler is configured before reloading
+		local jupytext = require("pyworks.notebook.jupytext")
+		jupytext.configure_notebook_handler()
+
+		-- Use :edit to open fresh from disk - this triggers BufReadCmd
+		local ok = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filepath))
+
+		if ok then
+			-- Verify conversion worked (buffer should NOT start with '{')
+			local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
+			if first_line:match("^%s*{") then
+				-- Still JSON, try configuring and reloading once more
+				jupytext.configure_notebook_handler()
+				pcall(vim.cmd, "edit!")
+			end
+		end
+
+		return ok
+	end)
+
+	-- Always release the guard, even if reload failed
+	release()
+
+	if not success then
+		vim.notify("[pyworks] Reload error: " .. tostring(result), vim.log.levels.ERROR)
+		return false
+	end
+
+	return result
 end
 
 -- Manual command to reload current notebook (useful after session restore)
@@ -194,9 +232,15 @@ end, { desc = "Reload current notebook with jupytext conversion" })
 
 -- Handle session restore: re-trigger notebook conversion for .ipynb files
 -- Session restore bypasses BufReadCmd, leaving notebooks blank or as raw JSON
+--
+-- IMPORTANT: Session restore can trigger multiple buffer loads simultaneously.
+-- We collect all notebooks that need reloading and process them sequentially
+-- to avoid overwhelming Molten and causing recursion issues.
 vim.api.nvim_create_autocmd("SessionLoadPost", {
 	group = augroup,
 	callback = function()
+		local guard = require("pyworks.core.recursion_guard")
+
 		-- IMMEDIATELY deinit Molten for all .ipynb buffers to clean up stale extmarks
 		-- This prevents IndexError when Molten tries to access invalid extmark positions
 		-- Must run synchronously before any Molten operations
@@ -215,7 +259,16 @@ vim.api.nvim_create_autocmd("SessionLoadPost", {
 
 		-- Then defer the buffer reloading
 		vim.defer_fn(function()
-			-- Find all .ipynb buffers and re-process them
+			-- Check if a reload is already in progress (from another source)
+			if guard.is_reloading() then
+				if vim.g.pyworks_debug then
+					vim.notify("[pyworks] SessionLoadPost skipped: reload in progress", vim.log.levels.DEBUG)
+				end
+				return
+			end
+
+			-- Collect all notebooks that need reloading
+			local notebooks_to_reload = {}
 			for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
 				if vim.api.nvim_buf_is_loaded(bufnr) then
 					local filepath = vim.api.nvim_buf_get_name(bufnr)
@@ -227,12 +280,33 @@ vim.api.nvim_create_autocmd("SessionLoadPost", {
 						local is_json = first_line:match("^%s*{")
 
 						if is_empty or is_json then
-							-- Switch to buffer and reload
-							vim.api.nvim_set_current_buf(bufnr)
-							reload_notebook_buffer(filepath)
+							table.insert(notebooks_to_reload, { bufnr = bufnr, filepath = filepath })
 						end
 					end
 				end
+			end
+
+			-- Process notebooks sequentially to avoid overwhelming Molten
+			-- Each reload waits for the previous one to complete via debounce
+			local function reload_next(index)
+				if index > #notebooks_to_reload then
+					return
+				end
+
+				local notebook = notebooks_to_reload[index]
+				if vim.api.nvim_buf_is_valid(notebook.bufnr) then
+					vim.api.nvim_set_current_buf(notebook.bufnr)
+					reload_notebook_buffer(notebook.filepath, { bufnr = notebook.bufnr })
+				end
+
+				-- Schedule next reload after debounce period
+				vim.defer_fn(function()
+					reload_next(index + 1)
+				end, 600) -- Slightly longer than debounce to ensure sequential processing
+			end
+
+			if #notebooks_to_reload > 0 then
+				reload_next(1)
 			end
 		end, 500) -- Longer delay to ensure session is fully loaded
 	end,
@@ -241,10 +315,25 @@ vim.api.nvim_create_autocmd("SessionLoadPost", {
 
 -- Fallback: Handle BufWinEnter for notebooks that might have been missed
 -- BufWinEnter fires when buffer is displayed in a window
+--
+-- IMPORTANT: This autocmd can cause infinite recursion if not properly guarded:
+--   BufWinEnter -> reload_notebook_buffer -> :edit -> BufReadCmd -> BufEnter -> ...
+-- The recursion_guard module prevents this, but we also check early here to avoid
+-- unnecessary work when a reload is already in progress.
 vim.api.nvim_create_autocmd("BufWinEnter", {
 	group = augroup,
 	pattern = "*.ipynb",
 	callback = function(ev)
+		-- CRITICAL: Check recursion guard FIRST before any other processing
+		-- This prevents cascading reloads that cause E132 maxfuncdepth errors
+		local guard = require("pyworks.core.recursion_guard")
+		if guard.is_reloading() then
+			if vim.g.pyworks_debug then
+				vim.notify("[pyworks] BufWinEnter skipped: reload in progress", vim.log.levels.DEBUG)
+			end
+			return
+		end
+
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)
 
 		-- Skip if no filepath or file doesn't exist
@@ -259,7 +348,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 		local is_json = first_line:match("^%s*{")
 
 		if is_empty or is_json then
-			-- Skip if already being processed
+			-- Skip if already being processed (buffer-local flag)
 			local ok, processing = pcall(vim.api.nvim_buf_get_var, ev.buf, "pyworks_notebook_processing")
 			if ok and processing then
 				return
@@ -268,6 +357,12 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 
 			-- Defer to let other handlers complete first
 			vim.defer_fn(function()
+				-- Re-check recursion guard in deferred callback
+				if guard.is_reloading() then
+					pcall(vim.api.nvim_buf_del_var, ev.buf, "pyworks_notebook_processing")
+					return
+				end
+
 				-- Double-check the buffer still exists and needs processing
 				if not vim.api.nvim_buf_is_valid(ev.buf) then
 					return
@@ -279,7 +374,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 				local still_json = check_first:match("^%s*{")
 
 				if still_empty or still_json then
-					reload_notebook_buffer(filepath)
+					reload_notebook_buffer(filepath, { bufnr = ev.buf })
 				end
 
 				-- Clear processing flag after completion

@@ -199,6 +199,14 @@ ENVIRONMENT MANAGEMENT~
 *:PyworksHelp*
     Show all Pyworks commands and keymaps
 
+*:PyworksReloadNotebook*
+    Manually reload current notebook with jupytext conversion
+    Useful after session restore if notebook appears blank
+
+*:PyworksResetReloadGuard*
+    Reset the notebook reload guard (emergency recovery)
+    Use if notebooks won't reload or you see E132 errors
+
 PACKAGE MANAGEMENT~
 
 *:PyworksSync*
@@ -272,6 +280,16 @@ A: Fixed by default. Ensure using Kitty or Ghostty terminal
 
 Q: Matplotlib opens external window
 A: Don't use plt.show(). Just create plot and Molten captures it
+
+Q: E132 "Function call depth is higher than maxfuncdepth" error
+A: This is an infinite recursion during notebook reload. Pyworks includes
+   protection against this, but if it occurs:
+   1. Run |:PyworksResetReloadGuard| to reset the reload guard
+   2. Restart Neovim if issue persists
+   3. Enable debug mode to investigate: :lua vim.g.pyworks_debug = true
+
+Q: Notebooks won't reload or appear stuck
+A: The reload guard may be stuck. Run |:PyworksResetReloadGuard| to reset.
 
 DEBUG MODE~
 
