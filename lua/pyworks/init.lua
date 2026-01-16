@@ -182,6 +182,7 @@ function M.setup(opts)
 
 	-- Add helpful keymaps
 	if not opts.skip_keymaps then
+		vim.keymap.set("n", "<leader>pi", "<cmd>PyworksSync<cr>", { desc = "Pyworks: Install missing packages" })
 		vim.keymap.set("n", "<leader>ps", "<cmd>PyworksStatus<cr>", { desc = "Pyworks: Show status" })
 	end
 

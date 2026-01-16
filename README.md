@@ -183,12 +183,13 @@ For inline plot/image display:
 
 ### Environment Management
 
-| Command               | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `:PyworksSetup`       | Create venv and install essential packages   |
-| `:PyworksStatus`      | Show package status (imports/installed/missing) |
-| `:PyworksDiagnostics` | Run diagnostics (environment, plugins, cache) |
-| `:PyworksHelp`        | Show all commands and keymaps                |
+| Command                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `:PyworksSetup`          | Create venv and install essential packages      |
+| `:PyworksStatus`         | Show package status (imports/installed/missing) |
+| `:PyworksDiagnostics`    | Run diagnostics (environment, plugins, cache)   |
+| `:PyworksHelp`           | Show all commands and keymaps                   |
+| `:PyworksReloadNotebook` | Reload notebook (useful after session restore)  |
 
 ### Package Management
 
@@ -296,6 +297,12 @@ A: Fixed by default. Ensure you're using Kitty or Ghostty terminal.
 **Q: Matplotlib opens external window**
 A: Don't use `plt.show()`. Just create the plot and let Molten capture it.
 
+**Q: Notebook appears blank after session restore**
+A: Run `:PyworksReloadNotebook` to reload with jupytext conversion.
+
+**Q: E132 "Function call depth" error or notebook won't reload**
+A: Run `:PyworksResetReloadGuard` to reset the reload guard, then retry.
+
 ### Debug Mode
 
 Enable debug mode to see what's happening:
@@ -329,12 +336,6 @@ If you previously used jupytext.nvim, pyworks now handles notebooks directly:
 1. **Remove jupytext.nvim** from your plugin dependencies
 2. Pyworks will auto-detect and warn if jupytext.nvim is still installed
 3. If you prefer jupytext.nvim, set `skip_jupytext = true` in your pyworks config
-
-### Works Well With
-
-Optional plugins that enhance the experience:
-- [quarto-nvim](https://github.com/quarto-dev/quarto-nvim) - Enhanced notebook features
-- [otter.nvim](https://github.com/jmbuhr/otter.nvim) - LSP inside code cells
 
 ## License
 
