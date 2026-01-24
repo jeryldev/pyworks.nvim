@@ -86,13 +86,28 @@ vim.api.nvim_create_autocmd("FileType", {
 	group = augroup,
 	pattern = { "python" },
 	callback = function(ev)
+		-- Check if keymaps should be skipped (user set skip_keymaps = true in setup)
+		local pyworks = require("pyworks")
+		local config = pyworks.get_config()
+		local skip_keymaps = config.skip_keymaps
+
 		-- Only set up keymaps in project directories (check the file's location)
 		local filepath = vim.api.nvim_buf_get_name(ev.buf)
 		if not is_pyworks_project(filepath) then
-			-- Still set up Molten keymaps even outside projects
-			local keymaps = require("pyworks.keymaps")
-			keymaps.setup_buffer_keymaps()
-			keymaps.setup_molten_keymaps()
+			-- Still set up Molten keymaps even outside projects (unless skip_keymaps)
+			if not skip_keymaps then
+				local keymaps = require("pyworks.keymaps")
+				keymaps.setup_buffer_keymaps()
+				keymaps.setup_molten_keymaps()
+			end
+			return
+		end
+
+		-- Skip all keymaps if user requested
+		if skip_keymaps then
+			-- Still set up UI enhancements (cell numbering) even when keymaps are skipped
+			local ui = require("pyworks.ui")
+			ui.setup_buffer({ show_cell_numbers = true, enable_cell_folding = false })
 			return
 		end
 

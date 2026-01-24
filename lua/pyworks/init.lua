@@ -50,6 +50,7 @@ local default_config = {
 		debug_mode = false,
 	},
 	auto_detect = true, -- Automatically detect and setup on file open
+	skip_keymaps = false, -- Skip all keymap setup (define your own)
 }
 
 -- Plugin configuration
