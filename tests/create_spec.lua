@@ -24,4 +24,29 @@ describe("commands/create", function()
             assert.equals(8, #id)
         end)
     end)
+
+    describe("get_python_version", function()
+        it("should return a version string matching X.Y.Z format", function()
+            local version = create.get_python_version()
+            assert.is_not_nil(version)
+            assert.is_truthy(version:match("^%d+%.%d+%.%d+$"),
+                "Expected X.Y.Z format, got: " .. version)
+        end)
+
+        it("should match system python3 version when available", function()
+            if vim.fn.executable("python3") == 0 then
+                pending("python3 not available")
+                return
+            end
+            local version = create.get_python_version()
+            local utils = require("pyworks.utils")
+            local success, output, _ = utils.system_with_timeout("python3 --version 2>&1", 5000)
+            if success then
+                local system_version = output:match("Python (%d+%.%d+%.%d+)")
+                if system_version then
+                    assert.equals(system_version, version)
+                end
+            end
+        end)
+    end)
 end)

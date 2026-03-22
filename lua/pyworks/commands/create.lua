@@ -141,6 +141,20 @@ end
 
 M.generate_cell_id = generate_cell_id
 
+local function get_python_version()
+	local utils = require("pyworks.utils")
+	local success, output, _ = utils.system_with_timeout("python3 --version 2>&1", 5000)
+	if success then
+		local version = output:match("Python (%d+%.%d+%.%d+)")
+		if version then
+			return version
+		end
+	end
+	return "3.12.0"
+end
+
+M.get_python_version = get_python_version
+
 -- Create notebook JSON structure
 local function generate_notebook_json(kernel_info, imports)
 	local notebook = {
@@ -276,7 +290,7 @@ local function do_create_notebook(filename)
 		},
 		language_info = {
 			name = "python",
-			version = "3.12.0",
+			version = get_python_version(),
 		},
 	}
 
