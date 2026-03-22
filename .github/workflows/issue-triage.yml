@@ -1,0 +1,64 @@
+name: Issue Activity Notifier
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight UTC (8am PHT)
+  workflow_dispatch: # Manual trigger for testing
+
+permissions:
+  issues: read
+
+jobs:
+  check-activity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for new issues and comments in last 24h
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -v-24H '+%Y-%m-%dT%H:%M:%SZ')
+
+          # New issues (exclude PRs)
+          NEW_ISSUES=$(gh api "repos/$REPO/issues?state=open&since=$SINCE&per_page=50" \
+            --jq '[.[] | select(.pull_request == null) | select(.created_at >= "'"$SINCE"'")] | length')
+
+          # New comments from external users (not owner, not bots)
+          NEW_COMMENTS=$(gh api "repos/$REPO/issues/comments?since=$SINCE&per_page=100" \
+            --jq '[.[] | select(.user.type != "Bot") | select(.user.login != "'"$OWNER"'")] | length')
+
+          TOTAL=$((NEW_ISSUES + NEW_COMMENTS))
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No new activity in last 24h"
+            exit 0
+          fi
+
+          echo "============================================"
+          echo "  pyworks.nvim — New Activity Summary"
+          echo "============================================"
+          echo ""
+
+          if [ "$NEW_ISSUES" -gt 0 ]; then
+            echo "NEW ISSUES ($NEW_ISSUES):"
+            echo "---"
+            gh api "repos/$REPO/issues?state=open&since=$SINCE&per_page=50" \
+              --jq '.[] | select(.pull_request == null) | select(.created_at >= "'"$SINCE"'") | "  #\(.number): \(.title)\n    by @\(.user.login) — \(.html_url)\n"'
+          fi
+
+          if [ "$NEW_COMMENTS" -gt 0 ]; then
+            echo "NEW COMMENTS ($NEW_COMMENTS):"
+            echo "---"
+            gh api "repos/$REPO/issues/comments?since=$SINCE&per_page=100" \
+              --jq '.[] | select(.user.type != "Bot") | select(.user.login != "'"$OWNER"'") | "  Issue \(.issue_url | split("/") | last) — @\(.user.login)\n    \(.html_url)\n"'
+          fi
+
+          echo "============================================"
+          echo "  Action: Open Claude Code in pyworks.nvim"
+          echo "  Say: check new github issues and fix them"
+          echo "============================================"
+
+          # Fail the job so GitHub sends you a notification
+          # (GitHub only emails on failures, not successes)
+          exit 1
