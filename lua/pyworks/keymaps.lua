@@ -461,6 +461,18 @@ function M.setup_buffer_keymaps()
 			end, BUFFER_SETTLE_DELAY_MS)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
+		vim.keymap.set("n", "<leader>jk", function()
+			local bufnr = vim.api.nvim_get_current_buf()
+			if not vim.b[bufnr].molten_initialized then
+				vim.notify("No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
+				return
+			end
+
+			local cell_num = ui.get_current_cell_number()
+			ui.mark_cell_executed(cell_num)
+			evaluate_percent_cell()
+		end, vim.tbl_extend("force", opts, { desc = "Run cell (stay in place)" }))
+
 		-- ============================================================================
 		-- RUN ALL CELLS (<leader>jR)
 		-- ============================================================================

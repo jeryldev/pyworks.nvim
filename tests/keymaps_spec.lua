@@ -447,6 +447,33 @@ describe("keymaps", function()
 		end)
 	end)
 
+	describe("run cell in place keymap", function()
+		it("should have leader-jk mapped in buffer after setup", function()
+			vim.api.nvim_create_user_command("MoltenInit", function() end, { nargs = "?" })
+
+			package.loaded["pyworks.keymaps"] = nil
+			local keymaps_module = require("pyworks.keymaps")
+
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			keymaps_module.setup_buffer_keymaps()
+
+			local maps = vim.api.nvim_buf_get_keymap(bufnr, "n")
+			local found = false
+			for _, map in ipairs(maps) do
+				if map.lhs and map.lhs:match("jk$") then
+					found = true
+					break
+				end
+			end
+
+			assert.is_true(found, "<leader>jk keymap should be registered")
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+			vim.api.nvim_del_user_command("MoltenInit")
+		end)
+	end)
+
 	describe("cell navigation keymaps", function()
 		it("should have cell navigation functions available", function()
 			keymaps.setup_buffer_keymaps()
