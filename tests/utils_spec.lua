@@ -368,6 +368,91 @@ describe("utils", function()
 		end)
 	end)
 
+	describe("external venv detection", function()
+		local saved_virtual_env
+		local saved_conda_prefix
+
+		before_each(function()
+			saved_virtual_env = vim.env.VIRTUAL_ENV
+			saved_conda_prefix = vim.env.CONDA_PREFIX
+			package.loaded["pyworks.utils"] = nil
+		end)
+
+		after_each(function()
+			vim.env.VIRTUAL_ENV = saved_virtual_env
+			vim.env.CONDA_PREFIX = saved_conda_prefix
+			package.loaded["pyworks.utils"] = nil
+		end)
+
+		it("should use $VIRTUAL_ENV when set and no local .venv exists", function()
+			local temp_project = vim.fn.tempname()
+			vim.fn.mkdir(temp_project, "p")
+			vim.fn.writefile({ "" }, temp_project .. "/pyproject.toml")
+			local test_file = temp_project .. "/test.py"
+			vim.fn.writefile({ "print('test')" }, test_file)
+
+			local external_venv = vim.fn.tempname()
+			vim.fn.mkdir(external_venv .. "/bin", "p")
+
+			vim.env.VIRTUAL_ENV = external_venv
+			vim.env.CONDA_PREFIX = nil
+			local fresh_utils = require("pyworks.utils")
+
+			local project_dir, venv_path = fresh_utils.get_project_paths(test_file)
+
+			assert.equals(temp_project, project_dir)
+			assert.equals(external_venv, venv_path)
+
+			vim.fn.delete(temp_project, "rf")
+			vim.fn.delete(external_venv, "rf")
+		end)
+
+		it("should prefer local .venv over $VIRTUAL_ENV", function()
+			local temp_project = vim.fn.tempname()
+			vim.fn.mkdir(temp_project .. "/.venv", "p")
+			vim.fn.writefile({ "" }, temp_project .. "/pyproject.toml")
+			local test_file = temp_project .. "/test.py"
+			vim.fn.writefile({ "print('test')" }, test_file)
+
+			local external_venv = vim.fn.tempname()
+			vim.fn.mkdir(external_venv, "p")
+
+			vim.env.VIRTUAL_ENV = external_venv
+			local fresh_utils = require("pyworks.utils")
+
+			local project_dir, venv_path = fresh_utils.get_project_paths(test_file)
+
+			assert.equals(temp_project, project_dir)
+			assert.equals(temp_project .. "/.venv", venv_path)
+
+			vim.fn.delete(temp_project, "rf")
+			vim.fn.delete(external_venv, "rf")
+		end)
+
+		it("should use $CONDA_PREFIX when set and no .venv or $VIRTUAL_ENV", function()
+			local temp_project = vim.fn.tempname()
+			vim.fn.mkdir(temp_project, "p")
+			vim.fn.writefile({ "" }, temp_project .. "/pyproject.toml")
+			local test_file = temp_project .. "/test.py"
+			vim.fn.writefile({ "print('test')" }, test_file)
+
+			local conda_env = vim.fn.tempname()
+			vim.fn.mkdir(conda_env, "p")
+
+			vim.env.VIRTUAL_ENV = nil
+			vim.env.CONDA_PREFIX = conda_env
+			local fresh_utils = require("pyworks.utils")
+
+			local project_dir, venv_path = fresh_utils.get_project_paths(test_file)
+
+			assert.equals(temp_project, project_dir)
+			assert.equals(conda_env, venv_path)
+
+			vim.fn.delete(temp_project, "rf")
+			vim.fn.delete(conda_env, "rf")
+		end)
+	end)
+
 	describe("file operations", function()
 		it("safe_file_write should write content", function()
 			local temp_file = vim.fn.tempname()

@@ -133,7 +133,16 @@ function M.get_project_paths(filepath)
 
 	cache.cwd = cache_key
 	cache.project_dir = project_dir
-	cache.venv_path = project_dir .. "/.venv"
+	local local_venv = project_dir .. "/.venv"
+	if vim.fn.isdirectory(local_venv) == 1 then
+		cache.venv_path = local_venv
+	elseif vim.env.VIRTUAL_ENV and vim.fn.isdirectory(vim.env.VIRTUAL_ENV) == 1 then
+		cache.venv_path = vim.env.VIRTUAL_ENV
+	elseif vim.env.CONDA_PREFIX and vim.fn.isdirectory(vim.env.CONDA_PREFIX) == 1 then
+		cache.venv_path = vim.env.CONDA_PREFIX
+	else
+		cache.venv_path = local_venv
+	end
 	cache.last_cwd_check = now
 
 	return project_dir, cache.venv_path
