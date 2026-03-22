@@ -86,7 +86,11 @@ vim.api.nvim_create_autocmd("FileType", {
 	group = augroup,
 	pattern = { "python" },
 	callback = function(ev)
-		-- Check if keymaps should be skipped (user set skip_keymaps = true in setup)
+		if vim.b[ev.buf].pyworks_filetype_setup_done then
+			return
+		end
+		vim.b[ev.buf].pyworks_filetype_setup_done = true
+
 		local pyworks = require("pyworks")
 		local config = pyworks.get_config()
 		local skip_keymaps = config.skip_keymaps
