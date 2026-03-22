@@ -10,6 +10,10 @@ local detector = require("pyworks.core.detector")
 local error_handler = require("pyworks.core.error_handler")
 local ui = require("pyworks.ui")
 
+local function get_cell_engine()
+	return require("pyworks.core.cell_engine")
+end
+
 local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
@@ -683,35 +687,19 @@ function M.setup_buffer_keymaps()
 		-- ============================================================================
 
 		vim.keymap.set("n", "<leader>ja", function()
-			local cell_start = vim.fn.search("^# %%", "bnW")
-			local insert_line = cell_start > 0 and cell_start - 1 or 0
-			vim.fn.append(insert_line, { "# %%", "" })
-			vim.api.nvim_win_set_cursor(0, { insert_line + 2, 0 })
-			vim.cmd("startinsert")
+			get_cell_engine().insert_cell_above()
 		end, vim.tbl_extend("force", opts, { desc = "Insert code cell above" }))
 
 		vim.keymap.set("n", "<leader>jb", function()
-			local cell_end = vim.fn.search("^# %%", "nW")
-			local insert_line = cell_end == 0 and vim.fn.line("$") or cell_end - 1
-			vim.fn.append(insert_line, { "", "# %%", "" })
-			vim.api.nvim_win_set_cursor(0, { insert_line + 3, 0 })
-			vim.cmd("startinsert")
+			get_cell_engine().insert_cell_below()
 		end, vim.tbl_extend("force", opts, { desc = "Insert code cell below" }))
 
 		vim.keymap.set("n", "<leader>jma", function()
-			local cell_start = vim.fn.search("^# %%", "bnW")
-			local insert_line = cell_start > 0 and cell_start - 1 or 0
-			vim.fn.append(insert_line, { "# %% [markdown]", "# " })
-			vim.api.nvim_win_set_cursor(0, { insert_line + 2, 2 })
-			vim.cmd("startinsert!")
+			get_cell_engine().insert_markdown_above()
 		end, vim.tbl_extend("force", opts, { desc = "Insert markdown cell above" }))
 
 		vim.keymap.set("n", "<leader>jmb", function()
-			local cell_end = vim.fn.search("^# %%", "nW")
-			local insert_line = cell_end == 0 and vim.fn.line("$") or cell_end - 1
-			vim.fn.append(insert_line, { "", "# %% [markdown]", "# " })
-			vim.api.nvim_win_set_cursor(0, { insert_line + 3, 2 })
-			vim.cmd("startinsert!")
+			get_cell_engine().insert_markdown_below()
 		end, vim.tbl_extend("force", opts, { desc = "Insert markdown cell below" }))
 
 		-- ============================================================================
@@ -720,39 +708,21 @@ function M.setup_buffer_keymaps()
 
 		-- Toggle cell type (code ↔ markdown)
 		vim.keymap.set("n", "<leader>jt", function()
-			local cell_start = vim.fn.search("^# %%", "bnW")
-			if cell_start == 0 then
+			if not get_cell_engine().toggle_cell_type() then
 				vim.notify("Not in a cell", vim.log.levels.WARN)
-				return
 			end
-
-			local line = vim.fn.getline(cell_start)
-			local new_line, msg
-			if line:match("%[markdown%]") then
-				new_line = "# %%"
-				msg = "Converted to code cell"
-			else
-				new_line = "# %% [markdown]"
-				msg = "Converted to markdown cell"
-			end
-			vim.fn.setline(cell_start, new_line)
-			vim.notify(msg, vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Toggle cell type" }))
 
 		vim.keymap.set("n", "<leader>jJ", function()
-			local next_cell = vim.fn.search("^# %%", "nW")
-			if next_cell == 0 then
+			if not get_cell_engine().merge_cell_below() then
 				vim.notify("No cell below to merge", vim.log.levels.WARN)
-				return
+			else
+				vim.notify("Merged with cell below", vim.log.levels.INFO)
 			end
-			vim.fn.deletebufline("%", next_cell)
-			vim.notify("Merged with cell below", vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Merge with cell below" }))
 
 		vim.keymap.set("n", "<leader>js", function()
-			local cursor_line = vim.fn.line(".")
-			vim.fn.append(cursor_line, { "", "# %%", "" })
-			vim.api.nvim_win_set_cursor(0, { cursor_line + 3, 0 })
+			get_cell_engine().split_cell()
 			vim.notify("Cell split", vim.log.levels.INFO)
 		end, vim.tbl_extend("force", opts, { desc = "Split cell at cursor" }))
 
@@ -811,40 +781,15 @@ function M.setup_buffer_keymaps()
 		end, vim.tbl_extend("force", opts, { desc = "Run current line (Molten not available)" }))
 	end
 
-	-- Cell navigation (works with or without Molten)
-	-- Positions cursor on the first content line below the cell marker (stays in normal mode)
-	local nav_opts = { insert_mode = false }
-
 	vim.keymap.set("n", "<leader>j]", function()
-		local found = vim.fn.search("^# %%", "W")
-		if found == 0 then
+		if not get_cell_engine().next_cell() then
 			vim.notify("No more cells", vim.log.levels.INFO)
-		else
-			ui.enter_cell(found, nav_opts)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Next cell" }))
 
 	vim.keymap.set("n", "<leader>j[", function()
-		local current_line = vim.fn.line(".")
-
-		-- First, check if we're on or right after a marker
-		local current_marker = vim.fn.search("^# %%", "bcnW")
-
-		-- Search backward for a marker
-		local found = vim.fn.search("^# %%", "bW")
-
-		if found == 0 then
-			ui.enter_first_cell(nav_opts)
-		elseif found == current_marker and current_line <= current_marker + 1 then
-			-- We were at or just below a marker, search again for the previous one
-			local prev_found = vim.fn.search("^# %%", "bW")
-			if prev_found == 0 then
-				ui.enter_first_cell(nav_opts)
-			else
-				ui.enter_cell(prev_found, nav_opts)
-			end
-		else
-			ui.enter_cell(found, nav_opts)
+		if not get_cell_engine().prev_cell() then
+			vim.notify("No previous cell", vim.log.levels.INFO)
 		end
 	end, vim.tbl_extend("force", opts, { desc = "Previous cell" }))
 end
