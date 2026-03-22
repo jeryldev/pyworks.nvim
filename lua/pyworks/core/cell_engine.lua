@@ -80,4 +80,125 @@ function M.is_markdown_cell()
     return line:match("%[markdown%]") ~= nil
 end
 
+function M.next_cell()
+    local pattern = vim_search_pattern()
+    local next_marker = vim.fn.search(pattern, "nW")
+    if next_marker == 0 then
+        return false
+    end
+    local ui = require("pyworks.ui")
+    ui.enter_cell(next_marker, { insert_mode = false })
+    return true
+end
+
+function M.prev_cell()
+    local pattern = vim_search_pattern()
+    local current_marker = vim.fn.search(pattern, "bcnW")
+    if current_marker == 0 then
+        return false
+    end
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+    local search_flags = "bnW"
+    if cursor_line == current_marker then
+        search_flags = "bnW"
+    end
+    vim.api.nvim_win_set_cursor(0, { current_marker, 0 })
+    local prev_marker = vim.fn.search(pattern, "bnW")
+    if prev_marker == 0 or prev_marker == current_marker then
+        vim.api.nvim_win_set_cursor(0, { cursor_line, 0 })
+        return false
+    end
+    local ui = require("pyworks.ui")
+    ui.enter_cell(prev_marker, { insert_mode = false })
+    return true
+end
+
+function M.insert_cell_above()
+    local pattern = vim_search_pattern()
+    local current_marker = vim.fn.search(pattern, "bcnW")
+    local insert_line
+    if current_marker == 0 then
+        insert_line = 0
+    else
+        insert_line = current_marker - 1
+    end
+    vim.fn.append(insert_line, { config.cell_marker, "" })
+    local ui = require("pyworks.ui")
+    ui.enter_cell(insert_line + 1, { insert_mode = false })
+end
+
+function M.insert_cell_below()
+    local pattern = vim_search_pattern()
+    local next_marker = vim.fn.search(pattern, "nW")
+    local insert_line
+    if next_marker == 0 then
+        insert_line = vim.fn.line("$")
+    else
+        insert_line = next_marker - 1
+    end
+    vim.fn.append(insert_line, { config.cell_marker, "" })
+    local ui = require("pyworks.ui")
+    ui.enter_cell(insert_line + 1, { insert_mode = false })
+end
+
+function M.insert_markdown_above()
+    local pattern = vim_search_pattern()
+    local current_marker = vim.fn.search(pattern, "bcnW")
+    local insert_line
+    if current_marker == 0 then
+        insert_line = 0
+    else
+        insert_line = current_marker - 1
+    end
+    vim.fn.append(insert_line, { config.cell_marker .. " [markdown]", "" })
+    local ui = require("pyworks.ui")
+    ui.enter_cell(insert_line + 1, { insert_mode = false })
+end
+
+function M.insert_markdown_below()
+    local pattern = vim_search_pattern()
+    local next_marker = vim.fn.search(pattern, "nW")
+    local insert_line
+    if next_marker == 0 then
+        insert_line = vim.fn.line("$")
+    else
+        insert_line = next_marker - 1
+    end
+    vim.fn.append(insert_line, { config.cell_marker .. " [markdown]", "" })
+    local ui = require("pyworks.ui")
+    ui.enter_cell(insert_line + 1, { insert_mode = false })
+end
+
+function M.toggle_cell_type()
+    local pattern = vim_search_pattern()
+    local cell_start = vim.fn.search(pattern, "bcnW")
+    if cell_start == 0 then
+        return false
+    end
+    local line = vim.fn.getline(cell_start)
+    local new_line
+    if line:match("%[markdown%]") then
+        new_line = config.cell_marker
+    else
+        new_line = config.cell_marker .. " [markdown]"
+    end
+    vim.api.nvim_buf_set_lines(0, cell_start - 1, cell_start, false, { new_line })
+    return true
+end
+
+function M.merge_cell_below()
+    local pattern = vim_search_pattern()
+    local next_marker = vim.fn.search(pattern, "nW")
+    if next_marker == 0 then
+        return false
+    end
+    vim.api.nvim_buf_set_lines(0, next_marker - 1, next_marker, false, {})
+    return true
+end
+
+function M.split_cell()
+    local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+    vim.fn.append(cursor_line - 1, { config.cell_marker })
+end
+
 return M

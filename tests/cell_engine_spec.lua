@@ -146,4 +146,188 @@ describe("cell_engine", function()
             assert.equals("^# %%%%", pattern)
         end)
     end)
+
+    describe("navigation", function()
+        it("next_cell should move cursor past the next marker", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+                "# %%",
+                "y = 2",
+            })
+            vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+            local found = cell_engine.next_cell()
+            assert.is_true(found)
+
+            local cursor = vim.api.nvim_win_get_cursor(0)
+            assert.equals(4, cursor[1])
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("next_cell should return false at last cell", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            local found = cell_engine.next_cell()
+            assert.is_false(found)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("prev_cell should move to the previous cell content", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+                "# %%",
+                "y = 2",
+            })
+            vim.api.nvim_win_set_cursor(0, { 4, 0 })
+
+            local found = cell_engine.prev_cell()
+            assert.is_true(found)
+
+            local cursor = vim.api.nvim_win_get_cursor(0)
+            assert.equals(2, cursor[1])
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+    end)
+
+    describe("cell insertion", function()
+        it("insert_cell_below should add a cell marker after current cell", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            cell_engine.insert_cell_below()
+
+            local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local count = 0
+            for _, line in ipairs(lines) do
+                if line:match("^# %%") then count = count + 1 end
+            end
+            assert.equals(2, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("insert_cell_above should add a cell marker before current cell", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            cell_engine.insert_cell_above()
+
+            local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local count = 0
+            for _, line in ipairs(lines) do
+                if line:match("^# %%") then count = count + 1 end
+            end
+            assert.equals(2, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+    end)
+
+    describe("cell operations", function()
+        it("toggle_cell_type should switch code to markdown", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            local toggled = cell_engine.toggle_cell_type()
+            assert.is_true(toggled)
+
+            local first_line = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1]
+            assert.equals("# %% [markdown]", first_line)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("toggle_cell_type should switch markdown to code", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %% [markdown]",
+                "# Some text",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            cell_engine.toggle_cell_type()
+
+            local first_line = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1]
+            assert.equals("# %%", first_line)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("merge_cell_below should remove next marker", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+                "# %%",
+                "y = 2",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            local merged = cell_engine.merge_cell_below()
+            assert.is_true(merged)
+
+            local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local count = 0
+            for _, line in ipairs(lines) do
+                if line:match("^# %%") then count = count + 1 end
+            end
+            assert.equals(1, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("split_cell should insert marker at cursor", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+                "y = 2",
+            })
+            vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+            cell_engine.split_cell()
+
+            local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+            local count = 0
+            for _, line in ipairs(lines) do
+                if line:match("^# %%") then count = count + 1 end
+            end
+            assert.equals(2, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+    end)
 end)
