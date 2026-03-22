@@ -3,6 +3,10 @@
 
 local M = {}
 
+local function get_cell_pattern()
+	return require("pyworks.core.cell_engine").get_cell_pattern()
+end
+
 -- Setup cell highlighting with custom highlights
 -- Auto-detects light/dark mode and uses appropriate Kanagawa colors
 function M.setup_cell_highlights()
@@ -67,9 +71,10 @@ function M.get_current_cell_number()
 
 	-- Count cells up to cursor position
 	local lines = vim.api.nvim_buf_get_lines(0, 0, current_line, false)
+	local pattern = get_cell_pattern()
 	local cell_num = 0
 	for _, line in ipairs(lines) do
-		if line:match("^# %%") then
+		if line:match(pattern) then
 			cell_num = cell_num + 1
 		end
 	end
@@ -93,9 +98,10 @@ function M.number_cells()
 	local executed = M.executed_cells[bufnr] or {}
 
 	-- Find and number all cells
+	local pattern = get_cell_pattern()
 	local cell_num = 1
 	for i, line in ipairs(lines) do
-		if line:match("^# %%") then
+		if line:match(pattern) then
 			local is_markdown = line:match("%[markdown%]")
 			local cell_type = is_markdown and "markdown" or "code"
 
@@ -137,7 +143,7 @@ function M.cell_fold_expr()
 	local line = vim.fn.getline(vim.v.lnum)
 
 	-- Start a new fold at each cell marker
-	if line:match("^# %%") then
+	if line:match(get_cell_pattern()) then
 		return ">1"
 	end
 
@@ -268,8 +274,9 @@ end
 -- Does not move cursor - uses buffer inspection
 function M.find_first_cell()
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	local pattern = get_cell_pattern()
 	for i, line in ipairs(lines) do
-		if line:match("^# %%") then
+		if line:match(pattern) then
 			return i
 		end
 	end

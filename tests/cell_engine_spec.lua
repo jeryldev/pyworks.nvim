@@ -331,6 +331,61 @@ describe("cell_engine", function()
         end)
     end)
 
+    describe("configurable cell marker", function()
+        after_each(function()
+            cell_engine.configure({ cell_marker = "# %%" })
+        end)
+
+        it("should count cells with custom marker", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# COMMAND ----------",
+                "x = 1",
+                "# COMMAND ----------",
+                "y = 2",
+            })
+
+            cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+            local count = cell_engine.count_cells(bufnr)
+            assert.equals(2, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("should find positions with custom marker", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# COMMAND ----------",
+                "x = 1",
+                "# COMMAND ----------",
+                "y = 2",
+            })
+
+            cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+            local positions = cell_engine.get_cell_positions(bufnr)
+            assert.same({ 1, 3 }, positions)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+
+        it("should not find standard markers when custom is set", function()
+            local bufnr = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "# %%",
+                "x = 1",
+            })
+
+            cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+            local count = cell_engine.count_cells(bufnr)
+            assert.equals(0, count)
+
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end)
+    end)
+
     describe("user commands", function()
         before_each(function()
             pcall(function()

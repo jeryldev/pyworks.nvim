@@ -49,6 +49,7 @@ local default_config = {
 		show_progress = true,
 		debug_mode = false,
 	},
+	cell_marker = "# %%", -- Cell delimiter pattern (e.g. "# COMMAND ----------" for Databricks)
 	auto_detect = true, -- Automatically detect and setup on file open
 	skip_keymaps = false, -- Skip all keymap setup (define your own)
 }
@@ -207,6 +208,10 @@ function M.setup(opts)
 	-- Configure packages module
 	local packages = require("pyworks.core.packages")
 	packages.configure(config.packages)
+
+	-- Configure cell engine
+	local cell_engine = require("pyworks.core.cell_engine")
+	cell_engine.configure({ cell_marker = config.cell_marker })
 
 	-- Initialize state (load persistent data, then start session)
 	local state = require("pyworks.core.state")
