@@ -111,6 +111,7 @@ For inline plot/image display:
 | `<leader>jl` | Normal | Run current line (auto-inits kernel) |
 | `<leader>jr` | Visual | Run selection                    |
 | `<leader>jj` | Normal | Run cell and move to next        |
+| `<leader>jk` | Normal | Run cell without moving cursor (stay in place) |
 | `<leader>jR` | Normal | Run all cells sequentially (waits for each) |
 
 ### Cell Selection & Navigation
@@ -171,6 +172,20 @@ For inline plot/image display:
 | ------------ | ----------------------------- |
 | `<leader>pi` | Install missing packages      |
 | `<leader>ps` | Show package status           |
+
+### Cell Operation Commands
+
+For `skip_keymaps` users who prefer command-based workflows:
+
+| Command                    | Description                          |
+| -------------------------- | ------------------------------------ |
+| `:PyworksNextCell`         | Move to next cell                    |
+| `:PyworksPrevCell`         | Move to previous cell                |
+| `:PyworksInsertCellAbove`  | Insert code cell above               |
+| `:PyworksInsertCellBelow`  | Insert code cell below               |
+| `:PyworksToggleCellType`   | Toggle cell type (code/markdown)     |
+| `:PyworksMergeCellBelow`   | Merge with cell below                |
+| `:PyworksSplitCell`        | Split cell at cursor                 |
 
 ## Commands
 
@@ -237,6 +252,9 @@ require("pyworks").setup({
     debug_mode = false,
   },
 
+  -- Cell delimiter pattern (e.g. "# COMMAND ----------" for Databricks)
+  cell_marker = "# %%",
+
   -- Auto-detection
   auto_detect = true,  -- Automatically detect and setup on file open
 
@@ -271,6 +289,12 @@ Pyworks finds your project root by looking for these markers (in priority order)
 - `conda.yaml`, `environment.yml` - Conda environments
 - `dvc.yaml`, `mlflow.yaml` - ML pipeline configs
 - `.git` - Git repository (lowest priority fallback)
+
+For virtual environment detection, pyworks also respects environment variables:
+- Local `.venv` directory (highest priority)
+- `$VIRTUAL_ENV` environment variable
+- `$CONDA_PREFIX` environment variable
+- Fallback to creating a new `.venv`
 
 ### Smart Package Management
 

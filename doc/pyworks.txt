@@ -119,6 +119,7 @@ CELL EXECUTION~
 *<leader>jl*  Run current line, auto-inits kernel on first use (Normal mode)
 *<leader>jr*  Run selection (Visual mode)
 *<leader>jj*  Run cell and move to next (Normal mode)
+*<leader>jk*  Run cell without moving cursor, stay in place (Normal mode)
 *<leader>jR*  Run all cells in buffer sequentially (Normal mode)
               Waits for each cell to complete before running next.
               Detects completion by monitoring Molten's "Out[N]: ✓ Done" output.
@@ -205,6 +206,29 @@ ENVIRONMENT MANAGEMENT~
     Reset the notebook reload guard (emergency recovery)
     Use if notebooks won't reload or you see E132 errors
 
+CELL OPERATIONS~
+
+*:PyworksNextCell*
+    Move to next cell
+
+*:PyworksPrevCell*
+    Move to previous cell
+
+*:PyworksInsertCellAbove*
+    Insert code cell above
+
+*:PyworksInsertCellBelow*
+    Insert code cell below
+
+*:PyworksToggleCellType*
+    Toggle cell type (code/markdown)
+
+*:PyworksMergeCellBelow*
+    Merge with cell below
+
+*:PyworksSplitCell*
+    Split cell at cursor
+
 PACKAGE MANAGEMENT~
 
 *:PyworksSync*
@@ -259,6 +283,9 @@ All settings are optional. Here are the available options with their defaults:
         debug_mode = false,
       },
 
+      -- Cell delimiter pattern (e.g. "# COMMAND ----------" for Databricks)
+      cell_marker = "# %%",
+
       -- Auto-detection
       auto_detect = true,  -- Automatically detect and setup on file open
 
@@ -282,6 +309,12 @@ Pyworks finds your project root by looking for these markers (priority order):
 - Pipfile, poetry.lock, uv.lock (package manager lock files)
 - conda.yaml, environment.yml (Conda environments)
 - .git (Git repository - lowest priority fallback)
+
+For virtual environment detection, pyworks also respects environment variables:
+- Local .venv directory (highest priority)
+- $VIRTUAL_ENV environment variable
+- $CONDA_PREFIX environment variable
+- Fallback to creating a new .venv
 
 ==============================================================================
 8. TROUBLESHOOTING                                  *pyworks-troubleshooting*

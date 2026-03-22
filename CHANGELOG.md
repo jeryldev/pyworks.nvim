@@ -4,6 +4,18 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Run cell without moving cursor (`<leader>jk`)**: Execute current cell and stay in place,
+  complementing `<leader>jj` which runs and moves to the next cell
+- **Cell operation commands for `skip_keymaps` users**: `:PyworksNextCell`, `:PyworksPrevCell`,
+  `:PyworksInsertCellAbove`, `:PyworksInsertCellBelow`, `:PyworksToggleCellType`,
+  `:PyworksMergeCellBelow`, `:PyworksSplitCell`
+- **Configurable cell delimiter (`cell_marker`)**: Set `cell_marker = "# COMMAND ----------"` for
+  Databricks or other non-standard cell delimiters (default: `"# %%"`)
+- **Improved venv detection via environment variables**: Now respects `$VIRTUAL_ENV` and
+  `$CONDA_PREFIX`. Priority: local `.venv` > `$VIRTUAL_ENV` > `$CONDA_PREFIX` > fallback
+
 ### Fixed
 
 - **Terminal mode error in `<leader>jR`**: Fixed "Can't re-enter normal mode from terminal mode"
@@ -296,41 +308,5 @@ All notable changes to pyworks.nvim will be documented in this file.
 - Updated README configuration section
 - Removed misleading Molten configuration options
 
-## Performance Impact
 
-### Before
-
-- Setup operations blocked UI for 5-30 seconds
-- Repeated kernel checks every time Molten initialized
-- Multiple redundant filesystem checks
-
-### After
-
-- Setup runs in background with progress indicators
-- Kernel list cached for 10 seconds
-- Jupyter availability cached for 30 seconds
-- Shared venv utilities reduce redundant checks
-
-## Still To Do
-
-1. **Break down complex functions in setup.lua**
-
-   - Split large functions into smaller, testable units
-   - Improve readability and maintainability
-
-2. **Additional async conversions**
-
-   - Package availability checks
-   - Environment diagnostics
-
-3. **Further caching opportunities**
-   - Notebook metadata parsing
-   - Package list caching
-
-## Testing Recommendations
-
-1. Test setup with slow network (package installation)
-2. Verify kernel list caching works correctly
-3. Ensure async operations complete properly
-4. Check that cache invalidation works as expected
 
