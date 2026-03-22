@@ -330,4 +330,28 @@ describe("cell_engine", function()
             vim.api.nvim_buf_delete(bufnr, { force = true })
         end)
     end)
+
+    describe("user commands", function()
+        before_each(function()
+            pcall(function()
+                require("pyworks").setup()
+            end)
+        end)
+
+        it("should register PyworksNextCell command", function()
+            assert.equals(2, vim.fn.exists(":PyworksNextCell"))
+        end)
+
+        it("should register PyworksInsertCellBelow command", function()
+            assert.equals(2, vim.fn.exists(":PyworksInsertCellBelow"))
+        end)
+
+        it("should register PyworksToggleCellType command", function()
+            assert.equals(2, vim.fn.exists(":PyworksToggleCellType"))
+        end)
+
+        it("should register PyworksSplitCell command", function()
+            assert.equals(2, vim.fn.exists(":PyworksSplitCell"))
+        end)
+    end)
 end)

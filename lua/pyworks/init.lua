@@ -223,6 +223,45 @@ function M.setup(opts)
 
 	-- Load notebook creation commands
 	require("pyworks.commands.create")
+
+	-- Cell operation commands (for skip_keymaps users — Issue #4)
+	vim.api.nvim_create_user_command("PyworksNextCell", function()
+		local ce = require("pyworks.core.cell_engine")
+		if not ce.next_cell() then
+			vim.notify("No more cells", vim.log.levels.INFO)
+		end
+	end, { desc = "Move to next cell" })
+
+	vim.api.nvim_create_user_command("PyworksPrevCell", function()
+		require("pyworks.core.cell_engine").prev_cell()
+	end, { desc = "Move to previous cell" })
+
+	vim.api.nvim_create_user_command("PyworksInsertCellAbove", function()
+		require("pyworks.core.cell_engine").insert_cell_above()
+	end, { desc = "Insert code cell above" })
+
+	vim.api.nvim_create_user_command("PyworksInsertCellBelow", function()
+		require("pyworks.core.cell_engine").insert_cell_below()
+	end, { desc = "Insert code cell below" })
+
+	vim.api.nvim_create_user_command("PyworksToggleCellType", function()
+		if not require("pyworks.core.cell_engine").toggle_cell_type() then
+			vim.notify("Not in a cell", vim.log.levels.WARN)
+		end
+	end, { desc = "Toggle cell type (code/markdown)" })
+
+	vim.api.nvim_create_user_command("PyworksMergeCellBelow", function()
+		if not require("pyworks.core.cell_engine").merge_cell_below() then
+			vim.notify("No cell below to merge", vim.log.levels.WARN)
+		else
+			vim.notify("Merged with cell below", vim.log.levels.INFO)
+		end
+	end, { desc = "Merge with cell below" })
+
+	vim.api.nvim_create_user_command("PyworksSplitCell", function()
+		require("pyworks.core.cell_engine").split_cell()
+		vim.notify("Cell split", vim.log.levels.INFO)
+	end, { desc = "Split cell at cursor" })
 end
 
 -- Manual commands (for power users)
