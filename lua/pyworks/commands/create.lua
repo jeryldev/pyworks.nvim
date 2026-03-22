@@ -1,6 +1,8 @@
 -- Commands for creating new notebook files
 local M = {}
 
+math.randomseed(vim.uv.hrtime())
+
 local jupytext = require("pyworks.notebook.jupytext")
 local ui = require("pyworks.ui")
 
@@ -128,7 +130,6 @@ end, { nargs = "?", desc = "Create new Python file with cells" })
 
 -- Generate unique cell ID (required in nbformat 4.5+)
 local function generate_cell_id()
-	math.randomseed(vim.uv.hrtime())
 	local chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	local id = ""
 	for _ = 1, 8 do
@@ -137,6 +138,8 @@ local function generate_cell_id()
 	end
 	return id
 end
+
+M.generate_cell_id = generate_cell_id
 
 -- Create notebook JSON structure
 local function generate_notebook_json(kernel_info, imports)
