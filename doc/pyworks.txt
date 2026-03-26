@@ -361,11 +361,6 @@ Or temporarily:
     :lua vim.g.pyworks_debug = true
 <
 
-Debug commands:
->vim
-    :PyworksDebugExtmarks    " Dump Molten extmarks to see output format
-<
-
 HOW RUN ALL CELLS WORKS~
 
 When you press |<leader>jR|, pyworks executes cells sequentially:

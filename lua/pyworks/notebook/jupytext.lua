@@ -26,7 +26,7 @@ function M.is_jupytext_installed(filepath)
 
 	-- Check if jupytext CLI is in PATH
 	if vim.fn.executable("jupytext") == 1 then
-		cache.set(cache_key, true, 300000) -- Cache for 5 minutes
+		cache.set(cache_key, true)
 		return true
 	end
 
@@ -35,7 +35,7 @@ function M.is_jupytext_installed(filepath)
 	if vim.fn.isdirectory(venv_path) == 1 then
 		local venv_jupytext = venv_path .. "/bin/jupytext"
 		if vim.fn.executable(venv_jupytext) == 1 then
-			cache.set(cache_key, true, 300000)
+			cache.set(cache_key, true)
 			return true
 		end
 	end
@@ -47,12 +47,12 @@ function M.is_jupytext_installed(filepath)
 			return vim.system({ python_path, "-c", "import jupytext" }, { text = true }):wait()
 		end)
 		if ok and result and result.code == 0 then
-			cache.set(cache_key, true, 300000)
+			cache.set(cache_key, true)
 			return true
 		end
 	end
 
-	cache.set(cache_key, false, 60000) -- Cache negative result for 1 minute
+	cache.set(cache_key, false)
 	return false
 end
 

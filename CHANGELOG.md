@@ -4,7 +4,25 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Molten patches now report failures**: `molten_patches.lua` checks write results and
+  notifies the user on failure or when a restart is needed after first-time patching
+- **Jupytext cache TTL**: Fixed `cache.set()` calls passing unsupported third argument;
+  TTL is now correctly derived from the cache key prefix (`jupytext_check` = 1 hour)
+- **Shell injection in kernel creation**: `project_name` in `--display-name` is now
+  shell-escaped via `vim.fn.shellescape()`, preventing breakage with special characters
+- **Wrong venv in `analyze_buffer`**: `get_installed_packages()` now receives `filepath`
+  to check the correct project venv instead of cwd
+- **Wrong venv in `install_essentials`**: `get_pip_path()` now receives `filepath` to
+  resolve pip from the correct project venv
+- **Removed ghost command from help**: `:PyworksDebugExtmarks` listed in `:PyworksHelp`
+  but never registered; removed from help text and vimdoc
+
 ### Added
+
+- **Tests for molten_patches.lua**: Comprehensive test suite covering patch application,
+  idempotency, file-not-found handling, and write failure detection
 
 - **Run cell without moving cursor (`<leader>jk`)**: Execute current cell and stay in place,
   complementing `<leader>jj` which runs and moves to the next cell

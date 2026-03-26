@@ -673,7 +673,7 @@ function M.analyze_buffer(language)
 	end
 
 	local imports = M.scan_imports(filepath, language)
-	local installed = M.get_installed_packages(language)
+	local installed = M.get_installed_packages(language, filepath)
 	local missing = M.detect_missing_packages(filepath, language)
 
 	return {

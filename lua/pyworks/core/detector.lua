@@ -228,10 +228,10 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 	)
 
 	local cmd = string.format(
-		"%s -m ipykernel install --user --name %s --display-name 'Python (%s)'",
+		"%s -m ipykernel install --user --name %s --display-name %s",
 		python_path,
 		kernel_name,
-		project_name
+		vim.fn.shellescape("Python (" .. project_name .. ")")
 	)
 
 	local create_success, output, _ = utils.system_with_timeout(cmd, KERNEL_CREATE_TIMEOUT_MS)

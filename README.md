@@ -279,6 +279,19 @@ require("pyworks").setup({
 4. **Kernel initialization** - Auto-starts Python kernel
 5. **Ready to code** - Use keymaps to execute code immediately
 
+### Molten Patches
+
+Pyworks automatically patches two known upstream bugs in molten-nvim at startup:
+
+1. **Dict iteration fix** (`moltenbuffer.py`) - Converts `self.outputs.items()` to `list(self.outputs.items())` to prevent "dictionary changed size during iteration" RuntimeError during output rendering.
+2. **Tick reentrancy guard** (`__init__.py`) - Adds a `_ticking` flag to `MoltenTick` to prevent recursive tick calls that cause freezes during notebook reload.
+
+Patches are applied via Lua string replacement in `lua/pyworks/molten_patches.lua`. They are idempotent (safe to run multiple times) and will notify you if:
+- Patches were applied for the first time (restart Neovim to activate)
+- A patch failed to apply (e.g., upstream code changed)
+
+If molten-nvim updates and changes the patched code, the patches will silently skip and pyworks will notify you of the mismatch.
+
 ### Project Detection
 
 Pyworks finds your project root by looking for these markers (in priority order):
@@ -304,6 +317,41 @@ For virtual environment detection, pyworks also respects environment variables:
   - Excludes standard library modules (os, sys, base64, etc.)
   - Ignores custom/local packages
   - Only suggests real PyPI packages
+
+## Architecture
+
+```
+plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, SessionLoadPost)
+  └── lua/pyworks/
+      ├── init.lua           Setup, user commands, configuration
+      ├── dependencies.lua   Dependency checks, triggers molten_patches
+      ├── molten_patches.lua Patches molten-nvim Python files at startup
+      ├── keymaps.lua        Cell execution, navigation, kernel management
+      ├── ui.lua             Cell numbering, folding, floating windows
+      ├── utils.lua          Project root detection, venv paths, system calls
+      ├── core/
+      │   ├── detector.lua       File routing, kernel auto-init
+      │   ├── packages.lua       Import scanning, missing package detection
+      │   ├── cache.lua          TTL-based in-memory cache
+      │   ├── state.lua          Persistent state (JSON on disk)
+      │   ├── notifications.lua  Deduped user notifications
+      │   └── recursion_guard.lua  Prevents reload loops
+      ├── languages/
+      │   └── python.lua     Venv management, pip/uv commands, package ops
+      ├── notebook/
+      │   └── jupytext.lua   .ipynb read/write via jupytext CLI
+      └── commands/
+          └── create.lua     :PyworksNewPython, :PyworksNewPythonNotebook
+```
+
+### Startup Flow
+
+1. `plugin/pyworks.lua` registers `FileType python` autocmd
+2. On first Python file open: `require("pyworks").setup()` runs
+3. `dependencies.setup()` defers (100ms) to check molten-nvim, image.nvim
+4. `molten_patches.apply_patches()` patches molten-nvim Python files on disk
+5. `detector.on_file_open()` routes to Python handler
+6. Python handler: setup venv, detect packages, auto-init Molten kernel
 
 ## Troubleshooting
 

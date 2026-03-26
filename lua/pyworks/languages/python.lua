@@ -321,7 +321,7 @@ function M.install_essentials(filepath)
 		end
 	else
 		-- For pip, check that pip exists in venv
-		local pip_path = M.get_pip_path()
+		local pip_path = M.get_pip_path(filepath)
 		if not pip_path or vim.fn.executable(pip_path) == 0 then
 			notifications.notify_error("pip not found in virtual environment")
 			return false

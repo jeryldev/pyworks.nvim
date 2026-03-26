@@ -6,11 +6,19 @@ Comprehensive test suite for pyworks.nvim using Plenary.nvim test framework.
 
 ```
 tests/
-├── minimal_init.lua           # Minimal Neovim config for testing
-├── utils_spec.lua             # Tests for core utilities (project detection, caching, file ops)
-├── detector_spec.lua          # Tests for file type detection and kernel management
-├── notebook_handler_spec.lua  # Tests for notebook handling and jupytext integration
-└── README.md                  # This file
+├── minimal_init.lua            # Minimal Neovim config for testing
+├── molten_patches_spec.lua     # Tests for molten-nvim patching (idempotency, failures)
+├── utils_spec.lua              # Tests for core utilities (project detection, caching, file ops)
+├── packages_spec.lua           # Tests for import scanning and package detection
+├── cell_engine_spec.lua        # Tests for cell navigation, insertion, operations
+├── keymaps_spec.lua            # Tests for keymap setup and molten namespace
+├── ui_spec.lua                 # Tests for cell numbering, folding, execution tracking
+├── detector_spec.lua           # Tests for file type detection and kernel management
+├── jupytext_spec.lua           # Tests for notebook handling and jupytext integration
+├── init_spec.lua               # Tests for plugin initialization
+├── plugin_spec.lua             # Tests for plugin/pyworks.lua autocmds
+├── create_spec.lua             # Tests for file creation commands
+└── README.md                   # This file
 ```
 
 ## Running Tests
@@ -80,6 +88,16 @@ nvim --headless -c "PlenaryBustedFile tests/utils_spec.lua"
 - ⏳ Kernel creation with real Jupyter
 - ⏳ Molten auto-initialization
 - ⏳ Kernel name collision handling
+
+### molten_patches_spec.lua (Molten Patching)
+
+**Covered:**
+- Patch application on unpatched moltenbuffer.py (dict iteration fix)
+- Patch application on unpatched __init__.py (tick reentrancy guard)
+- Idempotency (applying patches twice produces same result)
+- File not found handling (returns descriptive error)
+- Write failure handling (invalid directory path)
+- read_file/write_file round-trip correctness
 
 ### notebook_handler_spec.lua (Jupytext Integration)
 
@@ -215,12 +233,11 @@ jobs:
 
 ## Test Metrics
 
-Current test coverage (as of 2025-11-16):
+Current test coverage (as of 2026-03-26):
 
-- **Total test files**: 3
-- **Total test cases**: 45+
-- **Coverage focus**: Critical bug fixes and core functionality
-- **Pending tests**: 5 (require advanced mocking)
+- **Total spec files**: 12
+- **Coverage focus**: Critical bug fixes, core functionality, molten patching
+- **Pending tests**: 5 (require advanced mocking for Jupyter/Molten integration)
 
 ## Contributing
 
