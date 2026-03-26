@@ -4,10 +4,19 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Switched to maintained forks**: Dependencies (`jeryldev/molten-nvim`,
+  `jeryldev/image.nvim`) are now declared in `lazy.lua` and installed automatically.
+  Users only need `"jeryldev/pyworks.nvim"` in their config — no separate
+  dependency lines required. Both forks track upstream with upstream remotes.
+- **Removed runtime molten patching**: `molten_patches.lua` removed. Bug fixes for
+  dict iteration safety and MoltenTick reentrancy are baked into the fork
+- **Paused MoltenTick during reloads**: Safe tick rate set to effectively disabled
+  during notebook reload operations to prevent reentrancy
+
 ### Fixed
 
-- **Molten patches now report failures**: `molten_patches.lua` checks write results and
-  notifies the user on failure or when a restart is needed after first-time patching
 - **Jupytext cache TTL**: Fixed `cache.set()` calls passing unsupported third argument;
   TTL is now correctly derived from the cache key prefix (`jupytext_check` = 1 hour)
 - **Shell injection in kernel creation**: `project_name` in `--display-name` is now
@@ -20,9 +29,6 @@ All notable changes to pyworks.nvim will be documented in this file.
   but never registered; removed from help text and vimdoc
 
 ### Added
-
-- **Tests for molten_patches.lua**: Comprehensive test suite covering patch application,
-  idempotency, file-not-found handling, and write failure detection
 
 - **Run cell without moving cursor (`<leader>jk`)**: Execute current cell and stay in place,
   complementing `<leader>jj` which runs and moves to the next cell

@@ -35,18 +35,15 @@ Create `~/.config/nvim/lua/plugins/pyworks.lua`:
 return {
   {
     "jeryldev/pyworks.nvim",
-    dependencies = {
-      "benlubas/molten-nvim",
-      "3rd/image.nvim",
-    },
     config = function()
       require("pyworks").setup()  -- See Configuration section for options
     end,
     lazy = false,
-    priority = 100,
   },
 }
 ```
+
+Dependencies (`jeryldev/molten-nvim`, `jeryldev/image.nvim`) are declared in pyworks' `lazy.lua` and installed automatically.
 
 Pyworks automatically:
 - **Handles .ipynb files directly** - Uses jupytext CLI to convert notebooks to percent-style Python (`# %%`)
@@ -279,18 +276,9 @@ require("pyworks").setup({
 4. **Kernel initialization** - Auto-starts Python kernel
 5. **Ready to code** - Use keymaps to execute code immediately
 
-### Molten Patches
+### Molten Fork
 
-Pyworks automatically patches two known upstream bugs in molten-nvim at startup:
-
-1. **Dict iteration fix** (`moltenbuffer.py`) - Converts `self.outputs.items()` to `list(self.outputs.items())` to prevent "dictionary changed size during iteration" RuntimeError during output rendering.
-2. **Tick reentrancy guard** (`__init__.py`) - Adds a `_ticking` flag to `MoltenTick` to prevent recursive tick calls that cause freezes during notebook reload.
-
-Patches are applied via Lua string replacement in `lua/pyworks/molten_patches.lua`. They are idempotent (safe to run multiple times) and will notify you if:
-- Patches were applied for the first time (restart Neovim to activate)
-- A patch failed to apply (e.g., upstream code changed)
-
-If molten-nvim updates and changes the patched code, the patches will silently skip and pyworks will notify you of the mismatch.
+Pyworks uses a maintained fork ([jeryldev/molten-nvim](https://github.com/jeryldev/molten-nvim)) that includes bug fixes for dict iteration safety and MoltenTick reentrancy, baked directly into the source. No runtime patching is needed.
 
 ### Project Detection
 
@@ -324,8 +312,7 @@ For virtual environment detection, pyworks also respects environment variables:
 plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, SessionLoadPost)
   └── lua/pyworks/
       ├── init.lua           Setup, user commands, configuration
-      ├── dependencies.lua   Dependency checks, triggers molten_patches
-      ├── molten_patches.lua Patches molten-nvim Python files at startup
+      ├── dependencies.lua   Dependency checks
       ├── keymaps.lua        Cell execution, navigation, kernel management
       ├── ui.lua             Cell numbering, folding, floating windows
       ├── utils.lua          Project root detection, venv paths, system calls
@@ -349,9 +336,8 @@ plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, Sessio
 1. `plugin/pyworks.lua` registers `FileType python` autocmd
 2. On first Python file open: `require("pyworks").setup()` runs
 3. `dependencies.setup()` defers (100ms) to check molten-nvim, image.nvim
-4. `molten_patches.apply_patches()` patches molten-nvim Python files on disk
-5. `detector.on_file_open()` routes to Python handler
-6. Python handler: setup venv, detect packages, auto-init Molten kernel
+4. `detector.on_file_open()` routes to Python handler
+5. Python handler: setup venv, detect packages, auto-init Molten kernel
 
 ## Troubleshooting
 
@@ -415,7 +401,7 @@ MIT License - see [LICENSE](LICENSE) for details
 
 ## Acknowledgments
 
-- [molten-nvim](https://github.com/benlubas/molten-nvim) - Jupyter integration for Neovim
-- [image.nvim](https://github.com/3rd/image.nvim) - Inline image rendering
+- [molten-nvim](https://github.com/jeryldev/molten-nvim) - Jupyter integration for Neovim (fork of [benlubas/molten-nvim](https://github.com/benlubas/molten-nvim) with bug fixes)
+- [image.nvim](https://github.com/jeryldev/image.nvim) - Inline image rendering (fork of [3rd/image.nvim](https://github.com/3rd/image.nvim))
 - [jupytext](https://github.com/mwouts/jupytext) - Jupyter notebook conversion CLI
 - [uv](https://github.com/astral-sh/uv) - Lightning-fast Python package management

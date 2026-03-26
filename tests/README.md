@@ -7,7 +7,6 @@ Comprehensive test suite for pyworks.nvim using Plenary.nvim test framework.
 ```
 tests/
 ├── minimal_init.lua            # Minimal Neovim config for testing
-├── molten_patches_spec.lua     # Tests for molten-nvim patching (idempotency, failures)
 ├── utils_spec.lua              # Tests for core utilities (project detection, caching, file ops)
 ├── packages_spec.lua           # Tests for import scanning and package detection
 ├── cell_engine_spec.lua        # Tests for cell navigation, insertion, operations
@@ -88,16 +87,6 @@ nvim --headless -c "PlenaryBustedFile tests/utils_spec.lua"
 - ⏳ Kernel creation with real Jupyter
 - ⏳ Molten auto-initialization
 - ⏳ Kernel name collision handling
-
-### molten_patches_spec.lua (Molten Patching)
-
-**Covered:**
-- Patch application on unpatched moltenbuffer.py (dict iteration fix)
-- Patch application on unpatched __init__.py (tick reentrancy guard)
-- Idempotency (applying patches twice produces same result)
-- File not found handling (returns descriptive error)
-- Write failure handling (invalid directory path)
-- read_file/write_file round-trip correctness
 
 ### notebook_handler_spec.lua (Jupytext Integration)
 

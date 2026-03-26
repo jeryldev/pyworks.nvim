@@ -1,18 +1,10 @@
 -- Example setup for LazyVim users
 -- Place this in ~/.config/nvim/lua/plugins/pyworks-setup.lua
+-- Dependencies (jeryldev/molten-nvim, jeryldev/image.nvim) are installed automatically via lazy.lua
 
 return {
   {
-    -- Using local development version for testing
-    dir = "~/PycharmProjects/iron_training/pyworks.nvim",
-    -- "jeryldev/pyworks.nvim",  -- GitHub version (uncomment for production)
-    dependencies = {
-      {
-        "benlubas/molten-nvim",     -- Required: Code execution
-        build = ":UpdateRemotePlugins", -- IMPORTANT: Required for Molten to work
-      },
-      "3rd/image.nvim",             -- Required: Image display
-    },
+    "jeryldev/pyworks.nvim",
     config = function()
       require("pyworks").setup({
         -- Pyworks auto-configures everything with proven settings!
@@ -29,7 +21,6 @@ return {
         -- skip_keymaps = false,
       })
     end,
-    lazy = false, -- Load immediately for file detection
-    priority = 100, -- Load early
+    lazy = false,
   },
 }

@@ -289,12 +289,6 @@ function M.setup(opts)
 	-- Defer dependency check to ensure lazy.nvim is loaded
 	vim.defer_fn(function()
 		M.ensure_dependencies()
-
-		-- Apply patches to molten-nvim for known upstream bugs
-		local ok, patches = pcall(require, "pyworks.molten_patches")
-		if ok then
-			patches.apply_patches()
-		end
 	end, 100)
 end
 
