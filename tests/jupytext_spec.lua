@@ -113,3 +113,12 @@ describe("jupytext", function()
 		end)
 	end)
 end)
+
+describe("jupytext security", function()
+	it("should not contain sh -c wrapping pattern", function()
+		local source_path = "lua/pyworks/notebook/jupytext.lua"
+		local lines = vim.fn.readfile(source_path)
+		local source = table.concat(lines, "\n")
+		assert.is_nil(source:match('"sh",%s*"-c"'), "jupytext.lua should not use sh -c wrapping")
+	end)
+end)

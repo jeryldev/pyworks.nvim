@@ -93,20 +93,15 @@ function M.install_jupytext(filepath)
 
 	-- Determine pip command based on project
 	local _, venv_path = utils.get_project_paths(filepath)
-	local pip_cmd
+	local cmd
 	if venv_path and python_path:match(vim.pesc(venv_path)) then
-		pip_cmd = venv_path .. "/bin/pip"
+		cmd = { venv_path .. "/bin/pip", "install", "jupytext" }
 	else
-		pip_cmd = python_path .. " -m pip"
+		cmd = { python_path, "-m", "pip", "install", "jupytext" }
 	end
 
-	local cmd = string.format("%s install jupytext", pip_cmd)
-
-	-- vim.system requires a table; wrap string commands in shell invocation
-	local cmd_table = { "sh", "-c", cmd }
-
 	-- Use vim.system for modern Neovim 0.10+
-	local ok, _ = pcall(vim.system, cmd_table, { text = true }, function(obj)
+	local ok, _ = pcall(vim.system, cmd, { text = true }, function(obj)
 		vim.schedule(function()
 			if obj.code == 0 then
 				cache.invalidate("jupytext_installed")
