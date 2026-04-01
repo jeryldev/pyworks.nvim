@@ -180,17 +180,9 @@ describe("utils", function()
 	end)
 
 	describe("has_venv", function()
-		it("should return true when .venv exists", function()
-			local temp_dir = vim.fn.tempname()
-			vim.fn.mkdir(temp_dir .. "/.venv/bin", "p")
-			local test_file = temp_dir .. "/test.py"
-			vim.fn.writefile({ "" }, test_file)
-
-			local has_venv = utils.has_venv()
-
-			-- Note: has_venv uses get_project_paths which uses cwd by default
-			-- So we need to test with actual filepath
-			vim.fn.delete(temp_dir, "rf")
+		it("should return a boolean from has_venv", function()
+			local result = require("pyworks.utils").has_venv()
+			assert.is_boolean(result)
 		end)
 
 		it("should return false when .venv does not exist", function()

@@ -316,6 +316,10 @@ For virtual environment detection, pyworks also respects environment variables:
 
 COMMON ISSUES~
 
+Q: :PyworksDiagnostics command not found
+A: Fixed in v3.0.3. Update to the latest version. The command was previously
+   registered in a module that wasn't loaded during startup.
+
 Q: "No visual selection found" error
 A: Use |<leader>jc| to select cell, then |<leader>jr| while in visual mode
 

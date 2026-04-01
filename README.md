@@ -317,12 +317,14 @@ plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, Sessio
       ├── ui.lua             Cell numbering, folding, floating windows
       ├── utils.lua          Project root detection, venv paths, system calls
       ├── core/
-      │   ├── detector.lua       File routing, kernel auto-init
-      │   ├── packages.lua       Import scanning, missing package detection
       │   ├── cache.lua          TTL-based in-memory cache
-      │   ├── state.lua          Persistent state (JSON on disk)
+      │   ├── cell_engine.lua    Cell navigation, manipulation, folding
+      │   ├── detector.lua       File routing, kernel auto-init
+      │   ├── error_handler.lua  Protected calls, filepath validation
       │   ├── notifications.lua  Deduped user notifications
-      │   └── recursion_guard.lua  Prevents reload loops
+      │   ├── packages.lua       Import scanning, missing package detection
+      │   ├── recursion_guard.lua  Prevents reload loops
+      │   └── state.lua          Persistent state (JSON on disk)
       ├── languages/
       │   └── python.lua     Venv management, pip/uv commands, package ops
       ├── notebook/
@@ -342,6 +344,9 @@ plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, Sessio
 ## Troubleshooting
 
 ### Common Issues
+
+**Q: `:PyworksDiagnostics` command not found**
+A: Fixed in v3.0.3. Update to the latest version. The command was previously registered in a module that wasn't loaded during startup.
 
 **Q: "No kernel initialized" warning when using `<leader>jj`**
 A: Press `<leader>jl` first to auto-initialize the kernel for the current file type.

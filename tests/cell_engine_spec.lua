@@ -394,6 +394,30 @@ describe("cell_engine", function()
 		end)
 	end)
 
+	describe("cell_engine module structure", function()
+		it("should not have inline require for pyworks.ui inside functions", function()
+			local source_path = "lua/pyworks/core/cell_engine.lua"
+			local lines = vim.fn.readfile(source_path)
+
+			local in_function = false
+			local inline_count = 0
+			for _, line in ipairs(lines) do
+				if line:match("^function ") or line:match("^local function ") then
+					in_function = true
+				end
+				if in_function and line:match('require%("pyworks%.ui"%)') then
+					inline_count = inline_count + 1
+				end
+			end
+
+			assert.are.equal(
+				0,
+				inline_count,
+				"cell_engine.lua should not have inline require for pyworks.ui in functions"
+			)
+		end)
+	end)
+
 	describe("user commands", function()
 		before_each(function()
 			pcall(function()

@@ -122,14 +122,11 @@ describe("pyworks", function()
 			assert.is_true(exists, "PyworksHelp command should be registered")
 		end)
 
-		it("should register PyworksDiagnostics command when diagnostics module is loaded", function()
-			-- PyworksDiagnostics is defined in diagnostics.lua, which is lazy-loaded
-			-- It's not registered during setup(), only when the module is required
-			require("pyworks.diagnostics")
-
+		it("should register PyworksDiagnostics command", function()
+			require("pyworks")
 			local exists = vim.fn.exists(":PyworksDiagnostics") == 2
 
-			assert.is_true(exists, "PyworksDiagnostics command should be registered after loading diagnostics module")
+			assert.is_true(exists, "PyworksDiagnostics command should be registered")
 		end)
 	end)
 
