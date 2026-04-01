@@ -491,4 +491,15 @@ describe("keymaps", function()
 			-- Check for at least one navigation keymap
 		end)
 	end)
+
+	describe("keymap input safety", function()
+		it("should validate kernel name input matches safe pattern", function()
+			local safe_pattern = "^[%w%-_%.]+$"
+			assert.is_truthy(("python3"):match(safe_pattern))
+			assert.is_truthy(("ir"):match(safe_pattern))
+			assert.is_truthy(("my-kernel_v2.0"):match(safe_pattern))
+			assert.is_falsy(("python3 | echo pwned"):match(safe_pattern))
+			assert.is_falsy(("a; !rm -rf /"):match(safe_pattern))
+		end)
+	end)
 end)

@@ -318,11 +318,11 @@ local function auto_init_molten(language, filepath)
 	local kernel = get_kernel_for_language(language, filepath)
 
 	if kernel then
-		-- Initialize Molten after a delay to ensure:
-		-- 1. Buffer is fully loaded and ready
-		-- 2. Any auto-commands have finished
-		-- 3. LSP and other plugins have initialized
-		-- Note: This is a pragmatic workaround. Ideally we'd use callbacks.
+		if not kernel:match("^[%w%-_%.]+$") then
+			notifications.notify(string.format("Invalid kernel name: %s", kernel), vim.log.levels.ERROR)
+			return
+		end
+
 		vim.defer_fn(function()
 			-- Try to initialize the kernel
 			local ok, err = pcall(vim.cmd, "MoltenInit " .. kernel)

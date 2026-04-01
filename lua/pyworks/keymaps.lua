@@ -814,8 +814,13 @@ function M.setup_molten_keymaps()
 	if has_molten then
 		vim.keymap.set("n", "<leader>mi", function()
 			vim.ui.input({ prompt = "Kernel name: " }, function(input)
-				if input and input ~= "" then
+				if input and input:match("^[%w%-_%.]+$") then
 					vim.cmd("MoltenInit " .. input)
+				elseif input and input ~= "" then
+					vim.notify(
+						"Invalid kernel name: only letters, numbers, hyphens, underscores, dots allowed",
+						vim.log.levels.WARN
+					)
 				end
 			end)
 		end, vim.tbl_extend("force", opts, { desc = "Initialize kernel" }))
