@@ -11,7 +11,7 @@ local MAX_CACHE_SIZE = 1000
 
 -- Default TTL values (in seconds)
 local default_ttl = {
-	jupytext_check = 3600, -- 1 hour (rarely changes)
+	jupytext_installed = 3600, -- 1 hour (rarely changes)
 	venv_check = 30, -- 30 seconds
 	kernel_list = 60, -- 1 minute
 	installed_packages = 300, -- 5 minutes
@@ -44,7 +44,7 @@ function M.get(key)
 	end
 
 	local now = os.time()
-	local ttl = get_ttl(key)
+	local ttl = entry.ttl or get_ttl(key)
 
 	if now - entry.timestamp > ttl then
 		-- Expired, remove from cache
@@ -91,14 +91,18 @@ local function evict_if_needed()
 end
 
 -- Set cache value with current timestamp
-function M.set(key, value)
-	vim.validate({ key = { key, "string" } })
+function M.set(key, value, ttl)
+	vim.validate({
+		key = { key, "string" },
+		ttl = { ttl, "number", true },
+	})
 	-- Evict old entries if cache is full
 	evict_if_needed()
 
 	cache[key] = {
 		value = value,
 		timestamp = os.time(),
+		ttl = ttl,
 	}
 end
 

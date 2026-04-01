@@ -3,8 +3,12 @@ local M = {}
 
 math.randomseed(vim.uv.hrtime())
 
+local cache = require("pyworks.core.cache")
+local error_handler = require("pyworks.core.error_handler")
 local jupytext = require("pyworks.notebook.jupytext")
+local python = require("pyworks.languages.python")
 local ui = require("pyworks.ui")
+local utils = require("pyworks.utils")
 
 local VENV_CHECK_MAX_ATTEMPTS = 30
 local VENV_CHECK_INTERVAL_MS = 1000
@@ -142,7 +146,6 @@ end
 M.generate_cell_id = generate_cell_id
 
 local function get_python_version()
-	local utils = require("pyworks.utils")
 	local success, output, _ = utils.system_with_timeout({ "python3", "--version" }, 5000)
 	if success then
 		local version = output:match("Python (%d+%.%d+%.%d+)")
@@ -301,8 +304,7 @@ local function do_create_notebook(filename)
 	}
 
 	-- Invalidate jupytext cache before creating (in case we just installed it)
-	local cache = require("pyworks.core.cache")
-	cache.invalidate("jupytext_check")
+	cache.invalidate("jupytext_installed")
 
 	create_ipynb_file(filename, "Python", kernel_info, imports)
 end
@@ -338,9 +340,6 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 				local cwd = vim.fn.getcwd()
 				vim.notify("Setting up Python environment in: " .. cwd, vim.log.levels.INFO)
 
-				local python = require("pyworks.languages.python")
-				local error_handler = require("pyworks.core.error_handler")
-				local cache = require("pyworks.core.cache")
 				local dummy_filepath = cwd .. "/setup.py"
 
 				local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
@@ -354,7 +353,7 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 						VENV_CHECK_INTERVAL_MS,
 						vim.schedule_wrap(function()
 							attempts = attempts + 1
-							cache.invalidate("jupytext_check") -- Clear cache to recheck
+							cache.invalidate("jupytext_installed") -- Clear cache to recheck
 
 							if jupytext.is_jupytext_installed() then
 								timer:stop()
