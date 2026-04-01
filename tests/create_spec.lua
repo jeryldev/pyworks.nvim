@@ -39,7 +39,7 @@ describe("commands/create", function()
 			end
 			local version = create.get_python_version()
 			local utils = require("pyworks.utils")
-			local success, output, _ = utils.system_with_timeout("python3 --version 2>&1", 5000)
+			local success, output, _ = utils.system_with_timeout({ "python3", "--version" }, 5000)
 			if success then
 				local system_version = output:match("Python (%d+%.%d+%.%d+)")
 				if system_version then

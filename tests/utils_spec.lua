@@ -227,14 +227,6 @@ describe("utils", function()
 	end)
 
 	describe("system_with_timeout", function()
-		it("should execute string commands successfully", function()
-			local success, output, code = utils.system_with_timeout("echo 'hello world'", 5000)
-
-			assert.is_true(success)
-			assert.equals(0, code)
-			assert.equals("hello world", vim.trim(output))
-		end)
-
 		it("should execute table commands successfully", function()
 			local success, output, code = utils.system_with_timeout({ "echo", "hello world" }, 5000)
 
@@ -243,30 +235,13 @@ describe("utils", function()
 			assert.equals("hello world", vim.trim(output))
 		end)
 
-		it("should handle commands with shell features (pipes)", function()
-			local success, output, code = utils.system_with_timeout("echo 'line1\nline2' | head -1", 5000)
-
-			assert.is_true(success)
-			assert.equals(0, code)
-			assert.equals("line1", vim.trim(output))
-		end)
-
-		it("should handle commands with shell features (redirects)", function()
-			local success, output, code = utils.system_with_timeout("echo 'test' 2>/dev/null", 5000)
-
-			assert.is_true(success)
-			assert.equals(0, code)
-			assert.equals("test", vim.trim(output))
-		end)
-
-		it("should handle commands with quoted paths", function()
+		it("should handle paths with spaces via table args", function()
 			local temp_dir = vim.fn.tempname() .. " with spaces"
 			vim.fn.mkdir(temp_dir, "p")
 			local test_file = temp_dir .. "/test.txt"
 			vim.fn.writefile({ "content" }, test_file)
 
-			local cmd = string.format("cat %s", vim.fn.shellescape(test_file))
-			local success, output, code = utils.system_with_timeout(cmd, 5000)
+			local success, output, code = utils.system_with_timeout({ "cat", test_file }, 5000)
 
 			assert.is_true(success)
 			assert.equals(0, code)
@@ -276,38 +251,27 @@ describe("utils", function()
 		end)
 
 		it("should handle command failures", function()
-			local success, output, code = utils.system_with_timeout("false", 5000)
+			local success, output, code = utils.system_with_timeout({ "false" }, 5000)
 
 			assert.is_false(success)
 			assert.is_not.equals(0, code)
 		end)
 
 		it("should use default timeout when not specified", function()
-			local success, output, code = utils.system_with_timeout("echo 'quick'")
+			local success, output, code = utils.system_with_timeout({ "echo", "quick" })
 
 			assert.is_true(success)
 			assert.equals("quick", vim.trim(output))
 		end)
+
+		it("should reject string commands", function()
+			assert.has_error(function()
+				utils.system_with_timeout("echo hello", 5000)
+			end)
+		end)
 	end)
 
 	describe("async_system_call", function()
-		it("should execute string commands asynchronously", function()
-			local result_stdout = nil
-			local result_success = nil
-
-			utils.async_system_call("echo 'test'", function(success, stdout, stderr, exit_code)
-				result_success = success
-				result_stdout = vim.trim(stdout)
-			end)
-
-			vim.wait(1000, function()
-				return result_stdout ~= nil
-			end)
-
-			assert.is_true(result_success)
-			assert.equals("test", result_stdout)
-		end)
-
 		it("should execute table commands asynchronously", function()
 			local result_stdout = nil
 			local result_success = nil
@@ -325,28 +289,11 @@ describe("utils", function()
 			assert.equals("table test", result_stdout)
 		end)
 
-		it("should handle commands with shell features (pipes) asynchronously", function()
-			local result_stdout = nil
-			local result_success = nil
-
-			utils.async_system_call("echo 'async\ntest' | head -1", function(success, stdout, stderr, exit_code)
-				result_success = success
-				result_stdout = vim.trim(stdout)
-			end)
-
-			vim.wait(1000, function()
-				return result_stdout ~= nil
-			end)
-
-			assert.is_true(result_success)
-			assert.equals("async", result_stdout)
-		end)
-
 		it("should handle command failures", function()
 			local result_success = nil
 			local result_exit_code = nil
 
-			utils.async_system_call("false", function(success, stdout, stderr, exit_code)
+			utils.async_system_call({ "false" }, function(success, stdout, stderr, exit_code)
 				result_success = success
 				result_exit_code = exit_code
 			end)
