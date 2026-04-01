@@ -387,7 +387,7 @@ function M.setup_buffer_keymaps()
 				local filepath = vim.api.nvim_buf_get_name(bufnr)
 				local kernel = detector.get_kernel_for_language(ft, filepath)
 
-				if kernel then
+				if kernel and kernel:match("^[%w%-_%.]+$") then
 					vim.notify("Initializing " .. kernel .. " kernel...", vim.log.levels.INFO)
 					local ok =
 						error_handler.protected_call(vim.cmd, "Failed to initialize kernel", "MoltenInit " .. kernel)

@@ -381,6 +381,10 @@ function M.is_package_installed(package_name, filepath)
 	-- Use centralized reverse mapping to get import name from package name
 	local import_name = get_packages().map_package_to_import(package_name, "python")
 
+	if not import_name or not import_name:match("^[%w_%.]+$") then
+		return false
+	end
+
 	local cmd = { python_path, "-c", "import " .. import_name }
 	local success, _, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
 	return success
