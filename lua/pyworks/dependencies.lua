@@ -284,6 +284,7 @@ end
 
 -- Setup function to be called from init.lua
 function M.setup(opts)
+	vim.validate({ opts = { opts, "table", true } })
 	opts = opts or {}
 
 	-- Defer dependency check to ensure lazy.nvim is loaded

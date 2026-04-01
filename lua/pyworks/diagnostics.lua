@@ -1,7 +1,6 @@
 -- Diagnostic module for pyworks.nvim
 local M = {}
 
-local error_handler = require("pyworks.core.error_handler")
 local utils = require("pyworks.utils")
 
 -- Check plugin dependencies
@@ -31,17 +30,19 @@ local function check_plugin_dependencies()
 		end
 	end
 
-	-- image.nvim
+	-- image.nvim (internal state is not exported, use is_enabled() API)
 	if utils.is_plugin_installed("image.nvim") then
 		local ok, img = pcall(require, "image")
-		if ok then
-			if img.state and img.state.backend then
-				table.insert(results, "  image.nvim: OK (" .. img.state.backend .. " backend)")
+		if ok and type(img.is_enabled) == "function" then
+			if img.is_enabled() then
+				table.insert(results, "  image.nvim: OK (enabled)")
 			else
-				table.insert(results, "  image.nvim: INSTALLED but not initialized")
+				table.insert(results, "  image.nvim: INSTALLED but not enabled (setup may not have run yet)")
 			end
+		elseif ok then
+			table.insert(results, "  image.nvim: INSTALLED (API version mismatch)")
 		else
-			table.insert(results, "  image.nvim: INSTALLED but not configured")
+			table.insert(results, "  image.nvim: INSTALLED but failed to load")
 		end
 	else
 		table.insert(results, "  image.nvim: NOT INSTALLED")
@@ -74,14 +75,6 @@ local function check_python_dependencies()
 end
 
 function M.run_diagnostics()
-	local ok, _ = error_handler.protected_call(function()
-		return {}
-	end, "Diagnostics failed")
-
-	if not ok then
-		return
-	end
-
 	local report = {}
 
 	-- Header
@@ -193,12 +186,5 @@ function M.run_diagnostics()
 
 	vim.notify("Diagnostics complete - see buffer for details", vim.log.levels.INFO)
 end
-
--- Create diagnostic command
-vim.api.nvim_create_user_command("PyworksDiagnostics", function()
-	M.run_diagnostics()
-end, {
-	desc = "Run Pyworks diagnostics to check environment setup",
-})
 
 return M

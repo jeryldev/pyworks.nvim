@@ -19,8 +19,7 @@ local DEFAULT_MAX_RECURSION_DEPTH = 3
 local state = {
 	reloading_buffers = {},
 	global_reload_in_progress = false,
-	-- Initialize to negative value so first can_reload() check passes debounce
-	last_reload_time = -(DEFAULT_DEBOUNCE_MS + 1),
+	last_reload_time = 0,
 	original_tick_rate = nil,
 	recursion_depth = 0,
 }
@@ -72,6 +71,9 @@ function M.can_reload(bufnr)
 	end
 
 	-- Check debounce
+	if state.last_reload_time == 0 then
+		return true
+	end
 	local elapsed = now - state.last_reload_time
 	if elapsed < config.debounce_ms then
 		if vim.g.pyworks_debug then
@@ -172,9 +174,7 @@ function M.force_reset()
 	state.reloading_buffers = {}
 	state.global_reload_in_progress = false
 	state.recursion_depth = 0
-	-- Set last_reload_time to a value that ensures debounce check passes immediately
-	-- Using negative offset ensures first can_reload() after reset returns true
-	state.last_reload_time = -(config.debounce_ms + 1)
+	state.last_reload_time = 0
 
 	if state.original_tick_rate then
 		vim.g.molten_tick_rate = state.original_tick_rate

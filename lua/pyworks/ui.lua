@@ -368,7 +368,9 @@ function M.create_floating_window(title, content, opts)
 	vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true })
 
 	-- Close when leaving window
+	local float_augroup = vim.api.nvim_create_augroup("PyworksFloat_" .. buf, { clear = true })
 	vim.api.nvim_create_autocmd("WinLeave", {
+		group = float_augroup,
 		buffer = buf,
 		once = true,
 		callback = close,

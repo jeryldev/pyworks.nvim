@@ -1,5 +1,5 @@
 -- pyworks.nvim - Zero-config Python notebook support
--- Version: 3.0.2
+-- Version: 3.0.3
 --
 -- Features:
 -- - Automatic environment setup for Python
@@ -99,7 +99,7 @@ local function validate_config(user_opts)
 
 	-- Report warnings
 	if #warnings > 0 then
-		vim.notify("[Pyworks] Config warnings:\n• " .. table.concat(warnings, "\n• "), vim.log.levels.WARN)
+		vim.notify("[Pyworks] Config warnings:\n- " .. table.concat(warnings, "\n- "), vim.log.levels.WARN)
 	end
 end
 
@@ -416,6 +416,12 @@ vim.api.nvim_create_user_command("PyworksList", function()
 	python.list_python_packages()
 end, {
 	desc = "List installed packages in project virtual environment",
+})
+
+vim.api.nvim_create_user_command("PyworksDiagnostics", function()
+	require("pyworks.diagnostics").run_diagnostics()
+end, {
+	desc = "Run Pyworks diagnostics to check environment setup",
 })
 
 vim.api.nvim_create_user_command("PyworksHelp", function()
