@@ -143,7 +143,7 @@ M.generate_cell_id = generate_cell_id
 
 local function get_python_version()
 	local utils = require("pyworks.utils")
-	local success, output, _ = utils.system_with_timeout("python3 --version 2>&1", 5000)
+	local success, output, _ = utils.system_with_timeout({ "python3", "--version" }, 5000)
 	if success then
 		local version = output:match("Python (%d+%.%d+%.%d+)")
 		if version then

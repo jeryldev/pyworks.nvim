@@ -105,7 +105,7 @@ end
 -- Get available kernels dynamically (with timeout to prevent UI blocking)
 local function get_available_kernels()
 	local success, result, _ =
-		utils.system_with_timeout("jupyter kernelspec list --json 2>/dev/null", KERNEL_LIST_TIMEOUT_MS)
+		utils.system_with_timeout({ "jupyter", "kernelspec", "list", "--json" }, KERNEL_LIST_TIMEOUT_MS)
 	if not success then
 		return {}
 	end
@@ -157,7 +157,7 @@ end
 -- Find a kernel that matches the project's venv
 local function find_matching_kernel(venv_path, python_path)
 	local kern_success, result, _ =
-		utils.system_with_timeout("jupyter kernelspec list --json 2>/dev/null", KERNEL_LIST_TIMEOUT_MS)
+		utils.system_with_timeout({ "jupyter", "kernelspec", "list", "--json" }, KERNEL_LIST_TIMEOUT_MS)
 	if not kern_success then
 		return nil
 	end
@@ -210,8 +210,7 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 	end
 
 	-- Check if ipykernel is installed
-	local check_cmd =
-		string.format("%s -c %s 2>/dev/null", vim.fn.shellescape(python_path), vim.fn.shellescape("import ipykernel"))
+	local check_cmd = { python_path, "-c", "import ipykernel" }
 	local check_success, _, _ = utils.system_with_timeout(check_cmd, KERNEL_LIST_TIMEOUT_MS)
 	if not check_success then
 		notifications.notify(
@@ -227,12 +226,17 @@ local function create_kernel_for_project(project_dir, venv_path, python_path)
 		vim.log.levels.INFO
 	)
 
-	local cmd = string.format(
-		"%s -m ipykernel install --user --name %s --display-name %s",
+	local cmd = {
 		python_path,
+		"-m",
+		"ipykernel",
+		"install",
+		"--user",
+		"--name",
 		kernel_name,
-		vim.fn.shellescape("Python (" .. project_name .. ")")
-	)
+		"--display-name",
+		"Python (" .. project_name .. ")",
+	}
 
 	local create_success, output, _ = utils.system_with_timeout(cmd, KERNEL_CREATE_TIMEOUT_MS)
 	if create_success then
