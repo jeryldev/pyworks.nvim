@@ -1,4 +1,4 @@
 return {
-  { "jeryldev/molten-nvim" },
+  { "jeryldev/molten-nvim", build = ":UpdateRemotePlugins" },
   { "jeryldev/image.nvim" },
 }

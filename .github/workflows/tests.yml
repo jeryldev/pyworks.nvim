@@ -24,9 +24,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           if [ "${{ matrix.neovim-version }}" = "stable" ]; then
-            NVIM_URL="https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-linux64.tar.gz"
-            NVIM_FILE="nvim-linux64.tar.gz"
-            NVIM_DIR="nvim-linux64"
+            NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
+            NVIM_FILE="nvim-linux-x86_64.tar.gz"
+            NVIM_DIR="nvim-linux-x86_64"
           else
             NVIM_URL="https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz"
             NVIM_FILE="nvim-linux-x86_64.tar.gz"
@@ -74,10 +74,10 @@ jobs:
 
       - name: Install Neovim
         run: |
-          NVIM_URL="https://github.com/neovim/neovim/releases/download/v0.10.2/nvim-linux64.tar.gz"
+          NVIM_URL="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
           wget -q "$NVIM_URL"
-          tar xzf nvim-linux64.tar.gz
-          echo "$PWD/nvim-linux64/bin" >> $GITHUB_PATH
+          tar xzf nvim-linux-x86_64.tar.gz
+          echo "$PWD/nvim-linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Install Stylua
         run: |
@@ -90,11 +90,14 @@ jobs:
         run: |
           stylua --check lua/ tests/
 
-      - name: Lint with Luacheck (if available)
-        continue-on-error: true
+      - name: Install Selene
         run: |
-          if command -v luacheck &> /dev/null; then
-            luacheck lua/ tests/
-          else
-            echo "Luacheck not installed, skipping..."
-          fi
+          SELENE_URL="https://github.com/Kampfkarren/selene/releases/latest/download/selene-linux.zip"
+          wget -q "$SELENE_URL"
+          unzip selene-linux.zip
+          chmod +x selene
+          sudo mv selene /usr/local/bin/
+
+      - name: Lint with Selene
+        run: |
+          selene lua/
