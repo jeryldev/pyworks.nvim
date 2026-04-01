@@ -1,5 +1,7 @@
 local M = {}
 
+local ui = require("pyworks.ui")
+
 local config = {
 	cell_marker = "# %%",
 }
@@ -86,7 +88,6 @@ function M.next_cell()
 	if next_marker == 0 then
 		return false
 	end
-	local ui = require("pyworks.ui")
 	ui.enter_cell(next_marker, { insert_mode = false })
 	return true
 end
@@ -108,7 +109,6 @@ function M.prev_cell()
 		vim.api.nvim_win_set_cursor(0, { cursor_line, 0 })
 		return false
 	end
-	local ui = require("pyworks.ui")
 	ui.enter_cell(prev_marker, { insert_mode = false })
 	return true
 end
@@ -123,7 +123,6 @@ function M.insert_cell_above()
 		insert_line = current_marker - 1
 	end
 	vim.fn.append(insert_line, { config.cell_marker, "" })
-	local ui = require("pyworks.ui")
 	ui.enter_cell(insert_line + 1, { insert_mode = false })
 end
 
@@ -137,7 +136,6 @@ function M.insert_cell_below()
 		insert_line = next_marker - 1
 	end
 	vim.fn.append(insert_line, { config.cell_marker, "" })
-	local ui = require("pyworks.ui")
 	ui.enter_cell(insert_line + 1, { insert_mode = false })
 end
 
@@ -151,7 +149,6 @@ function M.insert_markdown_above()
 		insert_line = current_marker - 1
 	end
 	vim.fn.append(insert_line, { config.cell_marker .. " [markdown]", "" })
-	local ui = require("pyworks.ui")
 	ui.enter_cell(insert_line + 1, { insert_mode = false })
 end
 
@@ -165,7 +162,6 @@ function M.insert_markdown_below()
 		insert_line = next_marker - 1
 	end
 	vim.fn.append(insert_line, { config.cell_marker .. " [markdown]", "" })
-	local ui = require("pyworks.ui")
 	ui.enter_cell(insert_line + 1, { insert_mode = false })
 end
 
