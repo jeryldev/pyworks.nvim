@@ -453,6 +453,36 @@ describe("utils", function()
 		end)
 	end)
 
+	describe("check_python_import security", function()
+		local utils
+
+		before_each(function()
+			package.loaded["pyworks.utils"] = nil
+			utils = require("pyworks.utils")
+		end)
+
+		it("should reject module names with semicolons", function()
+			local result = utils.check_python_import("os; import subprocess")
+			assert.is_false(result)
+		end)
+
+		it("should reject module names with spaces", function()
+			local result = utils.check_python_import("os import sys")
+			assert.is_false(result)
+		end)
+
+		it("should reject nil module name", function()
+			local result = utils.check_python_import(nil)
+			assert.is_false(result)
+		end)
+
+		it("should accept valid dotted module names pattern", function()
+			assert.is_truthy(("numpy"):match("^[%w_%.]+$"))
+			assert.is_truthy(("jupyter_client"):match("^[%w_%.]+$"))
+			assert.is_truthy(("PIL.Image"):match("^[%w_%.]+$"))
+		end)
+	end)
+
 	describe("file operations", function()
 		it("safe_file_write should write content", function()
 			local temp_file = vim.fn.tempname()

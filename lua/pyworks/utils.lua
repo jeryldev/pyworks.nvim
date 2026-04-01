@@ -433,6 +433,9 @@ end
 
 -- Check if a Python module can be imported
 function M.check_python_import(module_name)
+	if not module_name or not module_name:match("^[%w_%.]+$") then
+		return false
+	end
 	local python_cmd = vim.g.python3_host_prog or "python3"
 	local ok, result = pcall(function()
 		return vim.system({ python_cmd, "-c", "import " .. module_name }, { text = true }):wait()
