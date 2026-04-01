@@ -196,12 +196,7 @@ local VALID_PIP_ACTIONS = {
 	list = true,
 }
 
--- Build pip/uv command with proper syntax
--- action: "install", "uninstall", "list"
--- packages: string of packages (for install/uninstall) or nil (for list)
--- filepath: file path to determine venv location
--- opts: { format = "freeze", quiet = true }
-local function build_pip_command(action, packages, filepath, opts)
+local function build_pip_command(action, packages_list, filepath, opts)
 	if not VALID_PIP_ACTIONS[action] then
 		error(string.format("Invalid pip action: %s. Must be one of: install, uninstall, list", action))
 	end
@@ -211,28 +206,29 @@ local function build_pip_command(action, packages, filepath, opts)
 	local python_path = venv_path .. "/bin/python"
 	local is_uv = M.venv_uses_uv(filepath) and vim.fn.executable("uv") == 1
 
-	local cmd
+	local cmd = {}
 	if is_uv then
-		cmd = string.format("uv pip %s --python %s", action, vim.fn.shellescape(python_path))
+		vim.list_extend(cmd, { "uv", "pip", action, "--python", python_path })
 	else
 		local pip_path = M.get_pip_path(filepath)
-		cmd = string.format("%s %s", pip_path, action)
+		if not pip_path then
+			error("pip not found in virtual environment")
+		end
+		vim.list_extend(cmd, { pip_path, action })
 	end
 
-	if packages and packages ~= "" then
-		cmd = cmd .. " " .. packages
+	if packages_list then
+		for _, pkg in ipairs(packages_list) do
+			table.insert(cmd, pkg)
+		end
 	end
 
 	if opts.format then
-		cmd = cmd .. " --format=" .. opts.format
+		table.insert(cmd, "--format=" .. opts.format)
 	end
 
 	if opts.yes and not is_uv then
-		cmd = cmd .. " -y"
-	end
-
-	if opts.quiet then
-		cmd = cmd .. " 2>/dev/null"
+		table.insert(cmd, "-y")
 	end
 
 	return cmd, is_uv
@@ -252,23 +248,20 @@ function M.create_venv(filepath)
 
 	local cmd
 	if use_uv then
-		-- Use uv for speed (it's very fast!)
-		-- uv venv accepts full path
-		cmd = string.format("uv venv %s", vim.fn.shellescape(venv_path))
+		cmd = { "uv", "venv", venv_path }
 	else
-		-- Use standard venv with full path
 		local python = vim.fn.executable("python3") == 1 and "python3" or "python"
-		cmd = string.format("%s -m venv %s", python, vim.fn.shellescape(venv_path))
+		cmd = { python, "-m", "venv", venv_path }
 	end
 
-	-- Execute command with timeout (no need to cd, using full paths)
 	local success, result, _ = utils.system_with_timeout(cmd, VENV_CREATE_TIMEOUT_MS)
 
 	if success then
 		cache.invalidate("venv_check")
 		state.set_env_status("python", "venv_created")
 	else
-		local error_msg = string.format("Failed to create venv. Command: %s, Error: %s", cmd, result or "unknown")
+		local error_msg =
+			string.format("Failed to create venv. Command: %s, Error: %s", table.concat(cmd, " "), result or "unknown")
 		notifications.notify_error(error_msg)
 	end
 
@@ -333,23 +326,18 @@ function M.install_essentials(filepath)
 		pcall(vim.system, { package_manager, "install", "--upgrade", "pip" }, { text = true })
 	end
 
-	local packages_str = table.concat(missing_essentials, " ")
-	local cmd = build_pip_command("install", packages_str, filepath)
+	local cmd = build_pip_command("install", missing_essentials, filepath)
 
 	if notifications.get_config().debug_mode then
-		notifications.notify("[Debug] Running: " .. cmd, vim.log.levels.DEBUG)
+		notifications.notify("[Debug] Running: " .. table.concat(cmd, " "), vim.log.levels.DEBUG)
 	end
 
-	-- Ensure project_dir is valid
 	if not project_dir or vim.fn.isdirectory(project_dir) ~= 1 then
 		notifications.notify_error("Invalid project directory for essentials: " .. (project_dir or "nil"))
 		return false
 	end
 
-	-- vim.system requires a table; wrap string commands in shell invocation
-	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
-
-	local ok, sys_obj = pcall(vim.system, cmd_table, {
+	local ok, sys_obj = pcall(vim.system, cmd, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
@@ -393,12 +381,7 @@ function M.is_package_installed(package_name, filepath)
 	-- Use centralized reverse mapping to get import name from package name
 	local import_name = get_packages().map_package_to_import(package_name, "python")
 
-	-- Escape paths and import name for shell safety
-	local cmd = string.format(
-		"%s -c %s 2>/dev/null",
-		vim.fn.shellescape(python_path),
-		vim.fn.shellescape("import " .. import_name)
-	)
+	local cmd = { python_path, "-c", "import " .. import_name }
 	local success, _, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
 	return success
 end
@@ -420,7 +403,7 @@ function M.get_installed_packages(filepath)
 		return {}
 	end
 
-	local cmd = build_pip_command("list", nil, filepath, { format = "freeze", quiet = true })
+	local cmd = build_pip_command("list", nil, filepath, { format = "freeze" })
 	local success, output, _ = utils.system_with_timeout(cmd, PIP_LIST_TIMEOUT_MS)
 
 	if not success then
@@ -469,8 +452,6 @@ function M.install_packages(package_list, filepath)
 		end
 	end
 
-	local packages_str = table.concat(package_list, " ")
-
 	notifications.progress_start(
 		"python_packages",
 		"Installing Packages",
@@ -478,9 +459,8 @@ function M.install_packages(package_list, filepath)
 	)
 
 	local project_dir = utils.get_project_paths(filepath)
-	local cmd = build_pip_command("install", packages_str, filepath)
+	local cmd = build_pip_command("install", package_list, filepath)
 
-	-- Ensure project_dir is valid
 	if not project_dir or project_dir == "" then
 		notifications.notify_error("Project directory is nil or empty for file: " .. (filepath or "nil"))
 		return false
@@ -493,15 +473,11 @@ function M.install_packages(package_list, filepath)
 		return false
 	end
 
-	-- Log the command being executed
-	notifications.notify(string.format("Executing: %s", cmd), vim.log.levels.INFO)
+	local cmd_str = table.concat(cmd, " ")
+	notifications.notify(string.format("Executing: %s", cmd_str), vim.log.levels.INFO)
 	notifications.notify(string.format("In directory: %s", project_dir), vim.log.levels.INFO)
 
-	-- vim.system requires a table; wrap string commands in shell invocation
-	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
-
-	-- Create async job to install packages using vim.system (Neovim 0.10+)
-	local ok, sys_obj = pcall(vim.system, cmd_table, {
+	local ok, sys_obj = pcall(vim.system, cmd, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
@@ -539,10 +515,10 @@ function M.install_packages(package_list, filepath)
 					"PACKAGE INSTALLATION FAILED",
 					"=" .. string.rep("=", 60),
 					"",
-					"Command: " .. cmd,
+					"Command: " .. cmd_str,
 					"Directory: " .. project_dir,
 					"Exit code: " .. obj.code,
-					"Packages attempted: " .. packages_str,
+					"Packages attempted: " .. table.concat(package_list, " "),
 					"",
 					"=" .. string.rep("=", 60),
 					"FULL OUTPUT:",
@@ -764,16 +740,14 @@ function M.uninstall_python_packages(packages_str)
 	end
 
 	local project_dir = utils.get_project_paths(filepath)
-	local packages_str_clean = table.concat(pkg_list, " ")
-	local cmd = build_pip_command("uninstall", packages_str_clean, filepath, { yes = true })
+	local cmd = build_pip_command("uninstall", pkg_list, filepath, { yes = true })
 
-	notifications.notify(string.format("Uninstalling Python packages: %s", packages_str_clean), vim.log.levels.INFO)
+	notifications.notify(
+		string.format("Uninstalling Python packages: %s", table.concat(pkg_list, ", ")),
+		vim.log.levels.INFO
+	)
 
-	-- vim.system requires a table; wrap string commands in shell invocation
-	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
-
-	-- Execute uninstall using vim.system (Neovim 0.10+)
-	local ok, _ = pcall(vim.system, cmd_table, {
+	local ok, _ = pcall(vim.system, cmd, {
 		text = true,
 		cwd = project_dir,
 	}, function(obj)
@@ -846,8 +820,7 @@ function M.check_compatibility(package_name, filepath)
 	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath) or "python3"
 
-	-- Get Python version (with timeout)
-	local cmd = string.format("%s --version 2>&1", python_path)
+	local cmd = { python_path, "--version" }
 	local success, version_output, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
 	if not success then
 		return nil

@@ -256,15 +256,12 @@ local DEFAULT_TIMEOUT_MS = 30000 -- 30 seconds
 -- Returns: SystemObj that can be used to kill the process
 function M.async_system_call(cmd, callback, options)
 	vim.validate({
-		cmd = { cmd, { "string", "table" } },
+		cmd = { cmd, "table" },
 		callback = { callback, "function" },
 		options = { options, "table", true },
 	})
 	options = options or {}
 	local timeout_ms = options.timeout or DEFAULT_TIMEOUT_MS
-
-	-- vim.system requires a table; wrap strings in shell invocation
-	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
 
 	local system_opts = {
 		text = true,
@@ -273,7 +270,7 @@ function M.async_system_call(cmd, callback, options)
 		timeout = timeout_ms > 0 and timeout_ms or nil,
 	}
 
-	local ok, result = pcall(vim.system, cmd_table, system_opts, function(obj)
+	local ok, result = pcall(vim.system, cmd, system_opts, function(obj)
 		vim.schedule(function()
 			local success = obj.code == 0
 			local stdout = obj.stdout or ""
@@ -302,16 +299,12 @@ end
 -- Returns: success (boolean), output (string), exit_code (number)
 function M.system_with_timeout(cmd, timeout_ms)
 	vim.validate({
-		cmd = { cmd, { "string", "table" } },
+		cmd = { cmd, "table" },
 		timeout_ms = { timeout_ms, "number", true },
 	})
 	timeout_ms = timeout_ms or DEFAULT_TIMEOUT_MS
 
-	-- vim.system requires a table; wrap strings in shell invocation
-	-- This preserves shell features like pipes, redirects, and proper quoting
-	local cmd_table = type(cmd) == "string" and { "sh", "-c", cmd } or cmd
-
-	local ok, sys_obj = pcall(vim.system, cmd_table, {
+	local ok, sys_obj = pcall(vim.system, cmd, {
 		text = true,
 		timeout = timeout_ms > 0 and timeout_ms or nil,
 	})
