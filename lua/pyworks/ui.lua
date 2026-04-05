@@ -3,6 +3,9 @@
 
 local M = {}
 
+local DEBOUNCE_MS = 150
+local debounce_timers = {}
+
 local function get_cell_pattern()
 	return require("pyworks.core.cell_engine").get_cell_pattern()
 end
@@ -250,13 +253,50 @@ function M.setup_buffer(opts)
 		M.number_cells()
 
 		-- Re-number cells on buffer changes (buffer-specific augroup)
+		-- Debounced to avoid flickering image.nvim renders on every keystroke
 		local bufnr = vim.api.nvim_get_current_buf()
 		local augroup_name = "PyworksCellNumbering_" .. bufnr
 		local augroup = vim.api.nvim_create_augroup(augroup_name, { clear = true })
-		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufEnter" }, {
+		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				if debounce_timers[bufnr] then
+					debounce_timers[bufnr]:stop()
+					debounce_timers[bufnr]:close()
+				end
+				debounce_timers[bufnr] = vim.uv.new_timer()
+				debounce_timers[bufnr]:start(
+					DEBOUNCE_MS,
+					0,
+					vim.schedule_wrap(function()
+						if debounce_timers[bufnr] then
+							debounce_timers[bufnr]:stop()
+							debounce_timers[bufnr]:close()
+							debounce_timers[bufnr] = nil
+						end
+						if vim.api.nvim_buf_is_valid(bufnr) then
+							M.number_cells()
+						end
+					end)
+				)
+			end,
+		})
+		vim.api.nvim_create_autocmd("BufEnter", {
 			group = augroup,
 			buffer = bufnr,
 			callback = M.number_cells,
+		})
+		vim.api.nvim_create_autocmd("BufDelete", {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				if debounce_timers[bufnr] then
+					debounce_timers[bufnr]:stop()
+					debounce_timers[bufnr]:close()
+					debounce_timers[bufnr] = nil
+				end
+			end,
 		})
 	end
 
