@@ -115,7 +115,7 @@ function M.configure_dependencies(opts)
 		vim.g.molten_virt_lines_off_by_1 = false
 		vim.g.molten_output_win_max_height = 40
 		vim.g.molten_virt_text_max_lines = 999999
-		vim.g.molten_output_win_max_width = 150
+		vim.g.molten_output_win_max_width = 999999
 		vim.g.molten_output_crop_border = true
 		vim.g.molten_wrap_output = true
 		vim.g.molten_output_show_more = true
@@ -123,6 +123,21 @@ function M.configure_dependencies(opts)
 		vim.g.molten_auto_open_html_in_browser = false
 		vim.g.molten_auto_image_popup = false
 		vim.g.molten_tick_rate = 100
+
+		-- After kernel is ready, configure pandas to use full terminal width
+		vim.api.nvim_create_autocmd("User", {
+			pattern = "MoltenKernelReady",
+			callback = function()
+				local cols = vim.o.columns
+				local code = string.format(
+					"import pandas as pd; pd.set_option('display.width', %d); pd.set_option('display.max_colwidth', 50)",
+					cols
+				)
+				vim.defer_fn(function()
+					pcall(vim.cmd, "MoltenEvaluateArgument " .. code)
+				end, 500)
+			end,
+		})
 	end
 
 	-- Configure notebook handling (pyworks handles .ipynb files directly)
@@ -176,6 +191,7 @@ function M.setup(opts)
 	-- Set molten globals early so they are available before kernel init.
 	-- These must be set before MoltenInit reads them.
 	vim.g.molten_virt_text_max_lines = 999999
+	vim.g.molten_output_win_max_width = 999999
 
 	-- Ensure all dependencies are installed and configured
 	-- This handles molten-nvim, image.nvim, and jupytext CLI automatically
