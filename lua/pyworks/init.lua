@@ -114,6 +114,7 @@ function M.configure_dependencies(opts)
 		vim.g.molten_virt_text_output = true
 		vim.g.molten_virt_lines_off_by_1 = false
 		vim.g.molten_output_win_max_height = 40
+		vim.g.molten_virt_text_max_lines = 999999
 		vim.g.molten_output_win_max_width = 150
 		vim.g.molten_output_crop_border = true
 		vim.g.molten_wrap_output = true
@@ -171,6 +172,10 @@ function M.setup(opts)
 	if vim.g.pyworks_setup_complete then
 		return
 	end
+
+	-- Set molten globals early so they are available before kernel init.
+	-- These must be set before MoltenInit reads them.
+	vim.g.molten_virt_text_max_lines = 999999
 
 	-- Ensure all dependencies are installed and configured
 	-- This handles molten-nvim, image.nvim, and jupytext CLI automatically
