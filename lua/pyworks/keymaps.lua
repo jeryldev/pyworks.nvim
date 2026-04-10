@@ -14,6 +14,13 @@ local function get_cell_engine()
 	return require("pyworks.core.cell_engine")
 end
 
+-- Return the Vim-regex cell marker pattern from the configured cell_marker.
+-- Replaces all hardcoded cell_pattern() references so custom markers (e.g.
+-- "# COMMAND ----------" for Databricks) work for execution and navigation.
+local function cell_pattern()
+	return get_cell_engine().vim_search_pattern()
+end
+
 local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
@@ -298,7 +305,7 @@ end
 
 -- Check if current cell is a markdown cell (no executable code)
 local function is_markdown_cell()
-	local cell_start = vim.fn.search("^# %%", "bnW")
+	local cell_start = vim.fn.search(cell_pattern(), "bnW")
 	if cell_start == 0 then
 		return false
 	end
@@ -318,13 +325,13 @@ local function with_suppressed_events(fn)
 	end
 end
 
--- Helper function to find and execute code between # %% markers
+-- Helper function to find and execute code between cell markers
 -- This creates a Molten cell if one doesn't exist yet
 -- Returns start_line, end_line of the executed cell (or nil if empty/error)
 local function evaluate_percent_cell()
 	-- Find cell boundaries
-	local cell_start = vim.fn.search("^# %%", "bnW") -- Search backwards for cell start
-	local cell_end = vim.fn.search("^# %%", "nW") -- Search forwards for next cell start
+	local cell_start = vim.fn.search(cell_pattern(), "bnW") -- Search backwards for cell start
+	local cell_end = vim.fn.search(cell_pattern(), "nW") -- Search forwards for next cell start
 
 	local start_line, end_line
 
@@ -452,7 +459,7 @@ function M.setup_buffer_keymaps()
 
 			-- Defer navigation to allow evaluation to start
 			vim.defer_fn(function()
-				local found = vim.fn.search("^# %%", "W")
+				local found = vim.fn.search(cell_pattern(), "W")
 				if found == 0 then
 					vim.notify("Last cell", vim.log.levels.INFO)
 				else
@@ -479,7 +486,7 @@ function M.setup_buffer_keymaps()
 		-- Executes all cells in the buffer sequentially, waiting for each to complete.
 		--
 		-- HOW IT WORKS:
-		-- 1. Count all "# %%" cell markers in the buffer
+		-- 1. Count all cell markers in the buffer
 		-- 2. Start recursive execution with run_next_cell(1)
 		-- 3. For each cell:
 		--    a. Navigate to the cell (search from line 1, N times for cell N)
@@ -511,7 +518,7 @@ function M.setup_buffer_keymaps()
 			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 			local cell_count = 0
 			for _, line in ipairs(lines) do
-				if line:match("^# %%") then
+				if line:match(get_cell_engine().get_cell_pattern()) then
 					cell_count = cell_count + 1
 				end
 			end
@@ -540,7 +547,7 @@ function M.setup_buffer_keymaps()
 						local last_line = vim.api.nvim_buf_line_count(0)
 						vim.api.nvim_win_set_cursor(0, { last_line, 0 })
 					end)
-					local last_cell_line = vim.fn.search("^# %%", "bW")
+					local last_cell_line = vim.fn.search(cell_pattern(), "bW")
 					if last_cell_line > 0 then
 						ui.enter_cell(last_cell_line, { insert_mode = false })
 					end
@@ -553,7 +560,7 @@ function M.setup_buffer_keymaps()
 				with_suppressed_events(function()
 					vim.api.nvim_win_set_cursor(0, { 1, 0 })
 					for _ = 1, cell_num do
-						vim.fn.search("^# %%", "W")
+						vim.fn.search(cell_pattern(), "W")
 					end
 				end)
 
@@ -571,7 +578,7 @@ function M.setup_buffer_keymaps()
 				local cell_start, _ = evaluate_percent_cell()
 
 				-- Move cursor to next cell for visual feedback (output appears above)
-				local next_cell_line = vim.fn.search("^# %%", "nW")
+				local next_cell_line = vim.fn.search(cell_pattern(), "nW")
 				if next_cell_line > 0 then
 					ui.enter_cell(next_cell_line, { insert_mode = false })
 				end
@@ -614,10 +621,10 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			local has_cells = vim.fn.search("^# %%", "nw") > 0
+			local has_cells = vim.fn.search(cell_pattern(), "nw") > 0
 
 			if has_cells then
-				local cell_start = vim.fn.search("^# %%", "bnW")
+				local cell_start = vim.fn.search(cell_pattern(), "bnW")
 				if cell_start == 0 then
 					vim.cmd("normal! gg")
 				else
@@ -627,7 +634,7 @@ function M.setup_buffer_keymaps()
 
 				vim.cmd("normal! V")
 
-				local cell_end = vim.fn.search("^# %%", "nW")
+				local cell_end = vim.fn.search(cell_pattern(), "nW")
 				if cell_end == 0 then
 					vim.cmd("normal! G")
 				else
@@ -651,7 +658,7 @@ function M.setup_buffer_keymaps()
 
 						local cells_found = 0
 						for i = 1, cell_num do
-							local result = vim.fn.search("^# %%", "W")
+							local result = vim.fn.search(cell_pattern(), "W")
 							if result == 0 then
 								vim.fn.setpos(".", save_pos)
 								if cells_found == 0 then
@@ -772,9 +779,10 @@ function M.setup_buffer_keymaps()
 		vim.keymap.set("n", "<leader>jv", function()
 			-- Use pcall to handle E486 (pattern not found) gracefully
 			local ok = pcall(function()
-				vim.cmd("normal! ?^# %%\\|^```\\|^```{<CR>")
+				local cp = cell_pattern():gsub("/", "\\/")
+				vim.cmd("normal! ?" .. cp .. "\\|^```\\|^```{<CR>")
 				vim.cmd("normal! V")
-				vim.cmd("normal! /^# %%\\|^```\\|^```{<CR>")
+				vim.cmd("normal! /" .. cp .. "\\|^```\\|^```{<CR>")
 				vim.cmd("normal! k")
 			end)
 			if ok then

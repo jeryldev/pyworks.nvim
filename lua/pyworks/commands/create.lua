@@ -110,14 +110,16 @@ vim.api.nvim_create_user_command("PyworksNewPython", function(opts)
 		end
 	end
 
-	-- Template content
+	-- Use the configured cell marker (default "# %%", or user-configured
+	-- e.g. "# COMMAND ----------" for Databricks workflows).
+	local marker = require("pyworks").get_config().cell_marker or "# %%"
 	local template = {
-		"# %%",
+		marker,
 		"import numpy as np",
 		"import pandas as pd",
 		"import matplotlib.pyplot as plt",
 		"",
-		"# %%",
+		marker,
 		"",
 	}
 

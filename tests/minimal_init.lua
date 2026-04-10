@@ -11,6 +11,8 @@ local plenary_path = vim.fn.stdpath("data") .. "/lazy/plenary.nvim"
 if vim.fn.isdirectory(plenary_path) == 1 then
 	vim.opt.runtimepath:append(plenary_path)
 end
+-- Load plenary's busted test harness
+pcall(vim.cmd, "runtime plugin/plenary.vim")
 
 -- Disable unnecessary features for testing
 vim.opt.swapfile = false

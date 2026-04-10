@@ -14,8 +14,15 @@ function M.get_cell_pattern()
 	return "^" .. vim.pesc(config.cell_marker)
 end
 
-local function vim_search_pattern()
+-- Vim-regex pattern for use with vim.fn.search(). Exported so keymaps.lua
+-- can use the configured marker instead of hardcoding "^# %%".
+function M.vim_search_pattern()
 	return "^" .. config.cell_marker
+end
+
+-- Keep the local alias for internal use.
+local function vim_search_pattern()
+	return M.vim_search_pattern()
 end
 
 function M.find_cell_boundaries()

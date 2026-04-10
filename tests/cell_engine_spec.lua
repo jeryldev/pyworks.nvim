@@ -441,4 +441,145 @@ describe("cell_engine", function()
 			assert.equals(2, vim.fn.exists(":PyworksSplitCell"))
 		end)
 	end)
+
+	-- =========================================================================
+	-- Custom cell_marker configuration (Issue #5 — Databricks support)
+	-- =========================================================================
+
+	describe("custom cell_marker", function()
+		before_each(function()
+			package.loaded["pyworks.core.cell_engine"] = nil
+			cell_engine = require("pyworks.core.cell_engine")
+		end)
+
+		it("defaults to # %%", function()
+			local pat = cell_engine.get_cell_pattern()
+			local vpat = cell_engine.vim_search_pattern()
+			assert.is_not_nil(pat:find("# "))
+			assert.equals("^# %%", vpat)
+		end)
+
+		it("configure changes the cell marker", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			assert.matches("COMMAND", cell_engine.vim_search_pattern())
+			assert.matches("COMMAND", cell_engine.get_cell_pattern())
+		end)
+
+		it("vim_search_pattern returns raw marker for vim.fn.search", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			assert.equals("^# COMMAND ----------", cell_engine.vim_search_pattern())
+		end)
+
+		it("get_cell_pattern escapes Lua pattern special chars", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local pat = cell_engine.get_cell_pattern()
+			-- Dashes should be escaped as %-
+			assert.matches("%%%-", pat)
+		end)
+
+		it("find_cell_boundaries works with custom marker", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# COMMAND ----------",
+				"x = 1",
+				"y = 2",
+				"# COMMAND ----------",
+				"z = 3",
+			})
+
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+			local start_line, end_line = cell_engine.find_cell_boundaries()
+			assert.equals(2, start_line)
+			assert.equals(3, end_line)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("count_cells works with custom marker", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# COMMAND ----------",
+				"x = 1",
+				"# COMMAND ----------",
+				"y = 2",
+			})
+
+			local count = cell_engine.count_cells(bufnr)
+			assert.equals(2, count)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("does NOT match default # %% when custom marker is set", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# %%",
+				"x = 1",
+				"# COMMAND ----------",
+				"y = 2",
+			})
+
+			-- Should find only 1 cell (the COMMAND marker), not the # %% line
+			local count = cell_engine.count_cells(bufnr)
+			assert.equals(1, count)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("insert_cell_below uses the configured marker", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# COMMAND ----------",
+				"x = 1",
+			})
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			cell_engine.insert_cell_below()
+
+			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+			local found_command = false
+			local found_default = false
+			for _, line in ipairs(lines) do
+				if line == "# COMMAND ----------" then
+					found_command = true
+				end
+				if line == "# %%" then
+					found_default = true
+				end
+			end
+			-- The new cell should use COMMAND marker, not # %%
+			assert.is_true(found_command)
+			assert.is_false(found_default)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("navigation works with custom marker", function()
+			cell_engine.configure({ cell_marker = "# COMMAND ----------" })
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# COMMAND ----------",
+				"x = 1",
+				"# COMMAND ----------",
+				"y = 2",
+			})
+			vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+			local found = cell_engine.next_cell()
+			assert.is_true(found)
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			assert.equals(4, cursor[1])
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+	end)
 end)
