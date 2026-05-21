@@ -4,6 +4,8 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-21
+
 ### Fixed
 
 - **Neovim freeze on tqdm-heavy cells (issue from bart.ipynb)**: Capped
