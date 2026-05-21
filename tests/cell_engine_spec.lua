@@ -440,6 +440,210 @@ describe("cell_engine", function()
 		it("should register PyworksSplitCell command", function()
 			assert.equals(2, vim.fn.exists(":PyworksSplitCell"))
 		end)
+
+		it("should register PyworksRunCell command", function()
+			assert.equals(2, vim.fn.exists(":PyworksRunCell"))
+		end)
+
+		it("should register PyworksRunCellAdvance command", function()
+			assert.equals(2, vim.fn.exists(":PyworksRunCellAdvance"))
+		end)
+	end)
+
+	describe("run_cell", function()
+		local ui
+		local original_mark_executed
+		local original_get_cell_num
+		local original_enter_cell
+		local original_notify
+		local original_defer_fn
+		local notify_calls
+		local mark_executed_calls
+		local enter_cell_calls
+		local deferred_callbacks
+		local molten_eval_calls
+
+		before_each(function()
+			ui = require("pyworks.ui")
+			notify_calls = {}
+			mark_executed_calls = {}
+			enter_cell_calls = {}
+			deferred_callbacks = {}
+			molten_eval_calls = {}
+
+			original_mark_executed = ui.mark_cell_executed
+			original_get_cell_num = ui.get_current_cell_number
+			original_enter_cell = ui.enter_cell
+			original_notify = vim.notify
+			original_defer_fn = vim.defer_fn
+
+			ui.get_current_cell_number = function()
+				return 1
+			end
+			ui.mark_cell_executed = function(cell_num)
+				table.insert(mark_executed_calls, cell_num)
+			end
+			ui.enter_cell = function(line, opts)
+				table.insert(enter_cell_calls, { line = line, opts = opts })
+			end
+			vim.notify = function(msg, level)
+				table.insert(notify_calls, { msg = msg, level = level })
+			end
+			vim.defer_fn = function(fn, _ms)
+				table.insert(deferred_callbacks, fn)
+			end
+
+			-- Mock Molten's evaluate function via a real Vimscript user function
+			-- so pcall(vim.fn.MoltenEvaluateRange, ...) records the call.
+			vim.cmd([[
+				let g:_test_molten_eval_calls = []
+				function! MoltenEvaluateRange(start_line, end_line) abort
+					call add(g:_test_molten_eval_calls, [a:start_line, a:end_line])
+				endfunction
+			]])
+		end)
+
+		after_each(function()
+			ui.mark_cell_executed = original_mark_executed
+			ui.get_current_cell_number = original_get_cell_num
+			ui.enter_cell = original_enter_cell
+			vim.notify = original_notify
+			vim.defer_fn = original_defer_fn
+			pcall(vim.cmd, "delfunction MoltenEvaluateRange")
+			vim.g._test_molten_eval_calls = nil
+		end)
+
+		it("warns and returns false when no kernel is initialized", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "# %%", "x = 1" })
+			vim.b[bufnr].molten_initialized = nil
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			local ok = cell_engine.run_cell()
+			assert.is_false(ok)
+			assert.equals(0, #mark_executed_calls)
+
+			local found_warn = false
+			for _, n in ipairs(notify_calls) do
+				if n.msg and n.msg:match("kernel") then
+					found_warn = true
+				end
+			end
+			assert.is_true(found_warn)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("returns false on an empty cell", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "# %%", "# %%" })
+			vim.b[bufnr].molten_initialized = true
+			vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+			local ok = cell_engine.run_cell()
+			assert.is_false(ok)
+			assert.equals(0, #mark_executed_calls)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("evaluates the current cell range and marks it executed", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# %%",
+				"x = 1",
+				"y = 2",
+				"# %%",
+				"z = 3",
+			})
+			vim.b[bufnr].molten_initialized = true
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			local ok = cell_engine.run_cell()
+			assert.is_true(ok)
+			assert.equals(1, #mark_executed_calls)
+
+			local calls = vim.g._test_molten_eval_calls or {}
+			assert.equals(1, #calls)
+			assert.equals(2, calls[1][1])
+			assert.equals(3, calls[1][2])
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("with advance=true defers cursor move to the next cell", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# %%",
+				"x = 1",
+				"# %%",
+				"y = 2",
+			})
+			vim.b[bufnr].molten_initialized = true
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			local ok = cell_engine.run_cell({ advance = true })
+			assert.is_true(ok)
+			assert.equals(1, #deferred_callbacks)
+
+			deferred_callbacks[1]()
+			assert.equals(1, #enter_cell_calls)
+			assert.equals(3, enter_cell_calls[1].line)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("without advance does not move the cursor", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# %%",
+				"x = 1",
+				"# %%",
+				"y = 2",
+			})
+			vim.b[bufnr].molten_initialized = true
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			local ok = cell_engine.run_cell()
+			assert.is_true(ok)
+			assert.equals(0, #deferred_callbacks)
+			assert.equals(0, #enter_cell_calls)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("notifies 'Last cell' when advancing past the final cell", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+				"# %%",
+				"x = 1",
+			})
+			vim.b[bufnr].molten_initialized = true
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+			local ok = cell_engine.run_cell({ advance = true })
+			assert.is_true(ok)
+			assert.equals(1, #deferred_callbacks)
+
+			deferred_callbacks[1]()
+			assert.equals(0, #enter_cell_calls)
+
+			local found_last = false
+			for _, n in ipairs(notify_calls) do
+				if n.msg and n.msg:match("Last cell") then
+					found_last = true
+				end
+			end
+			assert.is_true(found_last)
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
 	end)
 
 	-- =========================================================================

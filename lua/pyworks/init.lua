@@ -114,7 +114,7 @@ function M.configure_dependencies(opts)
 		vim.g.molten_virt_text_output = true
 		vim.g.molten_virt_lines_off_by_1 = false
 		vim.g.molten_output_win_max_height = 40
-		vim.g.molten_virt_text_max_lines = 999999
+		vim.g.molten_virt_text_max_lines = 500
 		vim.g.molten_output_win_max_width = 999999
 		vim.g.molten_output_crop_border = true
 		vim.g.molten_wrap_output = true
@@ -190,7 +190,7 @@ function M.setup(opts)
 
 	-- Set molten globals early so they are available before kernel init.
 	-- These must be set before MoltenInit reads them.
-	vim.g.molten_virt_text_max_lines = 999999
+	vim.g.molten_virt_text_max_lines = 500
 	vim.g.molten_output_win_max_width = 999999
 
 	-- Ensure all dependencies are installed and configured
@@ -288,6 +288,14 @@ function M.setup(opts)
 		require("pyworks.core.cell_engine").split_cell()
 		vim.notify("Cell split", vim.log.levels.INFO)
 	end, { desc = "Split cell at cursor" })
+
+	vim.api.nvim_create_user_command("PyworksRunCell", function()
+		require("pyworks.core.cell_engine").run_cell()
+	end, { desc = "Run current cell" })
+
+	vim.api.nvim_create_user_command("PyworksRunCellAdvance", function()
+		require("pyworks.core.cell_engine").run_cell({ advance = true })
+	end, { desc = "Run current cell and move to next" })
 end
 
 -- Manual commands (for power users)

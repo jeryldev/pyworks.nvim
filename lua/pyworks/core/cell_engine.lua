@@ -204,4 +204,51 @@ function M.split_cell()
 	vim.fn.append(cursor_line - 1, { config.cell_marker })
 end
 
+-- Execute the current # %% cell via Molten.
+-- opts.advance = true moves the cursor to the next cell after dispatching
+-- (matches the classic Jupyter Shift+Enter behavior).
+-- Returns true on success, false if there is no initialized kernel or the
+-- cell is empty.
+function M.run_cell(opts)
+	opts = opts or {}
+	local bufnr = vim.api.nvim_get_current_buf()
+
+	if not vim.b[bufnr].molten_initialized then
+		vim.notify(
+			"No kernel initialized. Run :PyworksSetup or press <leader>jl first.",
+			vim.log.levels.WARN
+		)
+		return false
+	end
+
+	local start_line, end_line = M.find_cell_boundaries()
+	if not start_line then
+		vim.notify("Empty cell", vim.log.levels.WARN)
+		return false
+	end
+
+	local cell_num = ui.get_current_cell_number()
+	ui.mark_cell_executed(cell_num)
+
+	local ok = pcall(vim.fn.MoltenEvaluateRange, start_line, end_line)
+	if not ok then
+		vim.fn.setpos("'<", { 0, start_line, 1, 0 })
+		vim.fn.setpos("'>", { 0, end_line, vim.fn.col({ end_line, "$" }) - 1, 0 })
+		pcall(vim.cmd, "'<,'>MoltenEvaluateVisual")
+	end
+
+	if opts.advance then
+		vim.defer_fn(function()
+			local found = vim.fn.search(vim_search_pattern(), "W")
+			if found == 0 then
+				vim.notify("Last cell", vim.log.levels.INFO)
+			else
+				ui.enter_cell(found, { insert_mode = false })
+			end
+		end, 100)
+	end
+
+	return true
+end
+
 return M

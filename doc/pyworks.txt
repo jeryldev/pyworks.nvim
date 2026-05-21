@@ -224,6 +224,13 @@ CELL OPERATIONS~
 *:PyworksSplitCell*
     Split cell at cursor
 
+*:PyworksRunCell*
+    Run the current cell (requires an initialized kernel)
+
+*:PyworksRunCellAdvance*
+    Run the current cell and move the cursor to the next cell
+    (matches the Jupyter Shift+Enter behavior)
+
 PACKAGE MANAGEMENT~
 
 *:PyworksSync*

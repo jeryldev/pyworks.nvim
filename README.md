@@ -183,6 +183,8 @@ For `skip_keymaps` users who prefer command-based workflows:
 | `:PyworksToggleCellType`   | Toggle cell type (code/markdown)     |
 | `:PyworksMergeCellBelow`   | Merge with cell below                |
 | `:PyworksSplitCell`        | Split cell at cursor                 |
+| `:PyworksRunCell`          | Run the current cell                 |
+| `:PyworksRunCellAdvance`   | Run the current cell and advance     |
 
 ## Commands
 

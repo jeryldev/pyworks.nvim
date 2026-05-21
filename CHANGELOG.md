@@ -4,8 +4,32 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Neovim freeze on tqdm-heavy cells (issue from bart.ipynb)**: Capped
+  `molten_virt_text_max_lines` at `500` (was `999999`). Output with thousands
+  of carriage-return-overwriting lines (HuggingFace `datasets` shard
+  extraction, deep training logs) no longer stalls the UI thread while
+  Molten renders every line as an extmark. Use `:MoltenEnterOutput` or
+  `disable_progress_bar()` for very long output.
+
+### Added
+
+- **`:PyworksRunCell`** and **`:PyworksRunCellAdvance`** user commands for
+  `skip_keymaps` users — run the current cell in place, or run and advance
+  to the next cell (closes feedback on issue #4 — no wrapper existed for
+  running the current cell from Lua/commands)
+- **`require("pyworks.core.cell_engine").run_cell(opts)`** public Lua API.
+  Pass `{ advance = true }` to mirror Jupyter Shift+Enter behavior. Returns
+  `false` when no kernel is initialized or the cell is empty
+- Test coverage for `run_cell` (7 scenarios) and the two new user commands
+
 ### Changed
 
+- **`<leader>jj` / `<leader>jk` delegate to `cell_engine.run_cell()`**:
+  Both keymaps now call the public API instead of duplicating execution
+  logic in `keymaps.lua`. Single source of truth — keymap and command
+  behavior cannot drift
 - **Switched to maintained forks**: Dependencies (`jeryldev/molten-nvim`,
   `jeryldev/image.nvim`) are now declared in `lazy.lua` and installed automatically.
   Users only need `"jeryldev/pyworks.nvim"` in their config — no separate

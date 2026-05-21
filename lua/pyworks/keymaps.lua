@@ -445,39 +445,11 @@ function M.setup_buffer_keymaps()
 
 		-- Run current cell and move to next (classic Jupyter Shift+Enter behavior)
 		vim.keymap.set("n", "<leader>jj", function()
-			local bufnr = vim.api.nvim_get_current_buf()
-			if not vim.b[bufnr].molten_initialized then
-				vim.notify("No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
-				return
-			end
-
-			local cell_num = ui.get_current_cell_number()
-			ui.mark_cell_executed(cell_num)
-
-			-- Evaluate # %% delimited cell (works with or without existing Molten cell)
-			evaluate_percent_cell()
-
-			-- Defer navigation to allow evaluation to start
-			vim.defer_fn(function()
-				local found = vim.fn.search(cell_pattern(), "W")
-				if found == 0 then
-					vim.notify("Last cell", vim.log.levels.INFO)
-				else
-					ui.enter_cell(found, { insert_mode = false })
-				end
-			end, BUFFER_SETTLE_DELAY_MS)
+			get_cell_engine().run_cell({ advance = true })
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
 		vim.keymap.set("n", "<leader>jk", function()
-			local bufnr = vim.api.nvim_get_current_buf()
-			if not vim.b[bufnr].molten_initialized then
-				vim.notify("No kernel initialized. Press <leader>jl to auto-initialize.", vim.log.levels.WARN)
-				return
-			end
-
-			local cell_num = ui.get_current_cell_number()
-			ui.mark_cell_executed(cell_num)
-			evaluate_percent_cell()
+			get_cell_engine().run_cell()
 		end, vim.tbl_extend("force", opts, { desc = "Run cell (stay in place)" }))
 
 		-- ============================================================================
