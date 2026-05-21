@@ -4,6 +4,66 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-22
+
+### Added
+
+- **`molten.virt_text_max_lines` setup option**: The virtual-text output cap
+  (introduced in v0.2.0) is now user-configurable. Default remains `500`.
+  Example: `require("pyworks").setup({ molten = { virt_text_max_lines = 1000 } })`
+- **`vim.validate` parameter checks** on public `cell_engine` API
+  (`run_cell`, `configure`, `count_cells`, `get_cell_positions`) per
+  CLAUDE.md mandate. Misuse from external callers now fails fast with a
+  clear error
+- **`PyworksRunCell` / `PyworksRunCellAdvance` in integration test
+  expected-commands list** to prevent future regressions
+
+### Fixed
+
+- **`molten_virt_text_max_lines` set in two places**: De-duplicated the
+  cap so both call sites now read from a single config source. Previous
+  versions silently overrode `configure_dependencies()`'s value with a
+  hardcoded `500` later in `setup()`
+- **Empty notify prefix in `:PyworksNewPythonNotebook`**: Removed the
+  `"" .. json_err` / `"" .. write_err` concat which produced
+  notifications starting with an empty string
+- **Filename validation gaps in `:PyworksNewPythonNotebook`**: Directory
+  traversal (`..`) check and Windows-reserved backslash (`\`) check are
+  now part of `validate_filename` instead of an ad-hoc inline block, so
+  every notebook-creation entry point gets the same protection
+- **`processing_buffers` stuck on error in jupytext reader**: Wrapped
+  `read_notebook` body in `pcall` so the per-buffer "processing" flag is
+  always cleared, even if `nvim_buf_set_lines` or jupytext throws. Bug
+  could leave buffers unable to reload after a single failure
+- **Dead `search_flags` variable in `cell_engine.prev_cell`**: Removed
+  redundant branch that assigned the same value in both arms then never
+  used the variable
+
+### Changed
+
+- **Hot-path string concat in `concat_virt_text`**: Switched from
+  `text = text .. ...` accumulator to `table.concat` for the per-extmark
+  virtual-text join. Called every 150 ms during cell-completion polling
+  on large output cells; O(n²) → O(n)
+- **`<leader>jv` and `<leader>jg` use API calls instead of `normal!`**:
+  Visual-select-current-cell and go-to-cell-N now work from terminal
+  mode and avoid the `normal! <count>G` quirks. `<leader>jv` also
+  delegates boundary detection to `cell_engine.find_cell_boundaries`
+  (uses `bcnW` — accepts a marker at cursor position — matching the
+  rest of the cell engine)
+- **Raw `vim.notify(..., ERROR)` in `commands/create.lua` replaced with
+  `notifications.notify_error`**: Single consistent error pathway,
+  enables future error-handling work (rate limiting, history tracking)
+- **`create_floating_window` width is now adaptive**: Clamped to
+  `min(opts.width, columns - 4)` so `:PyworksHelp` and similar popups
+  remain visible on narrow terminals (≤100 cols)
+
+### Removed
+
+- **Dead `M.health` in `init.lua`**: `:checkhealth pyworks` was always
+  routed through `lua/pyworks/health.lua`. The duplicate definition in
+  `init.lua` was unused
+
 ## [0.2.0] - 2026-05-21
 
 ### Fixed

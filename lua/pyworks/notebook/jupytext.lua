@@ -220,57 +220,67 @@ local function read_notebook(bufnr, filepath)
 	-- Mark as processing to prevent recursion
 	processing_buffers[bufnr] = true
 
-	-- Disable swap file for this buffer to prevent E325 errors
-	vim.bo[bufnr].swapfile = false
+	-- Wrap the body in pcall so any unexpected error (failed buf_set_lines,
+	-- jupytext crash, etc.) doesn't leave the buffer stuck in "processing"
+	-- state and unable to reload. We always clear the flag in the finally
+	-- branch and re-raise the error so callers/autocmds see it.
+	local ok, err = pcall(function()
+		-- Disable swap file for this buffer to prevent E325 errors
+		vim.bo[bufnr].swapfile = false
 
-	-- Try to convert using jupytext
-	local content, err = convert_ipynb_to_percent(filepath)
+		-- Try to convert using jupytext
+		local content, convert_err = convert_ipynb_to_percent(filepath)
 
-	if content then
-		-- Successfully converted - set buffer content
-		local lines = vim.split(content, "\n", { plain = true })
-		-- Remove trailing empty line if present
-		if lines[#lines] == "" then
-			table.remove(lines)
-		end
+		if content then
+			-- Successfully converted - set buffer content
+			local lines = vim.split(content, "\n", { plain = true })
+			-- Remove trailing empty line if present
+			if lines[#lines] == "" then
+				table.remove(lines)
+			end
 
-		vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-		vim.bo[bufnr].filetype = "python"
-		vim.bo[bufnr].modified = false
+			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+			vim.bo[bufnr].filetype = "python"
+			vim.bo[bufnr].modified = false
 
-		-- Store original filepath for saving
-		vim.b[bufnr].pyworks_notebook_path = filepath
-		vim.b[bufnr].pyworks_notebook_loaded = true
-	else
-		-- Conversion failed - show JSON fallback with helpful message
-		local ok, file_content = pcall(vim.fn.readfile, filepath)
-		if ok then
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, file_content)
-			vim.bo[bufnr].filetype = "json"
-			vim.bo[bufnr].modifiable = false
-
-			vim.schedule(function()
-				notifications.notify("Notebook opened in JSON view (jupytext not available)", vim.log.levels.WARN)
-				if err then
-					notifications.notify("Error: " .. err, vim.log.levels.DEBUG)
-				end
-				notifications.notify("Run :PyworksSetup to install jupytext", vim.log.levels.INFO)
-			end)
+			-- Store original filepath for saving
+			vim.b[bufnr].pyworks_notebook_path = filepath
+			vim.b[bufnr].pyworks_notebook_loaded = true
 		else
-			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-				"Error: Could not read notebook file",
-				"",
-				"File: " .. filepath,
-				"",
-				"Run :PyworksSetup to configure Python environment",
-			})
-			vim.bo[bufnr].filetype = "text"
-			vim.bo[bufnr].modifiable = false
-		end
-	end
+			-- Conversion failed - show JSON fallback with helpful message
+			local read_ok, file_content = pcall(vim.fn.readfile, filepath)
+			if read_ok then
+				vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, file_content)
+				vim.bo[bufnr].filetype = "json"
+				vim.bo[bufnr].modifiable = false
 
-	-- Clear processing flag
+				vim.schedule(function()
+					notifications.notify("Notebook opened in JSON view (jupytext not available)", vim.log.levels.WARN)
+					if convert_err then
+						notifications.notify("Error: " .. convert_err, vim.log.levels.DEBUG)
+					end
+					notifications.notify("Run :PyworksSetup to install jupytext", vim.log.levels.INFO)
+				end)
+			else
+				vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+					"Error: Could not read notebook file",
+					"",
+					"File: " .. filepath,
+					"",
+					"Run :PyworksSetup to configure Python environment",
+				})
+				vim.bo[bufnr].filetype = "text"
+				vim.bo[bufnr].modifiable = false
+			end
+		end
+	end)
+
+	-- Always clear the processing flag, even on error
 	processing_buffers[bufnr] = nil
+
+	if not ok then
+		error(err)
+	end
 end
 
 -- Write notebook back to .ipynb format

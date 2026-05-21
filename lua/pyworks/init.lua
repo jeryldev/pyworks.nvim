@@ -49,6 +49,14 @@ local default_config = {
 		show_progress = true,
 		debug_mode = false,
 	},
+	molten = {
+		-- Cap on virtual-text output lines per cell. 500 covers a normal printed
+		-- DataFrame head, tracebacks, and model summaries without freezing
+		-- Neovim on tqdm-heavy output (e.g. HuggingFace datasets shard
+		-- extraction). Increase if you regularly need more inline; the
+		-- floating output window (:MoltenEnterOutput) is unbounded regardless.
+		virt_text_max_lines = 500,
+	},
 	cell_marker = "# %%", -- Cell delimiter pattern (e.g. "# COMMAND ----------" for Databricks)
 	auto_detect = true, -- Automatically detect and setup on file open
 	skip_keymaps = false, -- Skip all keymap setup (define your own)
@@ -97,6 +105,16 @@ local function validate_config(user_opts)
 		end
 	end
 
+	-- Check molten config
+	if user_opts.molten then
+		if
+			user_opts.molten.virt_text_max_lines ~= nil
+			and type(user_opts.molten.virt_text_max_lines) ~= "number"
+		then
+			table.insert(warnings, "molten.virt_text_max_lines should be a number")
+		end
+	end
+
 	-- Report warnings
 	if #warnings > 0 then
 		vim.notify("[Pyworks] Config warnings:\n- " .. table.concat(warnings, "\n- "), vim.log.levels.WARN)
@@ -114,7 +132,8 @@ function M.configure_dependencies(opts)
 		vim.g.molten_virt_text_output = true
 		vim.g.molten_virt_lines_off_by_1 = false
 		vim.g.molten_output_win_max_height = 40
-		vim.g.molten_virt_text_max_lines = 500
+		vim.g.molten_virt_text_max_lines = (opts.molten and opts.molten.virt_text_max_lines)
+			or default_config.molten.virt_text_max_lines
 		vim.g.molten_output_win_max_width = 999999
 		vim.g.molten_output_crop_border = true
 		vim.g.molten_wrap_output = true
@@ -190,7 +209,8 @@ function M.setup(opts)
 
 	-- Set molten globals early so they are available before kernel init.
 	-- These must be set before MoltenInit reads them.
-	vim.g.molten_virt_text_max_lines = 500
+	vim.g.molten_virt_text_max_lines = (opts.molten and opts.molten.virt_text_max_lines)
+		or default_config.molten.virt_text_max_lines
 	vim.g.molten_output_win_max_width = 999999
 
 	-- Ensure all dependencies are installed and configured
@@ -501,33 +521,6 @@ end, {
 -- Export configuration for other modules
 function M.get_config()
 	return config
-end
-
--- Health check function
-function M.health()
-	local health = vim.health or require("health")
-
-	health.start("Pyworks")
-
-	-- Check Python
-	local python = require("pyworks.languages.python")
-	if python.has_venv() then
-		health.ok("Python virtual environment found")
-	else
-		health.warn("No Python virtual environment found", {
-			"Will be created automatically when you open a Python file",
-		})
-	end
-
-	-- Check jupytext
-	local jupytext = require("pyworks.notebook.jupytext")
-	if jupytext.is_jupytext_installed() then
-		health.ok("Jupytext installed")
-	else
-		health.warn("Jupytext not installed", {
-			"Will be prompted to install when you open a notebook",
-		})
-	end
 end
 
 return M

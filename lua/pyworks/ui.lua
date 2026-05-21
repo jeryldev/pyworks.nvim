@@ -378,9 +378,10 @@ function M.create_floating_window(title, content, opts)
 	vim.bo[buf].bufhidden = "wipe"
 	vim.bo[buf].modifiable = false
 
-	-- Calculate window size
-	local width = opts.width or 100
-	local height = opts.height or #content
+	-- Calculate window size — clamp width to editor width minus a small
+	-- gutter so the window stays visible on narrow terminals.
+	local width = math.min(opts.width or 100, math.max(vim.o.columns - 4, 20))
+	local height = math.min(opts.height or #content, math.max(vim.o.lines - 4, 5))
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)
 

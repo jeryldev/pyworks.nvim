@@ -6,6 +6,7 @@ math.randomseed(vim.uv.hrtime())
 local cache = require("pyworks.core.cache")
 local error_handler = require("pyworks.core.error_handler")
 local jupytext = require("pyworks.notebook.jupytext")
+local notifications = require("pyworks.core.notifications")
 local python = require("pyworks.languages.python")
 local ui = require("pyworks.ui")
 local utils = require("pyworks.utils")
@@ -19,7 +20,7 @@ local function ensure_parent_dirs(filepath)
 	if parent ~= "." and parent ~= "" and vim.fn.isdirectory(parent) == 0 then
 		local ok = vim.fn.mkdir(parent, "p")
 		if ok == 0 then
-			vim.notify("Failed to create directory: " .. parent, vim.log.levels.ERROR)
+			notifications.notify_error("Failed to create directory: " .. parent)
 			return false
 		end
 	end
@@ -28,9 +29,15 @@ end
 
 -- Helper function to validate filename
 local function validate_filename(filename, extension)
-	-- Check for invalid characters
-	if filename:match("[<>:|?*]") then
-		vim.notify("Invalid filename: " .. filename, vim.log.levels.ERROR)
+	-- Check for invalid characters (cross-platform: Windows reserves \ too)
+	if filename:match("[<>:|?*\\]") then
+		notifications.notify_error("Invalid filename: " .. filename)
+		return nil
+	end
+
+	-- Reject directory traversal
+	if filename:match("%.%.") then
+		notifications.notify_error("Invalid filename: directory traversal not allowed")
 		return nil
 	end
 
@@ -66,13 +73,13 @@ local function create_file_with_template(filename, template_lines, filetype)
 	if filename then
 		ok, err = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(filename))
 		if not ok then
-			vim.notify("Failed to create file: " .. (err or "unknown error"), vim.log.levels.ERROR)
+			notifications.notify_error("Failed to create file: " .. (err or "unknown error"))
 			return false
 		end
 	else
 		ok, err = pcall(vim.cmd, "enew")
 		if not ok then
-			vim.notify("Failed to create new buffer: " .. (err or "unknown error"), vim.log.levels.ERROR)
+			notifications.notify_error("Failed to create new buffer: " .. (err or "unknown error"))
 			return false
 		end
 	end
@@ -80,7 +87,7 @@ local function create_file_with_template(filename, template_lines, filetype)
 	-- Add template content
 	ok, err = pcall(vim.api.nvim_buf_set_lines, 0, 0, -1, false, template_lines)
 	if not ok then
-		vim.notify("Failed to set template content: " .. (err or "unknown error"), vim.log.levels.ERROR)
+		notifications.notify_error("Failed to set template content: " .. (err or "unknown error"))
 		return false
 	end
 
@@ -272,13 +279,13 @@ local function create_ipynb_file(filename, language, kernel_info, imports)
 
 	local json_str, json_err = generate_notebook_json(kernel_info, imports)
 	if not json_str then
-		vim.notify("" .. json_err, vim.log.levels.ERROR)
+		notifications.notify_error(json_err)
 		return false
 	end
 
 	local write_ok, write_err = write_notebook_file(filename, json_str)
 	if not write_ok then
-		vim.notify("" .. write_err, vim.log.levels.ERROR)
+		notifications.notify_error(write_err)
 		return false
 	end
 
@@ -315,15 +322,8 @@ end
 vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 	local filename = opts.args ~= "" and opts.args or "notebook"
 
-	-- Check for invalid characters
-	if filename:match("[<>:|?*]") then
-		vim.notify("Invalid filename: " .. filename, vim.log.levels.ERROR)
-		return
-	end
-
-	-- Check for directory traversal attacks
-	if filename:match("%.%.") then
-		vim.notify("Invalid filename: directory traversal not allowed", vim.log.levels.ERROR)
+	filename = validate_filename(filename, "ipynb")
+	if not filename then
 		return
 	end
 

@@ -7,6 +7,7 @@ local config = {
 }
 
 function M.configure(opts)
+	vim.validate({ opts = { opts, "table", true } })
 	config = vim.tbl_deep_extend("force", config, opts or {})
 end
 
@@ -54,6 +55,7 @@ function M.find_cell_boundaries()
 end
 
 function M.count_cells(bufnr)
+	vim.validate({ bufnr = { bufnr, "number", true } })
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	local pattern = M.get_cell_pattern()
@@ -67,6 +69,7 @@ function M.count_cells(bufnr)
 end
 
 function M.get_cell_positions(bufnr)
+	vim.validate({ bufnr = { bufnr, "number", true } })
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 	local pattern = M.get_cell_pattern()
@@ -106,10 +109,6 @@ function M.prev_cell()
 		return false
 	end
 	local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-	local search_flags = "bnW"
-	if cursor_line == current_marker then
-		search_flags = "bnW"
-	end
 	vim.api.nvim_win_set_cursor(0, { current_marker, 0 })
 	local prev_marker = vim.fn.search(pattern, "bnW")
 	if prev_marker == 0 or prev_marker == current_marker then
@@ -210,6 +209,7 @@ end
 -- Returns true on success, false if there is no initialized kernel or the
 -- cell is empty.
 function M.run_cell(opts)
+	vim.validate({ opts = { opts, "table", true } })
 	opts = opts or {}
 	local bufnr = vim.api.nvim_get_current_buf()
 

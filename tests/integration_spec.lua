@@ -49,6 +49,8 @@ describe("integration", function()
 				"PyworksToggleCellType",
 				"PyworksMergeCellBelow",
 				"PyworksSplitCell",
+				"PyworksRunCell",
+				"PyworksRunCellAdvance",
 			}
 
 			for _, cmd in ipairs(expected_commands) do

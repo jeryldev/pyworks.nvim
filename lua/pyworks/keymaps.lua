@@ -81,13 +81,15 @@ vim.api.nvim_create_autocmd("BufEnter", {
 	desc = "Pyworks: Invalidate Molten namespace cache on buffer switch",
 })
 
--- Concatenate virtual text parts into a single string
+-- Concatenate virtual text parts into a single string.
+-- Called every 150ms during cell-completion polling; uses table.concat
+-- to avoid O(n^2) string-builder allocations on large extmark groups.
 local function concat_virt_text(virt_text)
-	local text = ""
-	for _, vt in ipairs(virt_text) do
-		text = text .. (vt[1] or "")
+	local parts = {}
+	for i, vt in ipairs(virt_text) do
+		parts[i] = vt[1] or ""
 	end
-	return text
+	return table.concat(parts)
 end
 
 -- Get Molten extmarks namespace ID (cached for performance in hot path)
@@ -594,64 +596,54 @@ function M.setup_buffer_keymaps()
 			end
 
 			local has_cells = vim.fn.search(cell_pattern(), "nw") > 0
+			local last_line = vim.api.nvim_buf_line_count(0)
 
+			local start_line, end_line
 			if has_cells then
-				local cell_start = vim.fn.search(cell_pattern(), "bnW")
-				if cell_start == 0 then
-					vim.cmd("normal! gg")
-				else
-					vim.cmd("normal! " .. cell_start .. "G")
-					vim.cmd("normal! j")
-				end
-
-				vim.cmd("normal! V")
-
-				local cell_end = vim.fn.search(cell_pattern(), "nW")
-				if cell_end == 0 then
-					vim.cmd("normal! G")
-				else
-					vim.cmd("normal! " .. cell_end .. "G")
-					vim.cmd("normal! k")
+				start_line, end_line = get_cell_engine().find_cell_boundaries()
+				if not start_line then
+					vim.notify("Empty cell", vim.log.levels.INFO)
+					return
 				end
 			else
-				vim.cmd("normal! ggVG")
+				start_line, end_line = 1, last_line
 				vim.notify("No cell markers found, selected entire file", vim.log.levels.INFO)
 			end
+
+			vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+			vim.cmd.normal({ "V", bang = true })
+			vim.api.nvim_win_set_cursor(0, { end_line, 0 })
 		end, vim.tbl_extend("force", opts, { desc = "Visual select current cell" }))
 
 		-- Go to cell N
 		vim.keymap.set("n", "<leader>jg", function()
 			vim.ui.input({ prompt = "Go to cell number: " }, function(input)
-				if input and input ~= "" then
-					local cell_num = tonumber(input)
-					if cell_num and cell_num > 0 then
-						local save_pos = vim.fn.getpos(".")
-						vim.cmd("normal! gg")
-
-						local cells_found = 0
-						for i = 1, cell_num do
-							local result = vim.fn.search(cell_pattern(), "W")
-							if result == 0 then
-								vim.fn.setpos(".", save_pos)
-								if cells_found == 0 then
-									vim.notify("No cells found in this file", vim.log.levels.WARN)
-								else
-									vim.notify(
-										string.format("Cell %d not found (only %d cells exist)", cell_num, cells_found),
-										vim.log.levels.WARN
-									)
-								end
-								return
-							end
-							cells_found = i
-						end
-
-						vim.cmd("normal! j")
-						vim.notify("Jumped to cell " .. cell_num, vim.log.levels.INFO)
-					else
-						vim.notify("Invalid cell number", vim.log.levels.ERROR)
-					end
+				if not input or input == "" then
+					return
 				end
+				local cell_num = tonumber(input)
+				if not cell_num or cell_num < 1 then
+					vim.notify("Invalid cell number", vim.log.levels.ERROR)
+					return
+				end
+
+				local positions = get_cell_engine().get_cell_positions(0)
+				if #positions == 0 then
+					vim.notify("No cells found in this file", vim.log.levels.WARN)
+					return
+				end
+				if cell_num > #positions then
+					vim.notify(
+						string.format("Cell %d not found (only %d cells exist)", cell_num, #positions),
+						vim.log.levels.WARN
+					)
+					return
+				end
+
+				local marker_line = positions[cell_num]
+				local target_line = math.min(marker_line + 1, vim.api.nvim_buf_line_count(0))
+				vim.api.nvim_win_set_cursor(0, { target_line, 0 })
+				vim.notify("Jumped to cell " .. cell_num, vim.log.levels.INFO)
 			end)
 		end, vim.tbl_extend("force", opts, { desc = "Go to cell N" }))
 
