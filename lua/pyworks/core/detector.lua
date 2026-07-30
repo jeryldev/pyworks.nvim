@@ -154,8 +154,8 @@ local function find_python_in_venv(venv_path, filepath)
 	return venv_path .. "/bin/python3"
 end
 
--- Find a kernel that matches the project's venv
-local function find_matching_kernel(venv_path, python_path)
+-- Registered kernelspecs, keyed by name, or nil if jupyter could not be queried
+function M.get_kernelspecs()
 	local kern_success, result, _ =
 		utils.system_with_timeout({ "jupyter", "kernelspec", "list", "--json" }, KERNEL_LIST_TIMEOUT_MS)
 	if not kern_success then
@@ -163,16 +163,40 @@ local function find_matching_kernel(venv_path, python_path)
 	end
 
 	local ok, data = pcall(vim.json.decode, result)
-	if not ok or not data.kernelspecs then
+	if not ok or type(data) ~= "table" or not data.kernelspecs then
 		return nil
 	end
 
-	for name, spec in pairs(data.kernelspecs) do
-		if spec.spec and spec.spec.language and spec.spec.language:lower() == "python" then
-			if spec.spec.argv and spec.spec.argv[1] then
-				local kernel_python = spec.spec.argv[1]
+	return data.kernelspecs
+end
 
-				if notifications.get_config().debug_mode then
+local function is_python_kernel(spec)
+	local language = spec and spec.spec and spec.spec.language
+	return type(language) == "string" and language:lower() == "python"
+end
+
+-- The interpreter a kernelspec launches (argv[1] of kernel.json)
+local function kernel_interpreter(spec)
+	local argv = spec and spec.spec and spec.spec.argv
+	return argv and argv[1] or nil
+end
+
+-- Name of the kernel matching this venv, or nil
+--
+-- A kernelspec registered with `ipykernel install --user` bakes an absolute
+-- interpreter path into kernel.json. Move the project or recreate .venv and the
+-- kernel still resolves by name while its python is gone: Molten attaches, no
+-- kernel process starts, and every cell sits on "* On Hold" with no error
+-- (issue #10). So a kernel only counts as a match if its interpreter still
+-- exists - otherwise the caller falls through to registering a fresh one.
+function M.select_matching_kernel(kernelspecs, venv_path, python_path)
+	local debug_mode = notifications.get_config().debug_mode
+
+	for name, spec in pairs(kernelspecs or {}) do
+		if is_python_kernel(spec) then
+			local kernel_python = kernel_interpreter(spec)
+			if kernel_python then
+				if debug_mode then
 					notifications.notify(
 						string.format("Kernel '%s' uses: %s", name, kernel_python),
 						vim.log.levels.DEBUG
@@ -180,11 +204,18 @@ local function find_matching_kernel(venv_path, python_path)
 				end
 
 				local is_exact_match = (kernel_python == python_path)
-				local is_venv_match = kernel_python:match("^" .. vim.pesc(venv_path))
+				local is_venv_match = kernel_python:match("^" .. vim.pesc(venv_path)) ~= nil
+
 				if is_exact_match or is_venv_match then
-					notifications.notify(string.format("Found kernel '%s'", name), vim.log.levels.INFO)
-					return name
-				elseif notifications.get_config().debug_mode then
+					if vim.fn.executable(kernel_python) == 1 then
+						notifications.notify(string.format("Found kernel '%s'", name), vim.log.levels.INFO)
+						return name
+					end
+					notifications.notify(
+						string.format("Ignoring stale kernel '%s': %s no longer exists", name, kernel_python),
+						vim.log.levels.WARN
+					)
+				elseif debug_mode then
 					notifications.notify(
 						string.format("Kernel '%s' uses %s, not %s", name, kernel_python, python_path),
 						vim.log.levels.DEBUG
@@ -195,6 +226,34 @@ local function find_matching_kernel(venv_path, python_path)
 	end
 
 	return nil
+end
+
+-- Python kernelspecs whose interpreter no longer exists, sorted by name
+function M.list_stale_kernels(kernelspecs)
+	local stale = {}
+
+	for name, spec in pairs(kernelspecs or {}) do
+		local kernel_python = is_python_kernel(spec) and kernel_interpreter(spec) or nil
+		if kernel_python and vim.fn.executable(kernel_python) == 0 then
+			table.insert(stale, { name = name, python = kernel_python })
+		end
+	end
+
+	table.sort(stale, function(a, b)
+		return a.name < b.name
+	end)
+
+	return stale
+end
+
+-- Find a kernel that matches the project's venv
+local function find_matching_kernel(venv_path, python_path)
+	local kernelspecs = M.get_kernelspecs()
+	if not kernelspecs then
+		return nil
+	end
+
+	return M.select_matching_kernel(kernelspecs, venv_path, python_path)
 end
 
 -- Create a new kernel for the project

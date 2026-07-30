@@ -43,10 +43,12 @@ function M.check()
 	local dependencies = require("pyworks.dependencies")
 	local dep_health = dependencies.check_health()
 	for _, status in ipairs(dep_health) do
+		-- Parenthesised so gsub's substitution count is not passed along as the
+		-- second argument (health.ok takes advice there)
 		if status:match("^OK:") then
-			health.ok(status:gsub("^OK: ", ""))
+			health.ok((status:gsub("^OK: ", "")))
 		else
-			health.error(status:gsub("^ERROR: ", ""), {
+			health.error((status:gsub("^ERROR: ", "")), {
 				"Run :PyworksDiagnostics for detailed status",
 				"Or manually install the missing dependency",
 			})
@@ -97,6 +99,36 @@ function M.check()
 			"Will prompt to install when you open a .ipynb file",
 			"Or install manually with: pip install jupytext",
 		})
+	end
+
+	health.start("Jupyter Kernels")
+
+	-- A kernelspec keeps an absolute interpreter path. When a project moves or
+	-- .venv is recreated the kernel still resolves by name but its python is
+	-- gone, and Molten hangs every cell on "* On Hold" with no error (issue #10).
+	local detector = require("pyworks.core.detector")
+	local kernelspecs = detector.get_kernelspecs()
+	if kernelspecs == nil then
+		health.info("Could not list Jupyter kernels", {
+			"The 'jupyter' command is not on PATH or failed",
+			"Kernels are registered automatically when you open a Python file",
+		})
+	else
+		local stale = detector.list_stale_kernels(kernelspecs)
+		if #stale == 0 then
+			health.ok("All Python kernels point at an existing interpreter")
+		else
+			for _, kernel in ipairs(stale) do
+				health.warn(
+					string.format("Kernel '%s' points at a missing interpreter: %s", kernel.name, kernel.python),
+					{
+						"Cells will sit on '* On Hold' forever if this kernel is used",
+						string.format("Remove it with: jupyter kernelspec remove %s", kernel.name),
+						"Pyworks skips stale kernels and registers a fresh one for the project venv",
+					}
+				)
+			end
+		end
 	end
 
 	health.start("Configuration")

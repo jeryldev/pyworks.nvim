@@ -4,6 +4,89 @@
 local detector = require("pyworks.core.detector")
 
 describe("detector", function()
+	-- A kernelspec registered with `ipykernel install --user` bakes the absolute
+	-- venv python path into kernel.json. Move the project or recreate .venv and
+	-- the kernel still resolves by name while its interpreter is gone: Molten
+	-- attaches, no kernel process starts, and every cell sits on "* On Hold".
+	-- See issue #10.
+	describe("kernelspec interpreter validation", function()
+		local tmpdir, live_python
+
+		local function kernelspec(python_path)
+			return {
+				spec = {
+					language = "python",
+					argv = { python_path, "-m", "ipykernel_launcher", "-f", "{connection_file}" },
+				},
+			}
+		end
+
+		before_each(function()
+			tmpdir = vim.fn.tempname()
+			vim.fn.mkdir(tmpdir .. "/.venv/bin", "p")
+			live_python = tmpdir .. "/.venv/bin/python"
+			-- Symlink a real interpreter so executable() reports it honestly
+			vim.uv.fs_symlink(vim.fn.exepath("python3"), live_python)
+		end)
+
+		after_each(function()
+			vim.fn.delete(tmpdir, "rf")
+		end)
+
+		describe("select_matching_kernel", function()
+			it("should return a kernel whose interpreter exists in the venv", function()
+				local specs = { project_kernel = kernelspec(live_python) }
+
+				local name = detector.select_matching_kernel(specs, tmpdir .. "/.venv", live_python)
+
+				assert.are.equal("project_kernel", name)
+			end)
+
+			it("should not return a kernel whose interpreter no longer exists", function()
+				local moved_python = tmpdir .. "/.venv/bin/python-gone"
+				local specs = { stale_kernel = kernelspec(moved_python) }
+
+				local name = detector.select_matching_kernel(specs, tmpdir .. "/.venv", moved_python)
+
+				assert.is_nil(name)
+			end)
+
+			it("should pick the healthy kernel when a stale one also matches", function()
+				local specs = {
+					stale_kernel = kernelspec(tmpdir .. "/.venv/bin/python-gone"),
+					project_kernel = kernelspec(live_python),
+				}
+
+				local name = detector.select_matching_kernel(specs, tmpdir .. "/.venv", live_python)
+
+				assert.are.equal("project_kernel", name)
+			end)
+		end)
+
+		describe("list_stale_kernels", function()
+			it("should report kernels whose interpreter is missing", function()
+				local specs = {
+					stale_kernel = kernelspec("/nonexistent/venv/bin/python"),
+					project_kernel = kernelspec(live_python),
+				}
+
+				local stale = detector.list_stale_kernels(specs)
+
+				assert.are.equal(1, #stale)
+				assert.are.equal("stale_kernel", stale[1].name)
+				assert.are.equal("/nonexistent/venv/bin/python", stale[1].python)
+			end)
+
+			it("should report nothing when every kernel interpreter exists", function()
+				local specs = { project_kernel = kernelspec(live_python) }
+
+				local stale = detector.list_stale_kernels(specs)
+
+				assert.are.equal(0, #stale)
+			end)
+		end)
+	end)
+
 	describe("get_kernel_for_language", function()
 		it("should return nil when no kernel found and ipykernel missing", function()
 			-- This test requires mocking jupyter kernel list

@@ -74,6 +74,31 @@ local function check_python_dependencies()
 	return results
 end
 
+-- Check registered kernels for interpreters that no longer exist (issue #10)
+local function check_kernels()
+	local results = {}
+	local detector = require("pyworks.core.detector")
+
+	local kernelspecs = detector.get_kernelspecs()
+	if kernelspecs == nil then
+		table.insert(results, "  kernel list: UNAVAILABLE (jupyter not on PATH or failed)")
+		return results
+	end
+
+	local stale = detector.list_stale_kernels(kernelspecs)
+	if #stale == 0 then
+		table.insert(results, "  kernel interpreters: OK (all exist)")
+		return results
+	end
+
+	for _, kernel in ipairs(stale) do
+		table.insert(results, string.format("  kernel '%s': STALE - %s no longer exists", kernel.name, kernel.python))
+	end
+	table.insert(results, "  (stale kernels leave cells on '* On Hold'; pyworks skips them)")
+
+	return results
+end
+
 function M.run_diagnostics()
 	local report = {}
 
@@ -148,6 +173,13 @@ function M.run_diagnostics()
 	table.insert(report, "Python Dependencies:")
 	local python_results = check_python_dependencies()
 	for _, line in ipairs(python_results) do
+		table.insert(report, line)
+	end
+
+	-- Jupyter Kernels
+	table.insert(report, "")
+	table.insert(report, "Jupyter Kernels:")
+	for _, line in ipairs(check_kernels()) do
 		table.insert(report, line)
 	end
 
