@@ -118,10 +118,7 @@ local function validate_config(user_opts)
 
 	-- Check molten config
 	if user_opts.molten then
-		if
-			user_opts.molten.virt_text_max_lines ~= nil
-			and type(user_opts.molten.virt_text_max_lines) ~= "number"
-		then
+		if user_opts.molten.virt_text_max_lines ~= nil and type(user_opts.molten.virt_text_max_lines) ~= "number" then
 			table.insert(warnings, "molten.virt_text_max_lines should be a number")
 		end
 	end

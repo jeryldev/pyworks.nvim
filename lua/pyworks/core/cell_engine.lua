@@ -214,10 +214,7 @@ function M.run_cell(opts)
 	local bufnr = vim.api.nvim_get_current_buf()
 
 	if not vim.b[bufnr].molten_initialized then
-		vim.notify(
-			"No kernel initialized. Run :PyworksSetup or press <leader>jl first.",
-			vim.log.levels.WARN
-		)
+		vim.notify("No kernel initialized. Run :PyworksSetup or press <leader>jl first.", vim.log.levels.WARN)
 		return false
 	end
 
