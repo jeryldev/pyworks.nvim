@@ -190,6 +190,36 @@ describe("pyworks", function()
 			assert.is_true(contains(essentials, "jupyterlab"), "python module should install jupyterlab")
 		end)
 
+		-- vim.tbl_deep_extend merges arrays index-wise, so a shorter user list
+		-- used to leave the tail of the defaults behind: setting
+		-- essentials = { "pynvim" } still installed jupyterlab, numpy, pandas...
+		it("should replace the essentials list instead of merging it index-wise", function()
+			local pyworks = require("pyworks")
+			pyworks.setup({ python = { essentials = { "pynvim" } } })
+
+			local essentials = pyworks.get_config().python.essentials
+
+			assert.are.same({ "pynvim" }, essentials)
+		end)
+
+		it("should hand the replaced list to the python module", function()
+			local pyworks = require("pyworks")
+			pyworks.setup({ python = { essentials = { "pynvim", "ipykernel" } } })
+
+			local essentials = require("pyworks.languages.python").get_essentials()
+
+			assert.are.same({ "pynvim", "ipykernel" }, essentials)
+		end)
+
+		it("should replace custom_package_prefixes instead of merging it", function()
+			local pyworks = require("pyworks")
+			pyworks.setup({ packages = { custom_package_prefixes = { "^acme_" } } })
+
+			local prefixes = pyworks.get_config().packages.custom_package_prefixes
+
+			assert.are.same({ "^acme_" }, prefixes)
+		end)
+
 		it("should include jupyterlab even when setup() was never called", function()
 			package.loaded["pyworks.languages.python"] = nil
 			local python = require("pyworks.languages.python")
