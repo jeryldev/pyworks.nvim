@@ -4,6 +4,36 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-31
+
+### Added
+
+- **`jupyterlab` in the default essentials**: creating a notebook (or any
+  environment setup) now installs JupyterLab into the project venv, so the
+  same project opens in the browser with `.venv/bin/jupyter lab`. The
+  kernel is the venv's own `ipykernel`, shared with Molten inside Neovim,
+  and the `jupyterlab_jupytext` server extension loads automatically so
+  `# %%` scripts open as notebooks in Lab too. Costs ~94 MB on top of the
+  previous essentials (188 MB -> 282 MB measured). Opt out by passing your
+  own `python.essentials` list
+- **`python.get_essentials()`**: returns the effective essentials list, so
+  the set installed on notebook creation is inspectable
+
+### Fixed
+
+- **Run-all (`<leader>jR`) executed the wrong cell and never skipped
+  markdown** (#10): run-all parks the cursor on the cell marker line, but
+  `is_markdown_cell` and `evaluate_percent_cell` searched backwards with
+  `"bnW"`. Without the `c` flag a match at the cursor is rejected, so both
+  read the *previous* marker - markdown cells were executed and then
+  waited on for the full 30s timeout, and the evaluated range spanned the
+  previous cell plus the current one. Both now delegate to `cell_engine`,
+  which searches with `"bcnW"`
+- **Run-all skipped the first cell when line 1 is a marker**: navigation
+  searched forward N times from line 1, which excludes a match on line 1
+  and ran cell N+1 for every N. Cells are now indexed directly by marker
+  position
+
 ## [0.3.0] - 2026-05-22
 
 ### Added
