@@ -260,7 +260,7 @@ All settings are optional. Here are the available options with their defaults:
         preferred_venv_name = ".venv",
         auto_install_essentials = true,
         essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext",
-                       "numpy", "pandas", "matplotlib" },
+                       "jupyterlab", "numpy", "pandas", "matplotlib" },
       },
 
       -- Package detection settings

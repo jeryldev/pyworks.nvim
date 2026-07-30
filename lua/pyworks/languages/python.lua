@@ -53,12 +53,18 @@ local config = {
 		"ipykernel",
 		"jupyter_client",
 		"jupytext",
+		"jupyterlab",
 	},
 }
 
 -- Configure Python module
 function M.configure(opts)
 	config = vim.tbl_deep_extend("force", config, opts or {})
+end
+
+-- Essential packages installed into a project venv (e.g. on notebook creation)
+function M.get_essentials()
+	return config.essentials
 end
 
 -- Setup Python host for Neovim

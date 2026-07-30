@@ -156,4 +156,48 @@ describe("pyworks", function()
 			assert.equals(".venv", config.python.preferred_venv_name, "defaults should be preserved")
 		end)
 	end)
+
+	-- Creating a notebook installs the essentials into the project venv, so the
+	-- Jupyter toolchain has to be in that list: jupytext to open .ipynb inside
+	-- Neovim, jupyterlab to open the same notebook in the browser.
+	describe("default python essentials", function()
+		local function contains(list, value)
+			for _, item in ipairs(list) do
+				if item == value then
+					return true
+				end
+			end
+			return false
+		end
+
+		it("should include the jupyter toolchain needed to open notebooks", function()
+			local pyworks = require("pyworks")
+			pyworks.setup()
+
+			local essentials = pyworks.get_config().python.essentials
+
+			assert.is_true(contains(essentials, "jupytext"), "essentials should include jupytext")
+			assert.is_true(contains(essentials, "jupyterlab"), "essentials should include jupyterlab")
+		end)
+
+		it("should hand the jupyter toolchain to the python module", function()
+			local pyworks = require("pyworks")
+			pyworks.setup()
+
+			local essentials = require("pyworks.languages.python").get_essentials()
+
+			assert.is_true(contains(essentials, "jupytext"), "python module should install jupytext")
+			assert.is_true(contains(essentials, "jupyterlab"), "python module should install jupyterlab")
+		end)
+
+		it("should include jupyterlab even when setup() was never called", function()
+			package.loaded["pyworks.languages.python"] = nil
+			local python = require("pyworks.languages.python")
+
+			local essentials = python.get_essentials()
+
+			assert.is_true(contains(essentials, "jupytext"), "module default should include jupytext")
+			assert.is_true(contains(essentials, "jupyterlab"), "module default should include jupyterlab")
+		end)
+	end)
 end)

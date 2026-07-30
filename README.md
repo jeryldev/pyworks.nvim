@@ -70,6 +70,15 @@ For inline plot/image display:
 " → Creates report.ipynb
 ```
 
+Creating either one sets up `.venv` and installs the essentials, which include
+`jupyterlab`. The same project therefore opens in the browser without extra
+setup — the kernel is the venv's own `ipykernel`, so Neovim and the browser
+share one environment:
+
+```bash
+.venv/bin/jupyter lab      # or: source .venv/bin/activate && jupyter lab
+```
+
 ### Typical Workflow
 
 1. **Create a notebook**:
@@ -225,7 +234,12 @@ require("pyworks").setup({
     use_uv = true,                -- Use uv for faster package management (10-100x faster than pip)
     preferred_venv_name = ".venv",
     auto_install_essentials = true,
-    essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
+    -- jupytext opens .ipynb in Neovim; jupyterlab lets you open the same
+    -- project in the browser with `.venv/bin/jupyter lab`
+    essentials = {
+      "pynvim", "ipykernel", "jupyter_client", "jupytext", "jupyterlab",
+      "numpy", "pandas", "matplotlib",
+    },
   },
 
   -- Package detection settings

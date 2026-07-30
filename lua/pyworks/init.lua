@@ -23,7 +23,18 @@ local default_config = {
 		use_uv = true, -- Use uv for faster package management (10-100x faster than pip)
 		preferred_venv_name = ".venv",
 		auto_install_essentials = true,
-		essentials = { "pynvim", "ipykernel", "jupyter_client", "jupytext", "numpy", "pandas", "matplotlib" },
+		-- jupytext opens .ipynb inside Neovim; jupyterlab gives the same venv a
+		-- browser UI (`jupyter lab`) sharing the ipykernel kernelspec.
+		essentials = {
+			"pynvim",
+			"ipykernel",
+			"jupyter_client",
+			"jupytext",
+			"jupyterlab",
+			"numpy",
+			"pandas",
+			"matplotlib",
+		},
 	},
 	packages = {
 		custom_package_prefixes = {
