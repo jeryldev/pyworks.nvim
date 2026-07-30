@@ -107,6 +107,74 @@ describe("keymaps", function()
 
 			assert.is_false(result)
 		end)
+
+		-- Regression (issue #10): run-all parks the cursor on the marker line.
+		-- A backward search without the 'c' flag rejects a match at the cursor and
+		-- reports the PREVIOUS marker, so markdown cells were executed and then
+		-- waited on for the full 30s timeout.
+		it("should detect markdown when cursor is on the marker line", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %% [markdown]",
+				"# This is markdown",
+			})
+			vim.api.nvim_win_set_cursor(0, { 1, 0 })
+
+			local result = keymaps._is_markdown_cell()
+
+			assert.is_true(result)
+		end)
+
+		it("should detect a markdown cell following a code cell from its marker line", function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %%",
+				"print('code')",
+				"# %% [markdown]",
+				"# notes",
+			})
+			vim.api.nvim_win_set_cursor(0, { 3, 0 })
+
+			local result = keymaps._is_markdown_cell()
+
+			assert.is_true(result)
+		end)
+	end)
+
+	-- Regression (issue #10): run-all used to navigate by repeated forward
+	-- search from line 1, which skips a marker sitting on line 1 and therefore
+	-- ran cell N+1 for every N.
+	describe("_focus_cell", function()
+		before_each(function()
+			vim.api.nvim_buf_set_lines(test_bufnr, 0, -1, false, {
+				"# %%",
+				"print(1)",
+				"# %% [markdown]",
+				"# notes",
+				"# %%",
+				"print(2)",
+			})
+		end)
+
+		it("should focus the first cell when line 1 is a marker", function()
+			assert.are.equal(1, keymaps._focus_cell(1))
+			assert.are.equal(1, vim.api.nvim_win_get_cursor(0)[1])
+		end)
+
+		it("should focus each subsequent cell marker", function()
+			assert.are.equal(3, keymaps._focus_cell(2))
+			assert.are.equal(5, keymaps._focus_cell(3))
+		end)
+
+		it("should return nil for a cell number that does not exist", function()
+			assert.is_nil(keymaps._focus_cell(4))
+		end)
+
+		it("should leave the cursor where markdown detection sees the right cell", function()
+			keymaps._focus_cell(2)
+			assert.is_true(keymaps._is_markdown_cell())
+
+			keymaps._focus_cell(3)
+			assert.is_false(keymaps._is_markdown_cell())
+		end)
 	end)
 
 	-- CRITICAL: Tests for namespace lookup to prevent regression of the bug where

@@ -306,13 +306,25 @@ local function wait_for_cell_completion(bufnr, callback)
 end
 
 -- Check if current cell is a markdown cell (no executable code)
+-- Delegates to cell_engine, whose backward search accepts a match at the cursor
+-- ("bcnW"). That matters because run-all parks the cursor on the marker line:
+-- a search without 'c' reports the previous marker and misclassifies the cell.
 local function is_markdown_cell()
-	local cell_start = vim.fn.search(cell_pattern(), "bnW")
-	if cell_start == 0 then
-		return false
+	return get_cell_engine().is_markdown_cell()
+end
+
+-- Move the cursor to the marker line of cell N (1-indexed)
+-- Indexing marker positions directly avoids the off-by-one of repeated forward
+-- searches from line 1, which skip a marker sitting on line 1.
+-- Returns the marker line, or nil if that cell does not exist.
+local function focus_cell(cell_num)
+	local positions = get_cell_engine().get_cell_positions(0)
+	local marker_line = positions[cell_num]
+	if not marker_line then
+		return nil
 	end
-	local line = vim.fn.getline(cell_start)
-	return line:match("%[markdown%]") ~= nil
+	vim.api.nvim_win_set_cursor(0, { marker_line, 0 })
+	return marker_line
 end
 
 -- Suppress Molten events during navigation (workaround for Molten extmark bug)
@@ -331,32 +343,13 @@ end
 -- This creates a Molten cell if one doesn't exist yet
 -- Returns start_line, end_line of the executed cell (or nil if empty/error)
 local function evaluate_percent_cell()
-	-- Find cell boundaries
-	local cell_start = vim.fn.search(cell_pattern(), "bnW") -- Search backwards for cell start
-	local cell_end = vim.fn.search(cell_pattern(), "nW") -- Search forwards for next cell start
-
-	local start_line, end_line
-
-	if cell_start == 0 and cell_end == 0 then
-		-- No cell markers found, evaluate entire file
-		start_line = 1
-		end_line = vim.fn.line("$")
-	elseif cell_start == 0 then
-		-- Before first cell marker, select from start to line before first marker
-		start_line = 1
-		end_line = cell_end - 1
-	elseif cell_end == 0 then
-		-- After last cell marker, select from line after marker to end
-		start_line = cell_start + 1
-		end_line = vim.fn.line("$")
-	else
-		-- Between markers: from line after first marker to line before next marker
-		start_line = cell_start + 1
-		end_line = cell_end - 1
-	end
+	-- Boundaries come from cell_engine so the cursor's own marker line counts as
+	-- the cell start. Computing them here with a "bnW" search made the range span
+	-- the previous cell whenever the cursor sat on a marker (as run-all does).
+	local start_line, end_line = get_cell_engine().find_cell_boundaries()
 
 	-- Ensure we have valid content to execute (not just empty lines or markers)
-	if start_line > end_line then
+	if not start_line then
 		vim.notify("Empty cell", vim.log.levels.WARN)
 		return nil, nil
 	end
@@ -463,7 +456,7 @@ function M.setup_buffer_keymaps()
 		-- 1. Count all cell markers in the buffer
 		-- 2. Start recursive execution with run_next_cell(1)
 		-- 3. For each cell:
-		--    a. Navigate to the cell (search from line 1, N times for cell N)
+		--    a. Navigate to the cell (jump straight to the Nth marker position)
 		--    b. Execute the cell code via Molten
 		--    c. Poll for completion by watching Molten's extmarks for "Out[N]: ✓ Done"
 		--    d. On completion (or 30s timeout), proceed to next cell
@@ -489,13 +482,7 @@ function M.setup_buffer_keymaps()
 			end
 
 			-- Step 1: Count all cells in the buffer
-			local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-			local cell_count = 0
-			for _, line in ipairs(lines) do
-				if line:match(get_cell_engine().get_cell_pattern()) then
-					cell_count = cell_count + 1
-				end
-			end
+			local cell_count = get_cell_engine().count_cells(bufnr)
 
 			if cell_count == 0 then
 				vim.notify("No cells found in buffer", vim.log.levels.WARN)
@@ -529,14 +516,19 @@ function M.setup_buffer_keymaps()
 					return
 				end
 
-				-- Navigate to target cell: go to line 1, then search forward N times
-				-- This ensures we always find the Nth cell regardless of cursor position
+				-- Navigate to target cell by marker position, regardless of where the
+				-- cursor currently is. The cursor lands ON the marker line; both the
+				-- markdown check and the boundary lookup below accept that.
+				local focused
 				with_suppressed_events(function()
-					vim.api.nvim_win_set_cursor(0, { 1, 0 })
-					for _ = 1, cell_num do
-						vim.fn.search(cell_pattern(), "W")
-					end
+					focused = focus_cell(cell_num)
 				end)
+
+				if not focused then
+					-- Cell disappeared (buffer edited mid-run) - stop cleanly
+					vim.notify(string.format("Cell %d no longer exists, stopping", cell_num), vim.log.levels.WARN)
+					return
+				end
 
 				-- Skip markdown cells (no executable code, no output expected)
 				if is_markdown_cell() then
@@ -823,6 +815,7 @@ end
 -- Export internal functions for testing
 M._get_highest_completed_output = get_highest_completed_output
 M._is_markdown_cell = is_markdown_cell
+M._focus_cell = focus_cell
 M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
 M._get_molten_namespace = get_molten_namespace
