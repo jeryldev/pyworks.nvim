@@ -362,7 +362,7 @@ plugin/pyworks.lua          Entry point: autocmds (FileType, BufWinEnter, Sessio
 ### Common Issues
 
 **Q: `:PyworksDiagnostics` command not found**
-A: Fixed in v3.0.3. Update to the latest version. The command was previously registered in a module that wasn't loaded during startup.
+A: Fixed in a past release — update to the latest version. The command was previously registered in a module that wasn't loaded during startup.
 
 **Q: "No kernel initialized" warning when using `<leader>jj`**
 A: Press `<leader>jl` first to auto-initialize the kernel for the current file type.

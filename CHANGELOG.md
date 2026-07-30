@@ -4,6 +4,35 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Stale kernel detection** (#10): a kernelspec registered by
+  `ipykernel install --user` bakes an absolute interpreter path into
+  `kernel.json`. Move the project or recreate `.venv` and the kernel still
+  resolves by name while its python is gone - Molten attaches, no kernel
+  process starts, and every cell sits on `* On Hold` with no error.
+  Pyworks now:
+  - refuses to select a kernel whose interpreter no longer exists, falling
+    through to registering a fresh one for the project venv
+    (`detector.select_matching_kernel`)
+  - reports stale kernels in `:checkhealth pyworks` under a new
+    **Jupyter Kernels** section, instead of reporting all-green
+  - lists them in `:PyworksDiagnostics` with the removal command
+- **`detector.get_kernelspecs()` / `detector.list_stale_kernels()`**: the
+  kernelspec query and staleness scan are now public and unit-tested
+- **`stylua.toml`**: the formatting contract (tabs, 120 columns) is declared
+  instead of relying on stylua's defaults, which a release could change
+
+### Fixed
+
+- **CI linters tracked "latest"**: both stylua and selene were installed from
+  the newest upstream release, so an upstream change could turn CI red with no
+  change to this repo. Both are now pinned (stylua v2.5.2, selene 0.31.0).
+  The formatting job had in fact been failing since before v0.2.0, which also
+  meant the selene step never ran
+- **`health.lua` passed `gsub`'s substitution count** as the advice argument to
+  `health.ok` / `health.error`
+
 ## [0.4.0] - 2026-07-31
 
 ### Added
