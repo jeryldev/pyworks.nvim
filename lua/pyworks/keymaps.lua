@@ -603,6 +603,9 @@ function M.setup_buffer_keymaps()
 			end
 
 			vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+			-- vim.cmd.<name>() takes args positionally and opts by key, so the
+			-- mixed table is the documented shape - not an accident.
+			-- selene: allow(mixed_table)
 			vim.cmd.normal({ "V", bang = true })
 			vim.api.nvim_win_set_cursor(0, { end_line, 0 })
 		end, vim.tbl_extend("force", opts, { desc = "Visual select current cell" }))
