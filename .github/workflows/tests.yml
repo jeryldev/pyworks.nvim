@@ -79,9 +79,14 @@ jobs:
           tar xzf nvim-linux-x86_64.tar.gz
           echo "$PWD/nvim-linux-x86_64/bin" >> $GITHUB_PATH
 
+      # Both linters are pinned: tracking "latest" means an upstream release can
+      # turn CI red without a single change to this repo, which is how the
+      # formatting job silently rotted for several releases.
       - name: Install Stylua
+        env:
+          STYLUA_VERSION: v2.5.2
         run: |
-          wget -q https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip
+          wget -q "https://github.com/JohnnyMorganz/StyLua/releases/download/${STYLUA_VERSION}/stylua-linux-x86_64.zip"
           unzip stylua-linux-x86_64.zip
           chmod +x stylua
           sudo mv stylua /usr/local/bin/
@@ -91,8 +96,9 @@ jobs:
           stylua --check lua/ tests/
 
       - name: Install Selene
+        env:
+          SELENE_VERSION: 0.31.0
         run: |
-          SELENE_VERSION=$(curl -sL https://api.github.com/repos/Kampfkarren/selene/releases/latest | jq -r '.tag_name')
           SELENE_URL="https://github.com/Kampfkarren/selene/releases/download/${SELENE_VERSION}/selene-${SELENE_VERSION}-linux.zip"
           wget -q "$SELENE_URL"
           unzip "selene-${SELENE_VERSION}-linux.zip"
