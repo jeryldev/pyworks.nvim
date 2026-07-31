@@ -25,6 +25,16 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ### Fixed
 
+- **First cell hung on `* On Hold` forever** (#10): `<leader>jl` auto-initialised
+  the kernel and then evaluated 100 ms later. Molten does not consume any kernel
+  message until `jupyter_client`'s `wait_for_ready()` returns, and that call
+  ends by flushing the IOPub channel - so a cell submitted during kernel startup
+  has its `execute_input` / `status` messages drained before Molten sees them,
+  and the output sits on `* On Hold` forever with a healthy kernel and no error.
+  Reproduced against ipykernel 7.3.0 / jupyter_client 8.9.1: the same execution
+  reaches `DONE` when sent after readiness and stays at `HOLD` when sent before.
+  The first evaluation now waits for Molten's `User MoltenKernelReady` event
+  (with a 30s fallback) instead of a fixed delay
 - **CI linters tracked "latest"**: both stylua and selene were installed from
   the newest upstream release, so an upstream change could turn CI red with no
   change to this repo. Both are now pinned (stylua v2.5.2, selene 0.31.0).

@@ -24,6 +24,7 @@ end
 local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
+local KERNEL_READY_TIMEOUT_MS = 30000 -- Give up waiting for MoltenKernelReady after 30s
 
 -- Debug log file (set vim.g.pyworks_debug_file = "/tmp/pyworks.log" to enable)
 local function debug_log(msg)
@@ -313,6 +314,58 @@ local function is_markdown_cell()
 	return get_cell_engine().is_markdown_cell()
 end
 
+-- Run fn once Molten's kernel is actually ready
+--
+-- Molten only starts consuming kernel messages after jupyter_client's
+-- wait_for_ready() returns, and that call ends by flushing the IOPub channel
+-- (jupyter_client/client.py, "Flush IOPub channel"). Anything evaluated during
+-- the startup window therefore has its execute_input/status messages drained
+-- before Molten can see them, and the cell sits on "* On Hold" forever with a
+-- perfectly healthy kernel and no error anywhere (issue #10).
+--
+-- Molten fires User MoltenKernelReady at exactly the not-ready -> ready
+-- transition, so waiting for the event is the only safe gate; a fixed delay is
+-- a race against kernel startup, which takes seconds on a cold interpreter.
+local function run_when_kernel_ready(bufnr, fn, opts)
+	opts = opts or {}
+	local timeout_ms = opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
+	local done = false
+
+	local function run_once()
+		if done then
+			return
+		end
+		done = true
+		fn()
+	end
+
+	vim.api.nvim_create_autocmd("User", {
+		pattern = "MoltenKernelReady",
+		once = true,
+		callback = function()
+			vim.schedule(run_once)
+		end,
+	})
+
+	-- Last resort so a missing event (older Molten, failed init) cannot hang the
+	-- keymap forever. Evaluating late is still better than never evaluating.
+	local timer = vim.uv.new_timer()
+	timer:start(
+		timeout_ms,
+		0,
+		vim.schedule_wrap(function()
+			if not timer:is_closing() then
+				timer:stop()
+				timer:close()
+			end
+			if not done and vim.api.nvim_buf_is_valid(bufnr) then
+				vim.notify("Kernel did not report ready; running anyway", vim.log.levels.WARN)
+				run_once()
+			end
+		end)
+	)
+end
+
 -- Move the cursor to the marker line of cell N (1-indexed)
 -- Indexing marker positions directly avoids the off-by-one of repeated forward
 -- searches from line 1, which skip a marker sitting on line 1.
@@ -397,8 +450,10 @@ function M.setup_buffer_keymaps()
 						vim.b[bufnr].molten_initialized = true
 					end
 
-					-- Defer execution to allow kernel initialization to complete
-					vim.defer_fn(function()
+					-- Wait for the kernel to report ready before evaluating: a cell
+					-- sent during startup is silently swallowed and hangs on
+					-- "* On Hold" forever (see run_when_kernel_ready)
+					run_when_kernel_ready(bufnr, function()
 						error_handler.protected_call(vim.cmd, "Failed to evaluate line", "MoltenEvaluateLine")
 						local cursor = vim.api.nvim_win_get_cursor(0)
 						local next_line = cursor[1] + 1
@@ -406,7 +461,7 @@ function M.setup_buffer_keymaps()
 						if next_line <= last_line then
 							vim.api.nvim_win_set_cursor(0, { next_line, cursor[2] })
 						end
-					end, BUFFER_SETTLE_DELAY_MS)
+					end)
 					return
 				end
 			end
@@ -819,6 +874,7 @@ end
 M._get_highest_completed_output = get_highest_completed_output
 M._is_markdown_cell = is_markdown_cell
 M._focus_cell = focus_cell
+M._run_when_kernel_ready = run_when_kernel_ready
 M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
 M._get_molten_namespace = get_molten_namespace

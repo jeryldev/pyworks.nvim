@@ -139,6 +139,72 @@ describe("keymaps", function()
 		end)
 	end)
 
+	-- Regression (issue #10): a cell submitted before Molten finishes
+	-- jupyter_client's wait_for_ready() is lost - that call ends by flushing the
+	-- IOPub channel, so the cell's execute_input/status messages are drained and
+	-- the output sits on "* On Hold" forever. Molten fires User
+	-- MoltenKernelReady at exactly that transition, so the first evaluation has
+	-- to wait for the event rather than a fixed delay.
+	describe("_run_when_kernel_ready", function()
+		it("should not run the callback before the kernel is ready", function()
+			local ran = false
+
+			keymaps._run_when_kernel_ready(test_bufnr, function()
+				ran = true
+			end)
+			vim.wait(150, function()
+				return ran
+			end, 25)
+
+			assert.is_false(ran)
+		end)
+
+		it("should run the callback when MoltenKernelReady fires", function()
+			local ran = false
+
+			keymaps._run_when_kernel_ready(test_bufnr, function()
+				ran = true
+			end)
+			vim.api.nvim_exec_autocmds("User", { pattern = "MoltenKernelReady" })
+			vim.wait(1000, function()
+				return ran
+			end, 25)
+
+			assert.is_true(ran)
+		end)
+
+		it("should run the callback only once when the event fires twice", function()
+			local runs = 0
+
+			keymaps._run_when_kernel_ready(test_bufnr, function()
+				runs = runs + 1
+			end)
+			vim.api.nvim_exec_autocmds("User", { pattern = "MoltenKernelReady" })
+			vim.wait(1000, function()
+				return runs > 0
+			end, 25)
+			vim.api.nvim_exec_autocmds("User", { pattern = "MoltenKernelReady" })
+			vim.wait(200, function()
+				return runs > 1
+			end, 25)
+
+			assert.are.equal(1, runs)
+		end)
+
+		it("should fall back to running the callback if the event never fires", function()
+			local ran = false
+
+			keymaps._run_when_kernel_ready(test_bufnr, function()
+				ran = true
+			end, { timeout_ms = 50 })
+			vim.wait(1000, function()
+				return ran
+			end, 25)
+
+			assert.is_true(ran)
+		end)
+	end)
+
 	-- Regression (issue #10): run-all used to navigate by repeated forward
 	-- search from line 1, which skips a marker sitting on line 1 and therefore
 	-- ran cell N+1 for every N.
