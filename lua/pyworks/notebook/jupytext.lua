@@ -4,6 +4,7 @@
 local M = {}
 
 local cache = require("pyworks.core.cache")
+local log = require("pyworks.core.log")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
@@ -257,7 +258,7 @@ local function read_notebook(bufnr, filepath)
 				vim.schedule(function()
 					notifications.notify("Notebook opened in JSON view (jupytext not available)", vim.log.levels.WARN)
 					if convert_err then
-						notifications.notify("Error: " .. convert_err, vim.log.levels.DEBUG)
+						log.debug("jupytext", "conversion error: %s", convert_err)
 					end
 					notifications.notify("Run :PyworksSetup to install jupytext", vim.log.levels.INFO)
 				end)

@@ -6,6 +6,7 @@ local M = {}
 local cache = require("pyworks.core.cache")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
+local log = require("pyworks.core.log")
 local utils = require("pyworks.utils")
 
 -- Timeout constants (in milliseconds)
@@ -49,12 +50,7 @@ function M.on_file_open(filepath)
 	local ft = vim.bo.filetype
 
 	-- Show that detection is happening
-	if notifications.get_config().debug_mode then
-		notifications.notify(
-			string.format("[Detector] Processing %s (ext: %s, ft: %s)", filepath, ext, ft),
-			vim.log.levels.DEBUG
-		)
-	end
+	log.debug("detector", "processing %s (ext=%s ft=%s)", filepath, ext, ft)
 
 	-- Route to appropriate handler (Python only) with error protection
 	local ok, err = pcall(function()
@@ -190,18 +186,11 @@ end
 -- (issue #10). So a kernel only counts as a match if its interpreter still
 -- exists - otherwise the caller falls through to registering a fresh one.
 function M.select_matching_kernel(kernelspecs, venv_path, python_path)
-	local debug_mode = notifications.get_config().debug_mode
-
 	for name, spec in pairs(kernelspecs or {}) do
 		if is_python_kernel(spec) then
 			local kernel_python = kernel_interpreter(spec)
 			if kernel_python then
-				if debug_mode then
-					notifications.notify(
-						string.format("Kernel '%s' uses: %s", name, kernel_python),
-						vim.log.levels.DEBUG
-					)
-				end
+				log.debug("detector", "kernel '%s' uses: %s", name, kernel_python)
 
 				local is_exact_match = (kernel_python == python_path)
 				local is_venv_match = kernel_python:match("^" .. vim.pesc(venv_path)) ~= nil
@@ -215,11 +204,8 @@ function M.select_matching_kernel(kernelspecs, venv_path, python_path)
 						string.format("Ignoring stale kernel '%s': %s no longer exists", name, kernel_python),
 						vim.log.levels.WARN
 					)
-				elseif debug_mode then
-					notifications.notify(
-						string.format("Kernel '%s' uses %s, not %s", name, kernel_python, python_path),
-						vim.log.levels.DEBUG
-					)
+				else
+					log.debug("detector", "kernel '%s' uses %s, not %s", name, kernel_python, python_path)
 				end
 			end
 		end
@@ -328,21 +314,11 @@ local function get_kernel_for_language(language, filepath)
 	-- Python with filepath: match kernel to project's venv
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 
-	if notifications.get_config().debug_mode then
-		notifications.notify(
-			string.format("Kernel selection: File=%s, Project=%s", filepath, project_dir),
-			vim.log.levels.DEBUG
-		)
-	end
+	log.debug("detector", "kernel selection: file=%s project=%s", filepath, project_dir)
 
 	local python_path = find_python_in_venv(venv_path, filepath)
 
-	if notifications.get_config().debug_mode then
-		notifications.notify(
-			string.format("Looking for kernel matching venv Python: %s", python_path),
-			vim.log.levels.DEBUG
-		)
-	end
+	log.debug("detector", "looking for kernel matching venv python: %s", python_path)
 
 	-- Try to find an existing matching kernel
 	local kernel = find_matching_kernel(venv_path, python_path)

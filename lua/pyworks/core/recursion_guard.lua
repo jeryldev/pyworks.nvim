@@ -10,6 +10,8 @@
 
 local M = {}
 
+local log = require("pyworks.core.log")
+
 -- Constants
 local DEFAULT_DEBOUNCE_MS = 500
 local DEFAULT_SAFE_TICK_RATE = 999999
@@ -50,23 +52,13 @@ function M.can_reload(bufnr)
 
 	-- Check global lock
 	if state.global_reload_in_progress then
-		if vim.g.pyworks_debug then
-			vim.notify(
-				string.format("[recursion_guard] Blocked: global reload in progress (depth=%d)", state.recursion_depth),
-				vim.log.levels.DEBUG
-			)
-		end
+		log.debug("recursion_guard", "blocked: global reload in progress (depth=%d)", state.recursion_depth)
 		return false
 	end
 
 	-- Check per-buffer lock
 	if bufnr and state.reloading_buffers[bufnr] then
-		if vim.g.pyworks_debug then
-			vim.notify(
-				string.format("[recursion_guard] Blocked: buffer %d already reloading", bufnr),
-				vim.log.levels.DEBUG
-			)
-		end
+		log.debug("recursion_guard", "blocked: buffer %d already reloading", bufnr)
 		return false
 	end
 
@@ -76,12 +68,7 @@ function M.can_reload(bufnr)
 	end
 	local elapsed = now - state.last_reload_time
 	if elapsed < config.debounce_ms then
-		if vim.g.pyworks_debug then
-			vim.notify(
-				string.format("[recursion_guard] Blocked: debounce (%dms since last reload)", elapsed),
-				vim.log.levels.DEBUG
-			)
-		end
+		log.debug("recursion_guard", "blocked: debounce (%dms since last reload)", elapsed)
 		return false
 	end
 
@@ -116,12 +103,7 @@ function M.begin_reload(bufnr)
 		vim.g.molten_tick_rate = config.safe_tick_rate
 	end
 
-	if vim.g.pyworks_debug then
-		vim.notify(
-			string.format("[recursion_guard] Begin reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth),
-			vim.log.levels.DEBUG
-		)
-	end
+	log.debug("recursion_guard", "begin reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth)
 
 	-- Return release function
 	return function()
@@ -150,12 +132,7 @@ function M.end_reload(bufnr)
 		end
 	end
 
-	if vim.g.pyworks_debug then
-		vim.notify(
-			string.format("[recursion_guard] End reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth),
-			vim.log.levels.DEBUG
-		)
-	end
+	log.debug("recursion_guard", "end reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth)
 end
 
 -- Check if any reload is currently in progress (for use by other modules)
@@ -181,9 +158,7 @@ function M.force_reset()
 		state.original_tick_rate = nil
 	end
 
-	if vim.g.pyworks_debug then
-		vim.notify("[recursion_guard] Force reset complete", vim.log.levels.DEBUG)
-	end
+	log.debug("recursion_guard", "force reset complete")
 end
 
 -- Get current state for debugging

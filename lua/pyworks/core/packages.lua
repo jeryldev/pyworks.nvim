@@ -3,6 +3,7 @@
 local M = {}
 
 local cache = require("pyworks.core.cache")
+local log = require("pyworks.core.log")
 local notifications = require("pyworks.core.notifications")
 
 -- Maximum file size to scan for imports (1MB) - prevents blocking on large files
@@ -463,9 +464,11 @@ function M.scan_imports(filepath, language)
 			return {}
 		end
 		if stat.size > MAX_FILE_SIZE_BYTES then
-			notifications.notify(
-				string.format("Skipping large file for import scan: %s (%.1f MB)", filepath, stat.size / 1024 / 1024),
-				vim.log.levels.DEBUG
+			log.debug(
+				"packages",
+				"skipping large file for import scan: %s (%.1f MB)",
+				filepath,
+				stat.size / 1024 / 1024
 			)
 			return {}
 		end

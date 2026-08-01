@@ -5,6 +5,7 @@ local M = {}
 
 local cache = require("pyworks.core.cache")
 local error_handler = require("pyworks.core.error_handler")
+local log = require("pyworks.core.log")
 local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 local utils = require("pyworks.utils")
@@ -345,9 +346,7 @@ function M.install_essentials(filepath, on_complete)
 
 	local cmd = build_pip_command("install", missing_essentials, filepath)
 
-	if notifications.get_config().debug_mode then
-		notifications.notify("[Debug] Running: " .. table.concat(cmd, " "), vim.log.levels.DEBUG)
-	end
+	log.debug("python", "running: %s", table.concat(cmd, " "))
 
 	if not project_dir or vim.fn.isdirectory(project_dir) ~= 1 then
 		notifications.notify_error("Invalid project directory for essentials: " .. (project_dir or "nil"))

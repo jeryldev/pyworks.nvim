@@ -21,6 +21,8 @@ local augroup = vim.api.nvim_create_augroup("Pyworks", { clear = true })
 -- entirely and leave every run waiting on a timeout. See issue #10.
 require("pyworks.core.kernel_ready").setup()
 
+local log = require("pyworks.core.log")
+
 -- Check if a file is in a pyworks-managed directory using utils.find_project_root
 local function is_pyworks_project(filepath)
 	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()
@@ -55,9 +57,7 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
 		end
 
 		-- Debug: Show that autocmd fired
-		if vim.g.pyworks_debug then
-			vim.notify("[Pyworks] File opened: " .. check_path, vim.log.levels.DEBUG)
-		end
+		log.debug("plugin", "file opened: %s", check_path)
 
 		-- Use defer_fn for non-blocking operation
 		vim.defer_fn(function()
@@ -188,9 +188,7 @@ local function reload_notebook_buffer(filepath, opts)
 
 	-- Check if reload is safe (not already in progress, not debounced)
 	if not guard.can_reload(bufnr) then
-		if vim.g.pyworks_debug then
-			vim.notify("[pyworks] Reload blocked by recursion guard: " .. filepath, vim.log.levels.DEBUG)
-		end
+		log.debug("plugin", "reload blocked by recursion guard: %s", filepath)
 		return false
 	end
 
@@ -286,9 +284,7 @@ vim.api.nvim_create_autocmd("SessionLoadPost", {
 		vim.defer_fn(function()
 			-- Check if a reload is already in progress (from another source)
 			if guard.is_reloading() then
-				if vim.g.pyworks_debug then
-					vim.notify("[pyworks] SessionLoadPost skipped: reload in progress", vim.log.levels.DEBUG)
-				end
+				log.debug("plugin", "SessionLoadPost skipped: reload in progress")
 				return
 			end
 
@@ -353,9 +349,7 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
 		-- This prevents cascading reloads that cause E132 maxfuncdepth errors
 		local guard = require("pyworks.core.recursion_guard")
 		if guard.is_reloading() then
-			if vim.g.pyworks_debug then
-				vim.notify("[pyworks] BufWinEnter skipped: reload in progress", vim.log.levels.DEBUG)
-			end
+			log.debug("plugin", "BufWinEnter skipped: reload in progress")
 			return
 		end
 

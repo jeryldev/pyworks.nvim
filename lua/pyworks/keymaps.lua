@@ -7,6 +7,7 @@
 local M = {}
 
 local detector = require("pyworks.core.detector")
+local log = require("pyworks.core.log")
 local error_handler = require("pyworks.core.error_handler")
 local ui = require("pyworks.ui")
 
@@ -24,19 +25,6 @@ end
 local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
-
--- Debug log file (set vim.g.pyworks_debug_file = "/tmp/pyworks.log" to enable)
-local function debug_log(msg)
-	local log_file = vim.g.pyworks_debug_file
-	if not log_file then
-		return
-	end
-	local f = io.open(log_file, "a")
-	if f then
-		f:write(string.format("[%s] %s\n", os.date("%H:%M:%S"), msg))
-		f:close()
-	end
-end
 
 -- Cache for Molten namespace ID (invalidated on buffer change to handle namespace recreation)
 --
@@ -71,9 +59,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
 		-- This prevents adding to the call stack during reload cascades
 		local ok, guard = pcall(require, "pyworks.core.recursion_guard")
 		if ok and guard.is_reloading() then
-			if vim.g.pyworks_debug then
-				debug_log("BufEnter: skipping cache invalidation (reload in progress)")
-			end
+			log.debug("keymaps", "BufEnter: skipping cache invalidation (reload in progress)")
 			return
 		end
 		invalidate_molten_ns_cache()
@@ -109,12 +95,12 @@ local function get_molten_namespace()
 	if molten_ns_cache then
 		for name, id in pairs(namespaces) do
 			if id == molten_ns_cache and name == "molten-extmarks" then
-				debug_log(string.format("get_molten_namespace: cache HIT id=%d", molten_ns_cache))
+				log.debug("keymaps", "get_molten_namespace: cache HIT id=%d", molten_ns_cache)
 				return molten_ns_cache
 			end
 		end
 		-- Cache is stale, clear it
-		debug_log(string.format("get_molten_namespace: cache STALE (was %d)", molten_ns_cache))
+		log.debug("keymaps", "get_molten_namespace: cache STALE (was %d)", molten_ns_cache)
 		molten_ns_cache = nil
 	end
 
@@ -122,11 +108,11 @@ local function get_molten_namespace()
 	for name, id in pairs(namespaces) do
 		if name == "molten-extmarks" then
 			molten_ns_cache = id
-			debug_log(string.format("get_molten_namespace: found FRESH id=%d name=%s", id, name))
+			log.debug("keymaps", "get_molten_namespace: found FRESH id=%d name=%s", id, name)
 			return id
 		end
 	end
-	debug_log("get_molten_namespace: NOT FOUND (molten-extmarks)")
+	log.debug("keymaps", "get_molten_namespace: NOT FOUND (molten-extmarks)")
 	return nil
 end
 
@@ -233,14 +219,11 @@ local function wait_for_cell_completion(bufnr, callback)
 	local start_time = vim.uv.now()
 	local initial_completed = get_highest_completed_output(bufnr)
 
-	debug_log(string.format("wait_for_cell_completion: START initial_completed=%d", initial_completed))
+	log.debug("keymaps", "wait_for_cell_completion: START initial_completed=%d", initial_completed)
 
 	-- Debug: log initial state and dump extmarks
+	log.debug("keymaps", "wait_for_cell_completion: initial_completed=%d", initial_completed)
 	if vim.g.pyworks_debug then
-		vim.notify(
-			string.format("[DEBUG] wait_for_cell_completion: initial_completed=%d", initial_completed),
-			vim.log.levels.DEBUG
-		)
 		debug_dump_extmarks(bufnr)
 	end
 
@@ -268,10 +251,10 @@ local function wait_for_cell_completion(bufnr, callback)
 			-- Check timeout
 			if vim.uv.now() - start_time > CELL_TIMEOUT_MS then
 				close_timer()
-				debug_log("wait_for_cell_completion: TIMEOUT")
+				log.debug("keymaps", "wait_for_cell_completion: TIMEOUT")
 				-- Debug: dump extmarks on timeout to see what we missed
+				log.debug("keymaps", "cell wait timed out; dumping extmarks")
 				if vim.g.pyworks_debug then
-					vim.notify("[DEBUG] Timeout reached, dumping extmarks:", vim.log.levels.DEBUG)
 					debug_dump_extmarks(bufnr)
 				end
 				callback(false, "timeout")
@@ -281,23 +264,18 @@ local function wait_for_cell_completion(bufnr, callback)
 			-- Check if buffer is still valid
 			if not vim.api.nvim_buf_is_valid(bufnr) then
 				close_timer()
-				debug_log("wait_for_cell_completion: BUFFER_INVALID")
+				log.debug("keymaps", "wait_for_cell_completion: BUFFER_INVALID")
 				callback(false, "buffer_invalid")
 				return
 			end
 
 			-- Check if a new Out[N] ✓ Done appeared (completion indicator)
 			local current_completed = get_highest_completed_output(bufnr)
-			debug_log(string.format("POLL: initial=%d current=%d", initial_completed, current_completed))
+			log.debug("keymaps", "POLL: initial=%d current=%d", initial_completed, current_completed)
 			if current_completed > initial_completed then
 				close_timer()
-				debug_log(string.format("wait_for_cell_completion: SUCCESS Out[%d]", current_completed))
-				if vim.g.pyworks_debug then
-					vim.notify(
-						string.format("[DEBUG] Cell completed! Out[%d] detected", current_completed),
-						vim.log.levels.DEBUG
-					)
-				end
+				log.debug("keymaps", "wait_for_cell_completion: SUCCESS Out[%d]", current_completed)
+				log.debug("keymaps", "cell completed: Out[%d] detected", current_completed)
 				callback(true)
 				return
 			end
