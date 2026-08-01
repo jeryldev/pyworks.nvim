@@ -387,10 +387,14 @@ local function auto_init_molten(language, filepath)
 			local ok, err = pcall(vim.cmd, "MoltenInit " .. kernel)
 			if ok then
 				vim.b[bufnr].molten_initialized = true
+				vim.b[bufnr].pyworks_kernel_name = kernel
 
-				-- Show clear notification that kernel is ready
+				-- MoltenInit only *starts* the kernel; it takes seconds more to
+				-- accept work, and anything sent meanwhile is silently dropped
+				-- (issue #10). Announce readiness only when Molten says so - the
+				-- run keymaps wait for the same event, so it is safe to type ahead.
 				notifications.notify(
-					string.format("Molten ready with %s kernel - Use <leader>jl to run code", kernel),
+					string.format("Starting %s kernel - <leader>jl runs code once it is ready", kernel),
 					vim.log.levels.INFO
 				)
 			else

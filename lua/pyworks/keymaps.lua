@@ -314,6 +314,34 @@ local function is_markdown_cell()
 	return get_cell_engine().is_markdown_cell()
 end
 
+-- Kernel readiness is separate from "MoltenInit was called": auto-init sets
+-- b:molten_initialized the moment the command returns, seconds before the
+-- kernel can accept work. Only Molten's User MoltenKernelReady event tells us
+-- the kernel is actually usable (issue #10).
+local kernel_ready_augroup = vim.api.nvim_create_augroup("PyworksKernelReady", { clear = true })
+
+vim.api.nvim_create_autocmd("User", {
+	group = kernel_ready_augroup,
+	pattern = "MoltenKernelReady",
+	callback = function(ev)
+		local kernel_id = ev.data and ev.data.kernel_id
+		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+			if vim.api.nvim_buf_is_valid(buf) and vim.b[buf].molten_initialized then
+				local buf_kernel = vim.b[buf].pyworks_kernel_name
+				-- Only claim readiness for the buffer whose kernel reported it;
+				-- another buffer's kernel may still be starting up
+				if kernel_id == nil or buf_kernel == nil or buf_kernel == kernel_id then
+					vim.b[buf].pyworks_kernel_ready = true
+				end
+			end
+		end
+	end,
+})
+
+local function is_kernel_ready(bufnr)
+	return vim.b[bufnr].pyworks_kernel_ready == true
+end
+
 -- Run fn once Molten's kernel is actually ready
 --
 -- Molten only starts consuming kernel messages after jupyter_client's
@@ -364,6 +392,16 @@ local function run_when_kernel_ready(bufnr, fn, opts)
 			end
 		end)
 	)
+end
+
+-- Evaluate now if the kernel is ready, otherwise as soon as it reports ready
+local function ensure_kernel_ready(bufnr, fn)
+	if is_kernel_ready(bufnr) then
+		fn()
+		return
+	end
+	vim.notify("Waiting for the kernel to be ready...", vim.log.levels.INFO)
+	run_when_kernel_ready(bufnr, fn)
 end
 
 -- Move the cursor to the marker line of cell N (1-indexed)
@@ -448,6 +486,7 @@ function M.setup_buffer_keymaps()
 						error_handler.protected_call(vim.cmd, "Failed to initialize kernel", "MoltenInit " .. kernel)
 					if ok then
 						vim.b[bufnr].molten_initialized = true
+						vim.b[bufnr].pyworks_kernel_name = kernel
 					end
 
 					-- Wait for the kernel to report ready before evaluating: a cell
@@ -466,15 +505,19 @@ function M.setup_buffer_keymaps()
 				end
 			end
 
-			pcall(vim.cmd, "MoltenEvaluateLine")
+			-- Auto-init on file open flips molten_initialized immediately, so this
+			-- path is reached while the kernel may still be starting
+			ensure_kernel_ready(bufnr, function()
+				pcall(vim.cmd, "MoltenEvaluateLine")
 
-			-- Auto-advance to next line
-			local cursor = vim.api.nvim_win_get_cursor(0)
-			local next_line = cursor[1] + 1
-			local last_line = vim.api.nvim_buf_line_count(0)
-			if next_line <= last_line then
-				vim.api.nvim_win_set_cursor(0, { next_line, cursor[2] })
-			end
+				-- Auto-advance to next line
+				local cursor = vim.api.nvim_win_get_cursor(0)
+				local next_line = cursor[1] + 1
+				local last_line = vim.api.nvim_buf_line_count(0)
+				if next_line <= last_line then
+					vim.api.nvim_win_set_cursor(0, { next_line, cursor[2] })
+				end
+			end)
 		end, vim.tbl_extend("force", opts, { desc = "Molten: Run current line" }))
 
 		-- Run visual selection
@@ -495,11 +538,15 @@ function M.setup_buffer_keymaps()
 
 		-- Run current cell and move to next (classic Jupyter Shift+Enter behavior)
 		vim.keymap.set("n", "<leader>jj", function()
-			get_cell_engine().run_cell({ advance = true })
+			ensure_kernel_ready(vim.api.nvim_get_current_buf(), function()
+				get_cell_engine().run_cell({ advance = true })
+			end)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
 		vim.keymap.set("n", "<leader>jk", function()
-			get_cell_engine().run_cell()
+			ensure_kernel_ready(vim.api.nvim_get_current_buf(), function()
+				get_cell_engine().run_cell()
+			end)
 		end, vim.tbl_extend("force", opts, { desc = "Run cell (stay in place)" }))
 
 		-- ============================================================================
@@ -544,91 +591,97 @@ function M.setup_buffer_keymaps()
 				return
 			end
 
-			vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
+			-- Starting the run before the kernel is ready loses the first cells,
+			-- so the whole sequence waits for readiness
+			local function start_run()
+				vim.notify(string.format("Running %d cells...", cell_count), vim.log.levels.INFO)
 
-			-- Step 2: Position cursor at buffer start
-			-- Use API call (not normal!) to work from any mode including terminal
-			-- Suppress events to prevent Molten's CursorMoved handlers from interfering
-			with_suppressed_events(function()
-				vim.api.nvim_win_set_cursor(0, { 1, 0 })
-			end)
-
-			-- Step 3: Recursive function to execute cells one by one
-			-- Each call handles one cell, then schedules the next via vim.defer_fn
-			local function run_next_cell(cell_num)
-				-- Base case: all cells executed
-				if cell_num > cell_count then
-					-- Position cursor at the last cell for user convenience
-					with_suppressed_events(function()
-						local last_line = vim.api.nvim_buf_line_count(0)
-						vim.api.nvim_win_set_cursor(0, { last_line, 0 })
-					end)
-					local last_cell_line = vim.fn.search(cell_pattern(), "bW")
-					if last_cell_line > 0 then
-						ui.enter_cell(last_cell_line, { insert_mode = false })
-					end
-					vim.notify("All cells executed", vim.log.levels.INFO)
-					return
-				end
-
-				-- Navigate to target cell by marker position, regardless of where the
-				-- cursor currently is. The cursor lands ON the marker line; both the
-				-- markdown check and the boundary lookup below accept that.
-				local focused
+				-- Step 2: Position cursor at buffer start
+				-- Use API call (not normal!) to work from any mode including terminal
+				-- Suppress events to prevent Molten's CursorMoved handlers from interfering
 				with_suppressed_events(function()
-					focused = focus_cell(cell_num)
+					vim.api.nvim_win_set_cursor(0, { 1, 0 })
 				end)
 
-				if not focused then
-					-- Cell disappeared (buffer edited mid-run) - stop cleanly
-					vim.notify(string.format("Cell %d no longer exists, stopping", cell_num), vim.log.levels.WARN)
-					return
-				end
-
-				-- Skip markdown cells (no executable code, no output expected)
-				if is_markdown_cell() then
-					ui.mark_cell_executed(cell_num)
-					vim.defer_fn(function()
-						run_next_cell(cell_num + 1)
-					end, BUFFER_SETTLE_DELAY_MS)
-					return
-				end
-
-				-- Execute the cell
-				ui.mark_cell_executed(cell_num)
-				local cell_start, _ = evaluate_percent_cell()
-
-				-- Move cursor to next cell for visual feedback (output appears above)
-				local next_cell_line = vim.fn.search(cell_pattern(), "nW")
-				if next_cell_line > 0 then
-					ui.enter_cell(next_cell_line, { insert_mode = false })
-				end
-
-				if cell_start then
-					-- Wait for completion by polling Molten's extmarks
-					-- Looks for "Out[N]: ✓ Done" pattern to detect when cell finishes
-					wait_for_cell_completion(bufnr, function(success, reason)
-						if not success and reason == "timeout" then
-							vim.notify(
-								string.format("Cell %d timed out after 30s, continuing...", cell_num),
-								vim.log.levels.WARN
-							)
+				-- Step 3: Recursive function to execute cells one by one
+				-- Each call handles one cell, then schedules the next via vim.defer_fn
+				local function run_next_cell(cell_num)
+					-- Base case: all cells executed
+					if cell_num > cell_count then
+						-- Position cursor at the last cell for user convenience
+						with_suppressed_events(function()
+							local last_line = vim.api.nvim_buf_line_count(0)
+							vim.api.nvim_win_set_cursor(0, { last_line, 0 })
+						end)
+						local last_cell_line = vim.fn.search(cell_pattern(), "bW")
+						if last_cell_line > 0 then
+							ui.enter_cell(last_cell_line, { insert_mode = false })
 						end
-						-- Small delay to let output render, then continue to next cell
+						vim.notify("All cells executed", vim.log.levels.INFO)
+						return
+					end
+
+					-- Navigate to target cell by marker position, regardless of where the
+					-- cursor currently is. The cursor lands ON the marker line; both the
+					-- markdown check and the boundary lookup below accept that.
+					local focused
+					with_suppressed_events(function()
+						focused = focus_cell(cell_num)
+					end)
+
+					if not focused then
+						-- Cell disappeared (buffer edited mid-run) - stop cleanly
+						vim.notify(string.format("Cell %d no longer exists, stopping", cell_num), vim.log.levels.WARN)
+						return
+					end
+
+					-- Skip markdown cells (no executable code, no output expected)
+					if is_markdown_cell() then
+						ui.mark_cell_executed(cell_num)
 						vim.defer_fn(function()
 							run_next_cell(cell_num + 1)
 						end, BUFFER_SETTLE_DELAY_MS)
-					end)
-				else
-					-- Empty cell, skip to next
-					vim.defer_fn(function()
-						run_next_cell(cell_num + 1)
-					end, BUFFER_SETTLE_DELAY_MS)
+						return
+					end
+
+					-- Execute the cell
+					ui.mark_cell_executed(cell_num)
+					local cell_start, _ = evaluate_percent_cell()
+
+					-- Move cursor to next cell for visual feedback (output appears above)
+					local next_cell_line = vim.fn.search(cell_pattern(), "nW")
+					if next_cell_line > 0 then
+						ui.enter_cell(next_cell_line, { insert_mode = false })
+					end
+
+					if cell_start then
+						-- Wait for completion by polling Molten's extmarks
+						-- Looks for "Out[N]: ✓ Done" pattern to detect when cell finishes
+						wait_for_cell_completion(bufnr, function(success, reason)
+							if not success and reason == "timeout" then
+								vim.notify(
+									string.format("Cell %d timed out after 30s, continuing...", cell_num),
+									vim.log.levels.WARN
+								)
+							end
+							-- Small delay to let output render, then continue to next cell
+							vim.defer_fn(function()
+								run_next_cell(cell_num + 1)
+							end, BUFFER_SETTLE_DELAY_MS)
+						end)
+					else
+						-- Empty cell, skip to next
+						vim.defer_fn(function()
+							run_next_cell(cell_num + 1)
+						end, BUFFER_SETTLE_DELAY_MS)
+					end
 				end
+
+				-- Start execution from cell 1
+				run_next_cell(1)
 			end
 
-			-- Start execution from cell 1
-			run_next_cell(1)
+			ensure_kernel_ready(bufnr, start_run)
 		end, vim.tbl_extend("force", opts, { desc = "Run all cells" }))
 
 		-- ============================================================================
@@ -875,6 +928,8 @@ M._get_highest_completed_output = get_highest_completed_output
 M._is_markdown_cell = is_markdown_cell
 M._focus_cell = focus_cell
 M._run_when_kernel_ready = run_when_kernel_ready
+M._is_kernel_ready = is_kernel_ready
+M._ensure_kernel_ready = ensure_kernel_ready
 M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
 M._get_molten_namespace = get_molten_namespace

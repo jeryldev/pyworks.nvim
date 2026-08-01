@@ -205,6 +205,76 @@ describe("keymaps", function()
 		end)
 	end)
 
+	-- Regression (issue #10): auto-init on file open sets molten_initialized
+	-- immediately, so gating only the "not yet initialized" branch left the
+	-- common path - open a file, press a run key - still racing kernel startup.
+	-- Readiness is its own state, set only by User MoltenKernelReady.
+	describe("kernel readiness tracking", function()
+		before_each(function()
+			vim.b[test_bufnr].molten_initialized = true
+			vim.b[test_bufnr].pyworks_kernel_name = "test_kernel"
+			vim.b[test_bufnr].pyworks_kernel_ready = nil
+		end)
+
+		it("should not consider a freshly initialized kernel ready", function()
+			assert.is_false(keymaps._is_kernel_ready(test_bufnr))
+		end)
+
+		it("should mark the buffer ready when its kernel reports ready", function()
+			vim.api.nvim_exec_autocmds("User", {
+				pattern = "MoltenKernelReady",
+				data = { kernel_id = "test_kernel" },
+			})
+
+			assert.is_true(keymaps._is_kernel_ready(test_bufnr))
+		end)
+
+		it("should not mark the buffer ready when another kernel reports ready", function()
+			vim.api.nvim_exec_autocmds("User", {
+				pattern = "MoltenKernelReady",
+				data = { kernel_id = "some_other_kernel" },
+			})
+
+			assert.is_false(keymaps._is_kernel_ready(test_bufnr))
+		end)
+
+		it("should run the callback immediately once the kernel is ready", function()
+			vim.api.nvim_exec_autocmds("User", {
+				pattern = "MoltenKernelReady",
+				data = { kernel_id = "test_kernel" },
+			})
+
+			local ran = false
+			keymaps._ensure_kernel_ready(test_bufnr, function()
+				ran = true
+			end)
+
+			assert.is_true(ran)
+		end)
+
+		it("should hold the callback until the kernel reports ready", function()
+			local ran = false
+
+			keymaps._ensure_kernel_ready(test_bufnr, function()
+				ran = true
+			end)
+			vim.wait(150, function()
+				return ran
+			end, 25)
+			assert.is_false(ran)
+
+			vim.api.nvim_exec_autocmds("User", {
+				pattern = "MoltenKernelReady",
+				data = { kernel_id = "test_kernel" },
+			})
+			vim.wait(1000, function()
+				return ran
+			end, 25)
+
+			assert.is_true(ran)
+		end)
+	end)
+
 	-- Regression (issue #10): run-all used to navigate by repeated forward
 	-- search from line 1, which skips a marker sitting on line 1 and therefore
 	-- ran cell N+1 for every N.

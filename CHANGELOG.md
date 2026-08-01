@@ -33,8 +33,15 @@ All notable changes to pyworks.nvim will be documented in this file.
   and the output sits on `* On Hold` forever with a healthy kernel and no error.
   Reproduced against ipykernel 7.3.0 / jupyter_client 8.9.1: the same execution
   reaches `DONE` when sent after readiness and stays at `HOLD` when sent before.
-  The first evaluation now waits for Molten's `User MoltenKernelReady` event
-  (with a 30s fallback) instead of a fixed delay
+  Kernel readiness is now tracked per buffer from Molten's
+  `User MoltenKernelReady` event, and every run keymap (`<leader>jl`, `jj`,
+  `jk`, `jR`) waits for it, with a 30s fallback. Pressing a run key early is
+  safe: it reports "Waiting for the kernel to be ready..." and runs by itself
+- **Auto-init announced a kernel that was not ready**: opening a file logged
+  "Molten ready with <kernel> kernel - Use `<leader>jl` to run code" the moment
+  `MoltenInit` returned, inviting the user to run code during exactly the window
+  where executions are silently dropped. It now says the kernel is *starting*,
+  and readiness is announced by Molten itself
 - **CI linters tracked "latest"**: both stylua and selene were installed from
   the newest upstream release, so an upstream change could turn CI red with no
   change to this repo. Both are now pinned (stylua v2.5.2, selene 0.31.0).
