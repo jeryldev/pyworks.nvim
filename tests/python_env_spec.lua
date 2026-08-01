@@ -36,13 +36,33 @@ describe("python environment setup", function()
 	end)
 
 	describe("install_essentials completion", function()
-		it("should report completion when nothing is missing", function()
-			-- "json" is stdlib, so the import check always succeeds and no
-			-- install is spawned: the callback must still fire
-			python.configure({ essentials = { "json" } })
+		local project, probe
 
+		-- A self-contained project: a .venv whose python is a symlink to the
+		-- real interpreter. Pointing these tests at the repo would make
+		-- install_essentials create a venv in the checkout on a machine that has
+		-- none (CI), which then changes what later tests observe.
+		before_each(function()
+			project = vim.fn.tempname()
+			vim.fn.mkdir(project .. "/.venv/bin", "p")
+			vim.uv.fs_symlink(vim.fn.exepath("python3"), project .. "/.venv/bin/python")
+			-- The file must exist: get_project_paths falls back to cwd for an
+			-- unreadable path, which would point the whole call at the repo
+			probe = project .. "/probe.py"
+			vim.fn.writefile({ "print('probe')" }, probe)
+			-- "json" is stdlib, so the import check always succeeds and no
+			-- install is ever spawned
+			python.configure({ essentials = { "json" } })
+		end)
+
+		after_each(function()
+			vim.fn.delete(project, "rf")
+		end)
+
+		it("should report completion when nothing is missing", function()
 			local completed = nil
-			python.install_essentials(vim.fn.getcwd() .. "/probe.py", function(ok)
+
+			python.install_essentials(probe, function(ok)
 				completed = ok
 			end)
 
@@ -50,9 +70,7 @@ describe("python environment setup", function()
 		end)
 
 		it("should not require a callback", function()
-			python.configure({ essentials = { "json" } })
-
-			local ok = pcall(python.install_essentials, vim.fn.getcwd() .. "/probe.py")
+			local ok = pcall(python.install_essentials, probe)
 
 			assert.is_true(ok)
 		end)
