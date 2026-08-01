@@ -11,7 +11,6 @@ local M = {}
 
 -- Constants
 local PLUGIN_LOAD_DELAY_MS = 100 -- Delay to ensure plugins are loaded before configuration
-local POST_SETUP_DELAY_MS = 500 -- Delay after environment setup before detection
 
 -- Dependencies
 local dependencies = require("pyworks.dependencies")
@@ -344,17 +343,22 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 
 		-- Use a dummy filepath in cwd to get project paths
 		local dummy_filepath = cwd .. "/setup.py"
-		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
-		if ok then
-			vim.notify("Python environment ready", vim.log.levels.INFO)
-			-- Re-configure notebook handler after packages are installed (async)
-			vim.defer_fn(function()
+		-- force: an explicit command must not be swallowed by the check throttle.
+		-- on_complete: the install is async, so report readiness when the
+		-- packages are actually there rather than when the call returns.
+		error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath, {
+			force = true,
+			on_complete = function(ok)
+				if not ok then
+					return
+				end
+				vim.notify("Python environment ready", vim.log.levels.INFO)
 				local jupytext = require("pyworks.notebook.jupytext")
 				local cache = require("pyworks.core.cache")
 				cache.invalidate("jupytext_installed")
 				jupytext.configure_notebook_handler()
-			end, 2000) -- Wait for async package installation
-		end
+			end,
+		})
 		return
 	end
 
@@ -370,11 +374,13 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 
 	if ext == "py" or ft == "python" or ext == "ipynb" then
 		local python = require("pyworks.languages.python")
-		local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", filepath)
-		if ok then
-			vim.notify("Python environment ready", vim.log.levels.INFO)
-			-- Re-configure notebook handler after packages are installed (async)
-			vim.defer_fn(function()
+		error_handler.protected_call(python.ensure_environment, "Setup failed", filepath, {
+			force = true,
+			on_complete = function(ok)
+				if not ok then
+					return
+				end
+				vim.notify("Python environment ready", vim.log.levels.INFO)
 				local jupytext = require("pyworks.notebook.jupytext")
 				local cache = require("pyworks.core.cache")
 				cache.invalidate("jupytext_installed")
@@ -382,8 +388,8 @@ vim.api.nvim_create_user_command("PyworksSetup", function()
 				-- Then trigger file detection
 				local detector = require("pyworks.core.detector")
 				detector.on_file_open(filepath)
-			end, POST_SETUP_DELAY_MS)
-		end
+			end,
+		})
 	else
 		vim.notify("Pyworks only supports Python files", vim.log.levels.INFO)
 	end

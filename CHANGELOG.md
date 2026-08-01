@@ -4,6 +4,25 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Python environment ready" was announced before the packages existed**: the
+  essentials install runs asynchronously, but `ensure_environment` (and
+  `:PyworksSetup`) reported success as soon as it was *started*. Running
+  `jupyter lab` at that point failed with "jupyter not found" while uv/pip was
+  still fetching. Readiness is now reported from an `on_complete` callback, once
+  the install has actually finished, and a notification names the packages being
+  installed while it runs
+- **`:PyworksSetup` could silently do nothing and still report success**:
+  `ensure_environment` skips work if it ran within the last 30 seconds, but
+  returned `true` regardless, so a repeat run - the natural response to a failed
+  setup - claimed success without touching anything. Explicit commands now pass
+  `force` and always run; the throttle still applies to automatic checks on file
+  open
+- **`:PyworksSetup` reported success even when setup failed**:
+  `error_handler.protected_call` returns whether the call *threw*, not what it
+  returned, so a `false` result still printed "Python environment ready"
+
 ## [0.4.1] - 2026-08-01
 
 ### Added

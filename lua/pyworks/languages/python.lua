@@ -18,6 +18,7 @@ end
 local IMPORT_CHECK_TIMEOUT_MS = 5000 -- 5 seconds for import check
 local PIP_LIST_TIMEOUT_MS = 15000 -- 15 seconds for pip list
 local VENV_CREATE_TIMEOUT_MS = 60000 -- 60 seconds for venv creation
+local ENV_CHECK_THROTTLE_SEC = 30 -- Skip repeat environment checks within this window
 
 local function filter_pip_stderr(stderr)
 	if not stderr or stderr == "" then
@@ -275,18 +276,27 @@ function M.create_venv(filepath)
 end
 
 -- Install essential packages
-function M.install_essentials(filepath)
+-- Install the configured essentials into the project venv
+--
+-- The install itself is async, so callers that want to report success must wait
+-- for on_complete(ok, err) rather than for this function to return. Announcing
+-- readiness on return told users the environment was ready while uv/pip was
+-- still fetching ~90 MB of jupyterlab.
+function M.install_essentials(filepath, on_complete)
 	filepath = filepath or get_current_filepath()
+	on_complete = on_complete or function() end
 
 	-- Guard against duplicate calls (installation is async)
 	local project_dir, venv_path = utils.get_project_paths(filepath)
 	local install_key = state.KEYS.INSTALLING_ESSENTIALS .. (project_dir or "global")
 	if state.get(install_key) then
-		return true -- Already installing
+		notifications.notify("Package installation already in progress", vim.log.levels.INFO)
+		return true -- the in-flight call owns the callback
 	end
 
 	if not M.has_venv(filepath) then
 		if not M.create_venv(filepath) then
+			on_complete(false, "Failed to create virtual environment")
 			return false
 		end
 	end
@@ -300,6 +310,7 @@ function M.install_essentials(filepath)
 	end
 
 	if #missing_essentials == 0 then
+		on_complete(true)
 		return true
 	end
 
@@ -356,6 +367,7 @@ function M.install_essentials(filepath)
 					state.mark_package_installed("python", pkg)
 				end
 				cache.invalidate("installed_packages_python")
+				on_complete(true)
 			else
 				local error_msg = "Failed to install essential packages."
 				local filtered_errors = filter_pip_stderr(obj.stderr)
@@ -363,15 +375,23 @@ function M.install_essentials(filepath)
 					error_msg = error_msg .. "\nError: " .. table.concat(filtered_errors, "\n")
 				end
 				notifications.notify_error(error_msg)
+				on_complete(false, error_msg)
 			end
 		end)
 	end)
 
 	if not ok then
 		state.set(install_key, nil) -- Clear the installing flag
-		notifications.notify_error("Failed to start essential packages installation: " .. tostring(sys_obj))
+		local start_err = "Failed to start essential packages installation: " .. tostring(sys_obj)
+		notifications.notify_error(start_err)
+		on_complete(false, start_err)
 		return false
 	end
+
+	notifications.notify(
+		string.format("Installing %s... (this can take a while)", table.concat(missing_essentials, ", ")),
+		vim.log.levels.INFO
+	)
 
 	return true
 end
@@ -585,13 +605,33 @@ function M.install_packages(package_list, filepath)
 end
 
 -- Ensure Python environment is ready
-function M.ensure_environment(filepath)
+-- Whether an environment check should run now
+--
+-- The throttle keeps opening files cheap; an explicit user command (force)
+-- must ignore it, otherwise :PyworksSetup within the window did nothing at all
+-- while still reporting success.
+function M.should_check_environment(force)
+	if force then
+		return true
+	end
+	return state.should_check("python_env", "python", ENV_CHECK_THROTTLE_SEC)
+end
+
+-- Ensure the project has a venv with the essentials installed
+--
+-- opts.force        skip the throttle (explicit user request)
+-- opts.on_complete  called with (ok, err) once installation has actually
+--                   finished - the install is async, so anything reporting
+--                   "ready" must wait for this rather than for the return value
+function M.ensure_environment(filepath, opts)
+	opts = opts or {}
 	-- Use provided filepath or fall back to current buffer
 	filepath = filepath or get_current_filepath()
+	local on_complete = opts.on_complete or function() end
 
 	-- Check cache first
-	if not state.should_check("python_env", "python", 30) then
-		return true
+	if not M.should_check_environment(opts.force) then
+		return true, "throttled"
 	end
 
 	state.set_last_check("python_env", "python")
@@ -599,17 +639,23 @@ function M.ensure_environment(filepath)
 	-- Step 1: Check/create venv
 	if not M.has_venv(filepath) then
 		if not M.create_venv(filepath) then
+			on_complete(false, "Failed to create virtual environment")
 			return false
 		end
 	end
 
-	-- Step 2: Install essentials
+	-- Step 2: Install essentials, announcing readiness only once they are there
 	if config.auto_install_essentials then
-		M.install_essentials(filepath)
+		M.install_essentials(filepath, function(ok, err)
+			if ok then
+				notifications.notify_environment_ready("python")
+			end
+			on_complete(ok, err)
+		end)
+	else
+		notifications.notify_environment_ready("python")
+		on_complete(true)
 	end
-
-	-- Step 3: Notify environment ready
-	notifications.notify_environment_ready("python")
 
 	return true
 end
