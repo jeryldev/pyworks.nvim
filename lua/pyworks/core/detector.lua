@@ -383,11 +383,18 @@ local function auto_init_molten(language, filepath)
 		end
 
 		vim.defer_fn(function()
+			-- The buffer can be gone by now: the user closed the file, or
+			-- jupytext replaced it. Writing vim.b[<gone>] throws out of the
+			-- scheduled callback, where nothing can catch it.
+			if not vim.api.nvim_buf_is_valid(bufnr) then
+				return
+			end
+
 			-- Try to initialize the kernel
 			local ok, err = pcall(vim.cmd, "MoltenInit " .. kernel)
 			if ok then
-				vim.b[bufnr].molten_initialized = true
-				vim.b[bufnr].pyworks_kernel_name = kernel
+				utils.safe_buf_set_var(bufnr, "molten_initialized", true)
+				utils.safe_buf_set_var(bufnr, "pyworks_kernel_name", kernel)
 
 				-- MoltenInit only *starts* the kernel; it takes seconds more to
 				-- accept work, and anything sent meanwhile is silently dropped
@@ -399,7 +406,7 @@ local function auto_init_molten(language, filepath)
 				)
 			else
 				-- If initialization failed, try again later or let user do it manually
-				vim.b[bufnr].molten_init_attempted = false -- Allow retry
+				utils.safe_buf_set_var(bufnr, "molten_init_attempted", false) -- Allow retry
 				notifications.notify(
 					string.format(
 						"Failed to auto-initialize kernel for %s. Press <leader>mi to initialize manually",

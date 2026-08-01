@@ -48,6 +48,13 @@ All notable changes to pyworks.nvim will be documented in this file.
   `MoltenInit` returned, inviting the user to run code during exactly the window
   where executions are silently dropped. It now says the kernel is *starting*,
   and readiness is announced by Molten itself
+- **"Invalid buffer id" error from kernel auto-init**: `auto_init_molten`
+  captures the buffer, waits 200ms, then writes buffer-local variables. If the
+  buffer was gone by then - jupytext replacing an `.ipynb` buffer, or the user
+  closing the file - `vim.b[<invalid>]` threw out of a `vim.schedule` callback,
+  where nothing could catch it. Deferred writes now go through
+  `utils.safe_buf_set_var`, and `pyworks.core.kernel_ready` tolerates being
+  asked about a buffer that no longer exists
 - **CI linters tracked "latest"**: both stylua and selene were installed from
   the newest upstream release, so an upstream change could turn CI red with no
   change to this repo. Both are now pinned (stylua v2.5.2, selene 0.31.0).

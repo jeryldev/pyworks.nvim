@@ -457,4 +457,29 @@ describe("utils", function()
 			assert.is_not_nil(err:match("Failed to open file"))
 		end)
 	end)
+
+	-- Buffer variables are often written from deferred callbacks, by which time
+	-- the buffer may be gone (jupytext reload, the user closing the file).
+	-- vim.b[<invalid>] raises "Invalid buffer id" out of a vim.schedule callback,
+	-- where there is no caller to catch it.
+	describe("safe_buf_set_var", function()
+		it("should set the variable on a live buffer", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+
+			local ok = utils.safe_buf_set_var(bufnr, "pyworks_test_var", true)
+
+			assert.is_true(ok)
+			assert.is_true(vim.b[bufnr].pyworks_test_var)
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+		end)
+
+		it("should not error when the buffer is already gone", function()
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+
+			local ok = utils.safe_buf_set_var(bufnr, "pyworks_test_var", true)
+
+			assert.is_false(ok)
+		end)
+	end)
 end)

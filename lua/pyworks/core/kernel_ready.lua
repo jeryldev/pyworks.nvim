@@ -17,6 +17,8 @@
 
 local M = {}
 
+local utils = require("pyworks.utils")
+
 -- kernel_id -> true, for kernels that have reported ready this session
 local ready_kernels = {}
 
@@ -29,7 +31,7 @@ local function mark_buffers_ready(kernel_id)
 			-- Only claim readiness for the buffer whose kernel reported it;
 			-- another buffer's kernel may still be starting up
 			if kernel_id == nil or buf_kernel == nil or buf_kernel == kernel_id then
-				vim.b[bufnr].pyworks_kernel_ready = true
+				utils.safe_buf_set_var(bufnr, "pyworks_kernel_ready", true)
 			end
 		end
 	end
@@ -65,6 +67,13 @@ end
 
 function M.is_ready(bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
+
+	-- Callers reach here from deferred callbacks, so the buffer may be gone;
+	-- reading vim.b[<invalid>] would throw where nothing can catch it
+	if not vim.api.nvim_buf_is_valid(bufnr) then
+		return false
+	end
+
 	if vim.b[bufnr].pyworks_kernel_ready == true then
 		return true
 	end
@@ -73,7 +82,7 @@ function M.is_ready(bufnr)
 	-- so consult the per-kernel record too
 	local kernel = vim.b[bufnr].pyworks_kernel_name
 	if kernel and ready_kernels[kernel] then
-		vim.b[bufnr].pyworks_kernel_ready = true
+		utils.safe_buf_set_var(bufnr, "pyworks_kernel_ready", true)
 		return true
 	end
 

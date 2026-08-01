@@ -63,6 +63,29 @@ describe("kernel_ready", function()
 		end)
 	end)
 
+	-- These are reached from deferred callbacks, so the buffer may be gone by
+	-- the time they run; vim.b[<invalid>] throws where nothing can catch it.
+	describe("with a deleted buffer", function()
+		it("is_ready should report false instead of erroring", function()
+			local gone = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_buf_delete(gone, { force = true })
+
+			local ok, result = pcall(kernel_ready.is_ready, gone)
+
+			assert.is_true(ok)
+			assert.is_false(result)
+		end)
+
+		it("run_when_ready should not error", function()
+			local gone = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_buf_delete(gone, { force = true })
+
+			local ok = pcall(kernel_ready.run_when_ready, gone, function() end, { timeout_ms = 50 })
+
+			assert.is_true(ok)
+		end)
+	end)
+
 	describe("run_when_ready", function()
 		it("should run immediately when the kernel is already ready", function()
 			kernel_ready.mark_ready("test_kernel")

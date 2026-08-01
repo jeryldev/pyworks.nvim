@@ -442,4 +442,22 @@ function M.check_python_import(module_name)
 	return ok and result and result.code == 0
 end
 
+-- Set a buffer-local variable, tolerating a buffer that no longer exists
+--
+-- Buffer variables are frequently written from deferred callbacks (kernel
+-- startup, notebook conversion), by which point the user may have closed the
+-- file or jupytext may have replaced the buffer. vim.b[<invalid>] raises
+-- "scoped variable: Invalid buffer id" from inside a vim.schedule callback,
+-- where no caller is left to catch it.
+-- Returns true if the value was set.
+function M.safe_buf_set_var(bufnr, name, value)
+	if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+		return false
+	end
+	local ok = pcall(function()
+		vim.b[bufnr][name] = value
+	end)
+	return ok
+end
+
 return M
