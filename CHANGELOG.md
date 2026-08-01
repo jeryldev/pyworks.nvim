@@ -4,6 +4,8 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-01
+
 ### Added
 
 - **Stale kernel detection** (#10): a kernelspec registered by
