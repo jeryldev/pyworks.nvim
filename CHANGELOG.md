@@ -33,10 +33,16 @@ All notable changes to pyworks.nvim will be documented in this file.
   and the output sits on `* On Hold` forever with a healthy kernel and no error.
   Reproduced against ipykernel 7.3.0 / jupyter_client 8.9.1: the same execution
   reaches `DONE` when sent after readiness and stays at `HOLD` when sent before.
-  Kernel readiness is now tracked per buffer from Molten's
-  `User MoltenKernelReady` event, and every run keymap (`<leader>jl`, `jj`,
-  `jk`, `jR`) waits for it, with a 30s fallback. Pressing a run key early is
-  safe: it reports "Waiting for the kernel to be ready..." and runs by itself
+  Kernel readiness is now tracked in `pyworks.core.kernel_ready`, registered at
+  plugin load, and every run keymap (`<leader>jl`, `jj`, `jk`, `jR`) waits for
+  it. Pressing a run key early is safe: it reports "Waiting for the kernel to be
+  ready..." and runs by itself.
+
+  Molten announces readiness as a one-shot event with no way to query it
+  afterwards, so readiness is recorded per kernel id rather than only latched
+  onto a buffer. Registering the listener from `keymaps.lua` (loaded on
+  `FileType python`, which jupytext delays for `.ipynb`) could miss the event
+  entirely, leaving every run to sit out the fallback timeout
 - **Auto-init announced a kernel that was not ready**: opening a file logged
   "Molten ready with <kernel> kernel - Use `<leader>jl` to run code" the moment
   `MoltenInit` returned, inviting the user to run code during exactly the window

@@ -15,6 +15,12 @@ end
 -- Create autocmd group for pyworks
 local augroup = vim.api.nvim_create_augroup("Pyworks", { clear = true })
 
+-- Listen for Molten's kernel-ready event from startup. Molten fires it once and
+-- offers no way to query readiness afterwards, so registering later (e.g. when
+-- keymaps load on FileType python, which jupytext delays for .ipynb) can miss it
+-- entirely and leave every run waiting on a timeout. See issue #10.
+require("pyworks.core.kernel_ready").setup()
+
 -- Check if a file is in a pyworks-managed directory using utils.find_project_root
 local function is_pyworks_project(filepath)
 	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()

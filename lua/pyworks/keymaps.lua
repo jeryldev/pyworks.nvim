@@ -24,7 +24,6 @@ end
 local BUFFER_SETTLE_DELAY_MS = 100
 local POLL_INTERVAL_MS = 150 -- How often to check for cell completion
 local CELL_TIMEOUT_MS = 30000 -- Maximum wait time per cell (30 seconds)
-local KERNEL_READY_TIMEOUT_MS = 30000 -- Give up waiting for MoltenKernelReady after 30s
 
 -- Debug log file (set vim.g.pyworks_debug_file = "/tmp/pyworks.log" to enable)
 local function debug_log(msg)
@@ -314,94 +313,14 @@ local function is_markdown_cell()
 	return get_cell_engine().is_markdown_cell()
 end
 
--- Kernel readiness is separate from "MoltenInit was called": auto-init sets
--- b:molten_initialized the moment the command returns, seconds before the
--- kernel can accept work. Only Molten's User MoltenKernelReady event tells us
--- the kernel is actually usable (issue #10).
-local kernel_ready_augroup = vim.api.nvim_create_augroup("PyworksKernelReady", { clear = true })
-
-vim.api.nvim_create_autocmd("User", {
-	group = kernel_ready_augroup,
-	pattern = "MoltenKernelReady",
-	callback = function(ev)
-		local kernel_id = ev.data and ev.data.kernel_id
-		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-			if vim.api.nvim_buf_is_valid(buf) and vim.b[buf].molten_initialized then
-				local buf_kernel = vim.b[buf].pyworks_kernel_name
-				-- Only claim readiness for the buffer whose kernel reported it;
-				-- another buffer's kernel may still be starting up
-				if kernel_id == nil or buf_kernel == nil or buf_kernel == kernel_id then
-					vim.b[buf].pyworks_kernel_ready = true
-				end
-			end
-		end
-	end,
-})
-
-local function is_kernel_ready(bufnr)
-	return vim.b[bufnr].pyworks_kernel_ready == true
-end
-
--- Run fn once Molten's kernel is actually ready
---
--- Molten only starts consuming kernel messages after jupyter_client's
--- wait_for_ready() returns, and that call ends by flushing the IOPub channel
--- (jupyter_client/client.py, "Flush IOPub channel"). Anything evaluated during
--- the startup window therefore has its execute_input/status messages drained
--- before Molten can see them, and the cell sits on "* On Hold" forever with a
--- perfectly healthy kernel and no error anywhere (issue #10).
---
--- Molten fires User MoltenKernelReady at exactly the not-ready -> ready
--- transition, so waiting for the event is the only safe gate; a fixed delay is
--- a race against kernel startup, which takes seconds on a cold interpreter.
-local function run_when_kernel_ready(bufnr, fn, opts)
-	opts = opts or {}
-	local timeout_ms = opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
-	local done = false
-
-	local function run_once()
-		if done then
-			return
-		end
-		done = true
-		fn()
-	end
-
-	vim.api.nvim_create_autocmd("User", {
-		pattern = "MoltenKernelReady",
-		once = true,
-		callback = function()
-			vim.schedule(run_once)
-		end,
-	})
-
-	-- Last resort so a missing event (older Molten, failed init) cannot hang the
-	-- keymap forever. Evaluating late is still better than never evaluating.
-	local timer = vim.uv.new_timer()
-	timer:start(
-		timeout_ms,
-		0,
-		vim.schedule_wrap(function()
-			if not timer:is_closing() then
-				timer:stop()
-				timer:close()
-			end
-			if not done and vim.api.nvim_buf_is_valid(bufnr) then
-				vim.notify("Kernel did not report ready; running anyway", vim.log.levels.WARN)
-				run_once()
-			end
-		end)
-	)
-end
+-- Kernel readiness lives in its own module registered at plugin load, because
+-- Molten announces it as a one-shot event with no way to query it afterwards
+-- (issue #10).
+local kernel_ready = require("pyworks.core.kernel_ready")
 
 -- Evaluate now if the kernel is ready, otherwise as soon as it reports ready
 local function ensure_kernel_ready(bufnr, fn)
-	if is_kernel_ready(bufnr) then
-		fn()
-		return
-	end
-	vim.notify("Waiting for the kernel to be ready...", vim.log.levels.INFO)
-	run_when_kernel_ready(bufnr, fn)
+	kernel_ready.run_when_ready(bufnr, fn)
 end
 
 -- Move the cursor to the marker line of cell N (1-indexed)
@@ -491,8 +410,8 @@ function M.setup_buffer_keymaps()
 
 					-- Wait for the kernel to report ready before evaluating: a cell
 					-- sent during startup is silently swallowed and hangs on
-					-- "* On Hold" forever (see run_when_kernel_ready)
-					run_when_kernel_ready(bufnr, function()
+					-- "* On Hold" forever (see pyworks.core.kernel_ready)
+					ensure_kernel_ready(bufnr, function()
 						error_handler.protected_call(vim.cmd, "Failed to evaluate line", "MoltenEvaluateLine")
 						local cursor = vim.api.nvim_win_get_cursor(0)
 						local next_line = cursor[1] + 1
@@ -927,9 +846,6 @@ end
 M._get_highest_completed_output = get_highest_completed_output
 M._is_markdown_cell = is_markdown_cell
 M._focus_cell = focus_cell
-M._run_when_kernel_ready = run_when_kernel_ready
-M._is_kernel_ready = is_kernel_ready
-M._ensure_kernel_ready = ensure_kernel_ready
 M._wait_for_cell_completion = wait_for_cell_completion
 M._debug_dump_extmarks = debug_dump_extmarks
 M._get_molten_namespace = get_molten_namespace
