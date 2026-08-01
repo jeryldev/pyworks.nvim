@@ -23,6 +23,10 @@ require("pyworks.core.kernel_ready").setup()
 
 local log = require("pyworks.core.log")
 
+-- :PyworksReport / :PyworksLog are registered at startup so a user can produce
+-- diagnostics even when setup() failed
+require("pyworks.report").setup_commands()
+
 -- Check if a file is in a pyworks-managed directory using utils.find_project_root
 local function is_pyworks_project(filepath)
 	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()
