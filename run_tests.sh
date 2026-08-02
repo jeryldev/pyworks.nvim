@@ -80,9 +80,12 @@ if [ -n "$TEST_FILE" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
+    # test_directory (not PlenaryBustedFile) so the child process gets
+    # minimal_init - PlenaryBustedFile spawns it with --noplugin and no init,
+    # so package.path lacks lua/ and tests/, and requires fail
     nvim --headless \
         -u tests/minimal_init.lua \
-        -c "PlenaryBustedFile tests/$TEST_FILE" \
+        -c "lua require('plenary.test_harness').test_directory('tests/$TEST_FILE', {minimal_init = 'tests/minimal_init.lua'})" \
         -c "qa!"
 else
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

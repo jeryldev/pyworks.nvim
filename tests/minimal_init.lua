@@ -5,6 +5,8 @@
 local pyworks_path = vim.fn.fnamemodify(vim.fn.getcwd(), ":p")
 package.path = package.path .. ";" .. pyworks_path .. "lua/?.lua"
 package.path = package.path .. ";" .. pyworks_path .. "lua/?/init.lua"
+-- test-only helpers (tests/helpers/*.lua) are required as "helpers.<name>"
+package.path = package.path .. ";" .. pyworks_path .. "tests/?.lua"
 
 -- Add plenary to runtimepath if available
 local plenary_path = vim.fn.stdpath("data") .. "/lazy/plenary.nvim"
