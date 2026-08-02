@@ -171,10 +171,51 @@ function M.find_jupytext_cli(filepath)
 end
 
 -- Convert .ipynb to percent-format Python script using jupytext CLI
+-- Conversion cache, keyed by path and keyed off the file's mtime and size.
+--
+-- Converting costs 720-950 ms, nearly all of it interpreter startup, and it runs
+-- on every open. Reusing the result while the file is untouched keeps repeated
+-- opens (and the reload cascade) off that path entirely.
+local conversion_cache = {}
+
+local function file_stamp(filepath)
+	local stat = vim.uv.fs_stat(filepath)
+	if not stat then
+		return nil
+	end
+	return string.format("%d:%d", stat.mtime.sec, stat.size)
+end
+
+local function cached_conversion(filepath)
+	local entry = conversion_cache[filepath]
+	if not entry then
+		return nil
+	end
+	local stamp = file_stamp(filepath)
+	if not stamp or stamp ~= entry.stamp then
+		conversion_cache[filepath] = nil
+		return nil
+	end
+	return entry.content
+end
+
+local function cache_conversion(filepath, content)
+	local stamp = file_stamp(filepath)
+	if stamp then
+		conversion_cache[filepath] = { stamp = stamp, content = content }
+	end
+end
+
 local function convert_ipynb_to_percent(filepath)
 	local jupytext_cmd = M.find_jupytext_cli(filepath)
 	if not jupytext_cmd then
 		return nil, "jupytext CLI not found"
+	end
+
+	local cached = cached_conversion(filepath)
+	if cached then
+		log.debug("jupytext", "conversion cache hit for %s", filepath)
+		return cached, nil
 	end
 
 	local result = vim.system({
@@ -190,6 +231,7 @@ local function convert_ipynb_to_percent(filepath)
 		return nil, result.stderr or "jupytext conversion failed"
 	end
 
+	cache_conversion(filepath, result.stdout)
 	return result.stdout, nil
 end
 
@@ -449,5 +491,10 @@ M.configure_jupytext_nvim = M.configure_notebook_handler
 
 -- Exported for testing
 M._is_valid_notebook = is_valid_notebook
+M._cached_conversion = cached_conversion
+M._cache_conversion = cache_conversion
+M._clear_conversion_cache = function()
+	conversion_cache = {}
+end
 
 return M

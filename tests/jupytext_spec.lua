@@ -138,6 +138,49 @@ describe("jupytext notebook validation", function()
 	end)
 end)
 
+-- E3: conversion cost 720-950 ms on every .ipynb open and again on every save,
+-- against a CLAUDE.md target of <500 ms for notebook opening. Most of that is
+-- interpreter startup, so a conversion is reused while the file is unchanged.
+describe("jupytext conversion cache", function()
+	local nb
+
+	before_each(function()
+		jupytext._clear_conversion_cache()
+		nb = vim.fn.tempname() .. ".ipynb"
+		vim.fn.writefile({ vim.json.encode({ cells = {}, nbformat = 4, nbformat_minor = 5 }) }, nb)
+	end)
+
+	after_each(function()
+		vim.fn.delete(nb)
+	end)
+
+	it("should return the cached conversion for an unchanged file", function()
+		jupytext._cache_conversion(nb, "# %%\nprint(1)")
+
+		assert.are.equal("# %%\nprint(1)", jupytext._cached_conversion(nb))
+	end)
+
+	it("should miss for a file it has never seen", function()
+		assert.is_nil(jupytext._cached_conversion(vim.fn.tempname() .. ".ipynb"))
+	end)
+
+	it("should invalidate when the file changes", function()
+		jupytext._cache_conversion(nb, "# %%\nold")
+		vim.fn.writefile({ vim.json.encode({ cells = { 1 }, nbformat = 4 }) }, nb)
+		-- writefile updates mtime; make sure the stamp differs even on coarse clocks
+		vim.uv.fs_utime(nb, os.time() + 5, os.time() + 5)
+
+		assert.is_nil(jupytext._cached_conversion(nb))
+	end)
+
+	it("should invalidate when the file is deleted", function()
+		jupytext._cache_conversion(nb, "# %%\nold")
+		vim.fn.delete(nb)
+
+		assert.is_nil(jupytext._cached_conversion(nb))
+	end)
+end)
+
 describe("jupytext security", function()
 	it("should not contain sh -c wrapping pattern", function()
 		local source_path = "lua/pyworks/notebook/jupytext.lua"
