@@ -316,6 +316,20 @@ local python_stdlib = {
 	["_thread"] = true,
 }
 
+-- Normalise a package name for comparison (PEP 503)
+--
+-- Distribution names use hyphens where import names use underscores, and PyPI
+-- treats runs of -, _ and . as equivalent. Comparing case-folded but
+-- separator-naive meant an installed "jupyter-client" never matched a required
+-- "jupyter_client", so the package was reported missing on every scan and
+-- offered for install forever.
+function M.normalize_package_name(name)
+	if type(name) ~= "string" or name == "" then
+		return ""
+	end
+	return (name:lower():gsub("[-_.]+", "-"))
+end
+
 -- Map import to package name
 function M.map_import_to_package(import_name, language)
 	language = language or "python"
@@ -519,10 +533,11 @@ function M.detect_missing_packages(filepath, language)
 	local imports = M.scan_imports(filepath, language)
 	local installed = M.get_installed_packages(language, filepath) -- Pass filepath!
 
-	-- Convert installed list to a set for faster lookup
+	-- Convert installed list to a set for faster lookup, normalised so
+	-- "jupyter-client" and "jupyter_client" are the same package
 	local installed_set = {}
 	for _, pkg in ipairs(installed) do
-		installed_set[pkg:lower()] = true
+		installed_set[M.normalize_package_name(pkg)] = true
 	end
 
 	local missing = {}
@@ -533,7 +548,7 @@ function M.detect_missing_packages(filepath, language)
 			local package_name = M.map_import_to_package(import_name, language)
 
 			-- Check if installed
-			if not installed_set[package_name:lower()] then
+			if not installed_set[M.normalize_package_name(package_name)] then
 				table.insert(missing, package_name)
 			end
 		end

@@ -132,13 +132,14 @@ local function packages_section(lines, project_dir)
 	end
 	table.insert(lines, string.format("installed package count: %d", #installed))
 
+	local normalize = require("pyworks.core.packages").normalize_package_name
 	local present = {}
 	for _, pkg in ipairs(installed) do
-		present[pkg:lower()] = true
+		present[normalize(pkg)] = true
 	end
 	local missing = {}
 	for _, pkg in ipairs(essentials) do
-		if not present[pkg:lower()] then
+		if not present[normalize(pkg)] then
 			table.insert(missing, pkg)
 		end
 	end
