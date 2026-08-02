@@ -31,5 +31,17 @@ local temp_dir = vim.fn.tempname()
 vim.fn.mkdir(temp_dir, "p")
 vim.env.TMPDIR = temp_dir
 
+-- Line coverage, opt-in via PYWORKS_COVERAGE_DIR. Each child process dumps its
+-- hits on exit; scripts/coverage.lua merges them.
+if vim.env.PYWORKS_COVERAGE_DIR and vim.env.PYWORKS_COVERAGE_DIR ~= "" then
+	local coverage = require("coverage")
+	coverage.start()
+	vim.api.nvim_create_autocmd("VimLeavePre", {
+		callback = function()
+			coverage.dump(vim.env.PYWORKS_COVERAGE_DIR)
+		end,
+	})
+end
+
 print("Minimal init loaded for pyworks.nvim tests")
 print("Package path: " .. package.path)

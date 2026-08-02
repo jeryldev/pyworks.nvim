@@ -40,11 +40,16 @@ echo ""
 # Parse arguments
 TEST_FILE=""
 VERBOSE=0
+COVERAGE=0
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -v|--verbose)
             VERBOSE=1
+            shift
+            ;;
+        -c|--coverage)
+            COVERAGE=1
             shift
             ;;
         -f|--file)
@@ -73,6 +78,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [ "$COVERAGE" -eq 1 ]; then
+    PYWORKS_COVERAGE_DIR="$(mktemp -d)"
+    export PYWORKS_COVERAGE_DIR
+fi
+
 # Run tests
 if [ -n "$TEST_FILE" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -100,6 +110,17 @@ else
 fi
 
 EXIT_CODE=$?
+
+if [ "$COVERAGE" -eq 1 ]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Coverage (per module)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    nvim --headless -u tests/minimal_init.lua \
+        -c "lua print(require('coverage').format_report(require('coverage').merge('$PYWORKS_COVERAGE_DIR')))" \
+        -c "qa!" 2>&1 | grep -v "^Minimal init\|^Package path"
+    rm -rf "$PYWORKS_COVERAGE_DIR"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
