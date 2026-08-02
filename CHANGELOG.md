@@ -4,7 +4,77 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-02
+
+Minor rather than patch: pyworks no longer sets itself up outside real projects,
+and fifteen unused public functions were removed.
+
+### Added
+
+- **`:PyworksReport`** — one paste-ready bug report: environment, kernelspecs
+  with an interpreter-exists check, Molten buffer state, essentials installed vs
+  missing, `:checkhealth` output and the recent log. `$HOME` is redacted;
+  `:PyworksReport!` keeps full paths. Issue #10 needed five round-trips to
+  collect information the plugin already had
+- **`:PyworksLog`** and `pyworks.core.log` — levels, module tags, lazy
+  formatting and an always-on 500-entry ring buffer, replacing three unrelated
+  debug switches. Diagnostics no longer travel on the user's notification
+  channel, and every module can log (previously one of twenty could)
+- **`utils.is_project()`** — answers the question every "only act inside a
+  project" guard was asking
+
 ### Fixed
+
+- **Notebook saves were not atomic** — `write_notebook` truncated the real
+  `.ipynb` before writing and discarded the `close()` error, so a full disk
+  reported "Notebook saved" over a destroyed file. Writes now go to a temp file,
+  are validated as a notebook, and are renamed into place with the original mode
+  preserved. A failed save leaves the existing notebook untouched
+- **Warnings were invisible** — with the default config only
+  `error`/`action_required`/`first_time`/`progress` messages reached the user;
+  plain INFO *and WARN* were dropped, hiding "Ignoring stale kernel…", "No venv
+  for …" and "Notebook opened in JSON view". Warnings and errors are never
+  suppressed now; routine INFO still is
+- **Installed packages reported as missing** — distribution names use hyphens
+  where import names use underscores, so `import jupyter_client` was told the
+  package was missing on every scan while `jupyter-client` sat installed. Names
+  are normalised per PEP 503 before comparison
+- **The environment check blocked Neovim for ~2.4 s per file open** — it spawned
+  one `python -c "import X"` per essential, synchronously, even when everything
+  was installed. One `uv pip list` now narrows and an import probe confirms:
+  **2,453 ms → 74 ms**
+- **Notebook conversion ran on every open and save** (720–2,037 ms) — results
+  are cached by mtime and size, so repeat opens cost nothing
+- **Pyworks set itself up outside projects** — `find_project_root` fell back to
+  the starting directory, so it never returned nil and every project guard was
+  dead code: a stray `.py` in `/tmp`, in a dependency's source, or in `$HOME`
+  got a full environment including a venv beside it. Only strong markers now
+  establish a project (`main.py`/`app.py` no longer qualify) and `$HOME` never
+  does
+- **Nested notebook reloads disabled Molten permanently** — the guard saved the
+  already-safe tick rate on re-entry, so unwinding restored 999999 and Molten
+  stopped ticking for the session: every cell then sat on `* On Hold` with a
+  healthy kernel, indistinguishable from the bug fixed in v0.4.1
+- **Opening two notebooks quickly skipped the second conversion** — the reload
+  debounce was global; it is now per buffer
+- **`:PyworksRunCell` bypassed the kernel-readiness gate** — the guard lived on
+  the keymaps, so the commands that exist for `skip_keymaps` users still lost
+  cells to the IOPub flush. It now sits on `run_cell` itself
+- **A corrupt state file broke `setup()`** — `pairs()` over a decoded `null`
+  threw; the file is written from a debounced timer, so a hard exit can leave
+  exactly that. `state.remove` also never persisted, so deleted keys returned
+- **"Environment ready" appeared once per machine, ever** — the flag was keyed
+  by language and persisted; it is now per project, and names it
+- **Essentials could be installed into an ambient environment silently** — a
+  project without `.venv` adopted whatever `$VIRTUAL_ENV`/`$CONDA_PREFIX` the
+  shell had active. That is now announced before installing
+- **`protected_call`'s first return means "did not throw"**, not "succeeded" —
+  two callers read it as success, so package sync continued after venv creation
+  failed and notebook creation continued after setup failed
+- Cache stats ignored per-entry TTLs; `cache.configure` dropped typo'd keys
+  silently; cell renumbering could act on the wrong buffer; the jupytext
+  dependency check looked in `cwd`'s venv rather than the file's project; an
+  unknown terminal was handed the kitty image backend
 
 - **"Python environment ready" was announced before the packages existed**: the
   essentials install runs asynchronously, but `ensure_environment` (and
@@ -22,6 +92,33 @@ All notable changes to pyworks.nvim will be documented in this file.
 - **`:PyworksSetup` reported success even when setup failed**:
   `error_handler.protected_call` returns whether the call *threw*, not what it
   returned, so a `false` result still printed "Python environment ready"
+
+### Changed
+
+- **Removed fifteen unused public functions** with no callers, tests or docs:
+  `utils.{is_venv_configured,ensure_venv_in_path,detect_package_manager,better_select,command_exists,safe_schedule}`,
+  `dependencies.install_dependencies`,
+  `error_handler.{validate_executable,handle_job_error,show_error_details}`,
+  `notifications.{progress_update,notify_first_time,notify_package_installed}`,
+  `python.check_compatibility`, `jupytext.install_jupytext`
+- The essentials list has a single source: `init.lua` derives its default from
+  `languages/python`'s toolchain rather than restating it
+- `vim.validate` added to the public API of `languages/python` and
+  `core/packages`
+
+### Internal
+
+- Test suite grew from 300 to 405 tests across 22 spec files; `core/state`,
+  `core/notifications`, `core/log`, `core/recursion_guard` and the report
+  generator gained their first specs
+- Per-module line coverage via a vendored `debug.sethook` collector
+  (`./run_tests.sh --coverage`); luacov cannot be used here because luarocks
+  targets Lua 5.5 while Neovim runs LuaJIT
+- Hermetic project fixture for tests, after a spec created a `.venv` inside the
+  checkout on CI
+- `run_tests.sh -f` now passes `minimal_init` to the child process, so
+  single-file runs match the full suite
+
 
 ## [0.4.1] - 2026-08-01
 
