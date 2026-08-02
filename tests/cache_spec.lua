@@ -60,4 +60,50 @@ describe("cache", function()
 			assert.are.equal(0, stats.expired)
 		end)
 	end)
+
+	-- F4a: M.get honours entry.ttl but M.stats ignored it, so entries created
+	-- with an explicit TTL were mis-classified - and :PyworksDiagnostics reports
+	-- those numbers.
+	describe("stats", function()
+		it("should honour a per-entry TTL over the key's default", function()
+			cache_module.invalidate_pattern(".*")
+			-- jupytext_installed defaults to an hour, so this entry counts as
+			-- expired only if the explicit TTL is the one being applied
+			cache_module.set("jupytext_installed_probe", "v", -1)
+			cache_module.set("jupytext_installed_other", "v", 3600)
+
+			local stats = cache_module.stats()
+
+			assert.are.equal(2, stats.total)
+			assert.are.equal(1, stats.expired)
+			assert.are.equal(1, stats.active)
+		end)
+	end)
+
+	-- F4b: a typo in the cache config was silently dropped, unlike
+	-- validate_config which warns on type errors
+	describe("configure", function()
+		it("should apply a known TTL key", function()
+			cache_module.configure({ kernel_list = 12345 })
+			cache_module.set("kernel_list_probe", "v")
+
+			assert.are.equal("v", cache_module.get("kernel_list_probe"))
+			cache_module.configure({ kernel_list = 60 })
+		end)
+
+		it("should warn about an unknown key instead of ignoring it", function()
+			local warned = false
+			local real = vim.notify
+			vim.notify = function(msg, level)
+				if level == vim.log.levels.WARN and tostring(msg):find("kernal_list", 1, true) then
+					warned = true
+				end
+			end
+
+			cache_module.configure({ kernal_list = 60 })
+
+			vim.notify = real
+			assert.is_true(warned)
+		end)
+	end)
 end)

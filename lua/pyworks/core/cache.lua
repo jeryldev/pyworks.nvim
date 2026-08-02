@@ -137,7 +137,10 @@ function M.stats()
 
 	for key, entry in pairs(cache) do
 		count = count + 1
-		local ttl = get_ttl(key)
+		-- Same rule M.get applies: an explicit TTL wins over the key's default,
+		-- otherwise entries set with one are mis-reported here (and in
+		-- :PyworksDiagnostics, which prints these numbers)
+		local ttl = entry.ttl or get_ttl(key)
 		if now - entry.timestamp > ttl then
 			expired = expired + 1
 		end
@@ -152,10 +155,23 @@ end
 
 -- Override default TTL values
 function M.configure(ttl_overrides)
+	local unknown = {}
+
 	for key, value in pairs(ttl_overrides or {}) do
 		if default_ttl[key] then
 			default_ttl[key] = value
+		else
+			table.insert(unknown, key)
 		end
+	end
+
+	-- Silently dropping these made a typo look like a working setting
+	if #unknown > 0 then
+		table.sort(unknown)
+		vim.notify(
+			string.format("[Pyworks] Unknown cache option(s) ignored: %s", table.concat(unknown, ", ")),
+			vim.log.levels.WARN
+		)
 	end
 end
 
