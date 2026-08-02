@@ -18,8 +18,20 @@ M.KEYS = {
 -- In-memory state storage
 local state = {}
 
--- Persistent state file path
+-- Persistent state file path (overridable so tests never touch the real one)
 local state_file = vim.fn.stdpath("data") .. "/pyworks_state.json"
+
+-- Point the persistent store somewhere else, e.g. a temp file in tests
+function M.configure(opts)
+	vim.validate({ opts = { opts, "table", true } })
+	if opts and opts.file then
+		state_file = opts.file
+	end
+end
+
+function M.get_state_file()
+	return state_file
+end
 
 -- Debounce timer for saves
 local save_timer = nil
@@ -66,6 +78,11 @@ local function save_persistent_state()
 	end
 
 	-- Write to temp file first (atomic write pattern)
+	local dir = vim.fn.fnamemodify(state_file, ":h")
+	if vim.fn.isdirectory(dir) == 0 then
+		pcall(vim.fn.mkdir, dir, "p")
+	end
+
 	local temp_file = state_file .. ".tmp"
 	local file = io.open(temp_file, "w")
 	if not file then

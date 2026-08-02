@@ -58,19 +58,20 @@ describe("state", function()
 	end)
 
 	describe("persistence", function()
-		local state_file = vim.fn.stdpath("data") .. "/pyworks_state.json"
-		local backup
+		-- Point the store at a temp file: writing to the real stdpath("data")
+		-- depends on that directory existing, which it may not on a fresh
+		-- machine (this failed on CI), and tests must not touch user data
+		local state_file
+		local real_file = state.get_state_file()
 
 		before_each(function()
-			backup = vim.fn.filereadable(state_file) == 1 and vim.fn.readfile(state_file) or nil
+			state_file = vim.fn.tempname()
+			state.configure({ file = state_file })
 		end)
 
 		after_each(function()
-			if backup then
-				vim.fn.writefile(backup, state_file)
-			else
-				vim.fn.delete(state_file)
-			end
+			vim.fn.delete(state_file)
+			state.configure({ file = real_file })
 		end)
 
 		-- C4: load_persistent_state returned whatever vim.json.decode produced,
