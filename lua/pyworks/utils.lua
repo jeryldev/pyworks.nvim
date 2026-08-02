@@ -325,23 +325,46 @@ function M.system_with_timeout(cmd, timeout_ms)
 end
 
 -- Safe file write with proper error handling
+-- Write a file atomically: temp file, then rename into place
+--
+-- Opening the target directly truncates it before a single byte is written, so
+-- an interrupted or failed write destroys whatever was there. That matters most
+-- for notebooks, where the file *is* the user's work.
+--
+-- close() is checked, not just write(): in LuaJIT file:write returns the handle
+-- (always truthy) and buffered data is only flushed at close, so a full disk
+-- surfaces there and nowhere else.
 function M.safe_file_write(filepath, content)
-	local file, err = io.open(filepath, "w")
+	local temp = filepath .. ".pyworks.tmp"
+
+	local file, err = io.open(temp, "w")
 	if not file then
-		return false, "Failed to open file: " .. (err or "unknown error")
+		return false, "Failed to open temporary file: " .. (err or "unknown error")
 	end
 
 	local success, write_err = pcall(function()
-		file:write(content)
-		file:close()
+		assert(file:write(content))
+		assert(file:close())
 	end)
 
 	if not success then
-		-- Try to close file if write failed
 		pcall(function()
 			file:close()
 		end)
-		return false, "Failed to write file: " .. (write_err or "unknown error")
+		pcall(os.remove, temp)
+		return false, "Failed to write file: " .. tostring(write_err)
+	end
+
+	-- Keep the original's permissions; rename would otherwise apply the umask
+	local mode = vim.fn.getfperm(filepath)
+	if mode ~= "" then
+		pcall(vim.fn.setfperm, temp, mode)
+	end
+
+	local renamed, rename_err = os.rename(temp, filepath)
+	if not renamed then
+		pcall(os.remove, temp)
+		return false, "Failed to replace file: " .. tostring(rename_err)
 	end
 
 	return true

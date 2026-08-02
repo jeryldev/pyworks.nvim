@@ -284,6 +284,16 @@ local function read_notebook(bufnr, filepath)
 	end
 end
 
+-- Does this look like a notebook document rather than, say, an error message
+-- or a half-converted percent script? Checked before the original is replaced.
+local function is_valid_notebook(content)
+	if type(content) ~= "string" or content == "" then
+		return false
+	end
+	local ok, decoded = pcall(vim.json.decode, content)
+	return ok and type(decoded) == "table" and type(decoded.cells) == "table"
+end
+
 -- Write notebook back to .ipynb format
 local function write_notebook(bufnr, filepath)
 	-- Get buffer content
@@ -298,18 +308,19 @@ local function write_notebook(bufnr, filepath)
 		return false
 	end
 
-	-- Write to file
-	local file, open_err = io.open(filepath, "w")
-	if not file then
-		notifications.notify_error("Failed to write file: " .. (open_err or "unknown error"))
+	-- Refuse to replace the original with something that is not a notebook: a
+	-- successful-but-wrong conversion would otherwise overwrite the user's work
+	if not is_valid_notebook(ipynb_content) then
+		notifications.notify_error("Refusing to save: converted output is not a valid notebook")
+		log.warn("jupytext", "conversion produced invalid notebook JSON for %s", filepath)
 		return false
 	end
 
-	local write_ok, write_err = file:write(ipynb_content)
-	file:close()
-
-	if not write_ok then
-		notifications.notify_error("Failed to write content: " .. (write_err or "unknown error"))
+	-- Atomic: write a temp file and rename over the original, so an interrupted
+	-- or failed save leaves the existing notebook untouched
+	local written, write_err = utils.safe_file_write(filepath, ipynb_content)
+	if not written then
+		notifications.notify_error("Failed to write notebook: " .. (write_err or "unknown error"))
 		return false
 	end
 
@@ -435,5 +446,8 @@ end
 
 -- Legacy function name for compatibility
 M.configure_jupytext_nvim = M.configure_notebook_handler
+
+-- Exported for testing
+M._is_valid_notebook = is_valid_notebook
 
 return M

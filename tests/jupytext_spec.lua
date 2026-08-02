@@ -114,6 +114,30 @@ describe("jupytext", function()
 	end)
 end)
 
+-- A1: the notebook writer used io.open(path, "w"), which truncates the user's
+-- notebook before writing and discards the close() error, so a full disk
+-- reported "Notebook saved" over a destroyed file.
+describe("jupytext notebook validation", function()
+	it("should accept a real notebook document", function()
+		local content = vim.json.encode({ cells = {}, nbformat = 4, nbformat_minor = 5 })
+
+		assert.is_true(jupytext._is_valid_notebook(content))
+	end)
+
+	it("should reject content that is not JSON", function()
+		assert.is_false(jupytext._is_valid_notebook("# %%\nprint(1)"))
+	end)
+
+	it("should reject JSON without a cells array", function()
+		assert.is_false(jupytext._is_valid_notebook(vim.json.encode({ metadata = {} })))
+	end)
+
+	it("should reject empty output", function()
+		assert.is_false(jupytext._is_valid_notebook(""))
+		assert.is_false(jupytext._is_valid_notebook(nil))
+	end)
+end)
+
 describe("jupytext security", function()
 	it("should not contain sh -c wrapping pattern", function()
 		local source_path = "lua/pyworks/notebook/jupytext.lua"

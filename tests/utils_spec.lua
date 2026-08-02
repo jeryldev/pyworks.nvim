@@ -449,6 +449,47 @@ describe("utils", function()
 			vim.fn.delete(temp_file)
 		end)
 
+		-- A1: the notebook writer truncates the real file the moment it opens it,
+		-- so a failed save destroys user data. This helper is the shared
+		-- implementation both it and future callers use.
+		it("safe_file_write should leave no temp file behind", function()
+			local dir = vim.fn.tempname()
+			vim.fn.mkdir(dir, "p")
+			local target = dir .. "/notebook.ipynb"
+
+			utils.safe_file_write(target, "content")
+
+			local leftovers = vim.fn.glob(dir .. "/*", false, true)
+			assert.are.equal(1, #leftovers, "expected only the target file, got " .. vim.inspect(leftovers))
+			vim.fn.delete(dir, "rf")
+		end)
+
+		it("safe_file_write should preserve the mode of an existing file", function()
+			local target = vim.fn.tempname()
+			vim.fn.writefile({ "original" }, target)
+			vim.fn.setfperm(target, "rw-r-----")
+
+			utils.safe_file_write(target, "replacement")
+
+			assert.are.equal("rw-r-----", vim.fn.getfperm(target))
+			vim.fn.delete(target)
+		end)
+
+		it("safe_file_write should leave the original intact when the write fails", function()
+			local dir = vim.fn.tempname()
+			vim.fn.mkdir(dir, "p")
+			local target = dir .. "/keep.ipynb"
+			vim.fn.writefile({ "precious original" }, target)
+			vim.fn.setfperm(dir, "r-xr-xr-x") -- directory not writable: temp file cannot be created
+
+			local ok = utils.safe_file_write(target, "replacement")
+
+			vim.fn.setfperm(dir, "rwxr-xr-x")
+			assert.is_false(ok)
+			assert.are.equal("precious original", vim.fn.readfile(target)[1])
+			vim.fn.delete(dir, "rf")
+		end)
+
 		it("safe_file_read should handle missing files", function()
 			local content, err = utils.safe_file_read("/nonexistent/file")
 
