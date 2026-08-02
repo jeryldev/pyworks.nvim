@@ -136,23 +136,31 @@ function M.get_project_paths(filepath)
 	-- Cache for 5 seconds to avoid repeated calls
 	local now = vim.uv.hrtime()
 	if cache.cwd == cache_key and cache.last_cwd_check and (now - cache.last_cwd_check) < 5e9 then
-		return cache.project_dir, cache.venv_path
+		return cache.project_dir, cache.venv_path, cache.ambient
 	end
 
 	cache.cwd = cache_key
 	cache.project_dir = project_dir
 	local local_venv = project_dir .. "/.venv"
 	cache.venv_path = local_venv
+	cache.ambient = false
+
+	-- A project without its own .venv falls back to whatever environment the
+	-- shell had active. That is useful for reading, but installing into someone's
+	-- conda base without saying so is not: the third return value lets callers
+	-- warn or refuse.
 	if vim.fn.isdirectory(local_venv) ~= 1 then
 		if vim.env.VIRTUAL_ENV and vim.fn.isdirectory(vim.env.VIRTUAL_ENV) == 1 then
 			cache.venv_path = vim.env.VIRTUAL_ENV
+			cache.ambient = true
 		elseif vim.env.CONDA_PREFIX and vim.fn.isdirectory(vim.env.CONDA_PREFIX) == 1 then
 			cache.venv_path = vim.env.CONDA_PREFIX
+			cache.ambient = true
 		end
 	end
 	cache.last_cwd_check = now
 
-	return project_dir, cache.venv_path
+	return project_dir, cache.venv_path, cache.ambient
 end
 
 -- Detect project type based on files present

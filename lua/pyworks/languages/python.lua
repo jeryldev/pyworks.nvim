@@ -343,6 +343,16 @@ function M.install_essentials(filepath, on_complete)
 		end
 	end
 
+	-- Say so before installing into an environment the project does not own:
+	-- silently adding ~300MB to someone's conda base is not acceptable
+	local _, venv_path_used, ambient = utils.get_project_paths(filepath)
+	if ambient then
+		notifications.notify(
+			string.format("Installing into the active environment %s (this project has no .venv)", venv_path_used),
+			vim.log.levels.WARN
+		)
+	end
+
 	-- Check if essentials are already installed
 	local missing_essentials = M.missing_essentials(filepath)
 

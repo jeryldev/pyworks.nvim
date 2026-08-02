@@ -171,6 +171,49 @@ describe("utils", function()
 		end)
 	end)
 
+	-- D3: when a project has no .venv, pyworks silently adopted whatever
+	-- $VIRTUAL_ENV or $CONDA_PREFIX the shell had active - so essentials could be
+	-- installed into a conda base without a word.
+	describe("ambient environment adoption", function()
+		local saved_virtual, saved_conda
+
+		before_each(function()
+			saved_virtual, saved_conda = vim.env.VIRTUAL_ENV, vim.env.CONDA_PREFIX
+			vim.env.VIRTUAL_ENV = nil
+			vim.env.CONDA_PREFIX = nil
+		end)
+
+		after_each(function()
+			vim.env.VIRTUAL_ENV, vim.env.CONDA_PREFIX = saved_virtual, saved_conda
+		end)
+
+		it("should report the project venv as not ambient", function()
+			local helpers = require("helpers.project")
+			local project = helpers.temp_project({ fake_venv = true })
+
+			local _, _, ambient = utils.get_project_paths(project.file)
+
+			assert.is_falsy(ambient)
+			project.cleanup()
+		end)
+
+		it("should flag a venv adopted from the environment", function()
+			local helpers = require("helpers.project")
+			local project = helpers.temp_project() -- no .venv of its own
+			local ambient_env = vim.fn.tempname()
+			vim.fn.mkdir(ambient_env .. "/bin", "p")
+			vim.env.VIRTUAL_ENV = ambient_env
+
+			local _, venv_path, ambient = utils.get_project_paths(project.file)
+
+			assert.are.equal(ambient_env, venv_path)
+			assert.is_true(ambient)
+
+			vim.fn.delete(ambient_env, "rf")
+			project.cleanup()
+		end)
+	end)
+
 	describe("detect_project_type", function()
 		it("should detect Django projects", function()
 			local temp_dir = vim.fn.tempname()
