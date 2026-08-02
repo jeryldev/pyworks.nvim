@@ -7,7 +7,7 @@ local utils = require("pyworks.utils")
 
 -- Detect terminal backend for image rendering
 -- Returns: backend name (string), is_supported (boolean), detection_info (string)
-local function detect_image_backend()
+function M.detect_image_backend()
 	local term = vim.env.TERM or ""
 	local term_program = vim.env.TERM_PROGRAM or ""
 	local kitty_window_id = vim.env.KITTY_WINDOW_ID
@@ -46,8 +46,10 @@ local function detect_image_backend()
 		return "kitty", false, "Running in tmux - image support may be limited"
 	end
 
-	-- Fallback: try kitty but warn it may not work
-	return "kitty", false, "Unknown terminal - image rendering may not work"
+	-- No known protocol: say so rather than naming kitty, which callers used as
+	-- the backend regardless of the false support flag, emitting escape
+	-- sequences an unsupporting terminal renders as garbage
+	return nil, false, "Unknown terminal - image rendering unavailable"
 end
 
 -- Comprehensive dependency check and auto-fix
@@ -94,9 +96,11 @@ function M.ensure_dependencies()
 				if vim.fn.executable("jupytext") == 1 then
 					return true
 				end
-				-- Check common venv locations
-				local venv_jupytext = vim.fn.getcwd() .. "/.venv/bin/jupytext"
-				if vim.fn.executable(venv_jupytext) == 1 then
+				-- Resolve the venv from the file's project rather than cwd: editing a
+				-- notebook outside the editor's working directory reported jupytext
+				-- missing when it was installed (or the reverse)
+				local _, venv_path = utils.get_project_paths(vim.api.nvim_buf_get_name(0))
+				if vim.fn.executable(venv_path .. "/bin/jupytext") == 1 then
 					return true
 				end
 				return false, "CLI not found"
@@ -134,7 +138,7 @@ function M.ensure_dependencies()
 				local ok, img = pcall(require, "image")
 				if ok and img.setup then
 					-- Use robust terminal detection
-					local backend, is_supported, detection_info = detect_image_backend()
+					local backend, is_supported, detection_info = M.detect_image_backend()
 
 					local setup_ok, setup_err = pcall(img.setup, {
 						backend = backend,

@@ -85,8 +85,18 @@ function M.get_current_cell_number()
 end
 
 -- Add virtual text numbering to cells with execution status
-function M.number_cells()
-	local bufnr = vim.api.nvim_get_current_buf()
+-- Number the cells of a buffer
+--
+-- Takes the buffer explicitly: the debounced TextChanged handler validates the
+-- buffer it captured and then called this, which acted on whatever buffer was
+-- current 300ms later - switching buffers inside that window renumbered the
+-- wrong one.
+function M.number_cells(bufnr)
+	vim.validate({ bufnr = { bufnr, "number", true } })
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
+	if not vim.api.nvim_buf_is_valid(bufnr) then
+		return
+	end
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
 	-- Get or create namespace (cached for performance)
@@ -276,7 +286,7 @@ function M.setup_buffer(opts)
 							debounce_timers[bufnr] = nil
 						end
 						if vim.api.nvim_buf_is_valid(bufnr) then
-							M.number_cells()
+							M.number_cells(bufnr)
 						end
 					end)
 				)
@@ -285,7 +295,9 @@ function M.setup_buffer(opts)
 		vim.api.nvim_create_autocmd("BufEnter", {
 			group = augroup,
 			buffer = bufnr,
-			callback = M.number_cells,
+			callback = function()
+				M.number_cells(bufnr)
+			end,
 		})
 		vim.api.nvim_create_autocmd("BufDelete", {
 			group = augroup,

@@ -22,18 +22,14 @@ local default_config = {
 		use_uv = true, -- Use uv for faster package management (10-100x faster than pip)
 		preferred_venv_name = ".venv",
 		auto_install_essentials = true,
-		-- jupytext opens .ipynb inside Neovim; jupyterlab gives the same venv a
-		-- browser UI (`jupyter lab`) sharing the ipykernel kernelspec.
-		essentials = {
-			"pynvim",
-			"ipykernel",
-			"jupyter_client",
-			"jupytext",
-			"jupyterlab",
-			"numpy",
-			"pandas",
-			"matplotlib",
-		},
+		-- The Jupyter toolchain comes from languages/python (single source of
+		-- truth: jupytext opens .ipynb inside Neovim, jupyterlab gives the same
+		-- venv a browser UI). The data-science trio is added on top because it
+		-- is what a notebook user reaches for first.
+		essentials = vim.list_extend(
+			require("pyworks.languages.python").get_default_essentials(),
+			{ "numpy", "pandas", "matplotlib" }
+		),
 	},
 	packages = {
 		custom_package_prefixes = {
@@ -178,7 +174,13 @@ function M.configure_dependencies(opts)
 	if not opts.skip_image then
 		local ok, image = pcall(require, "image")
 		if ok then
-			local backend = opts.image_backend or "kitty" -- Default to kitty
+			-- Only configure image.nvim for a terminal we detected a protocol
+			-- for; naming kitty for an unknown terminal produced garbage output
+			local detected = require("pyworks.dependencies").detect_image_backend()
+			local backend = opts.image_backend or detected
+			if not backend then
+				return
+			end
 			image.setup({
 				backend = backend,
 				integrations = {

@@ -45,22 +45,34 @@ local function get_current_filepath()
 	return path ~= "" and path or nil
 end
 
+-- The Jupyter toolchain every project needs. init.lua builds the user-facing
+-- default from this list rather than restating it: the two were hand-synced
+-- with nothing enforcing it, so adding a package to one could silently miss the
+-- other.
+local TOOLCHAIN_ESSENTIALS = {
+	"pynvim",
+	"ipykernel",
+	"jupyter_client",
+	"jupytext",
+	"jupyterlab",
+}
+
 -- Configuration
 local config = {
 	use_uv = true, -- Prefer uv if available (much faster!)
 	preferred_venv_name = ".venv",
 	auto_install_essentials = true,
-	essentials = {
-		"pynvim",
-		"ipykernel",
-		"jupyter_client",
-		"jupytext",
-		"jupyterlab",
-	},
+	essentials = vim.deepcopy(TOOLCHAIN_ESSENTIALS),
 }
+
+-- The toolchain defaults, for callers assembling their own list
+function M.get_default_essentials()
+	return vim.deepcopy(TOOLCHAIN_ESSENTIALS)
+end
 
 -- Configure Python module
 function M.configure(opts)
+	vim.validate({ opts = { opts, "table", true } })
 	config = vim.tbl_deep_extend("force", config, opts or {})
 end
 
@@ -293,6 +305,7 @@ end
 -- "could not list", so each essential falls back to an import probe rather than
 -- being declared missing on no evidence.
 function M.missing_essentials(filepath)
+	vim.validate({ filepath = { filepath, "string", true } })
 	filepath = filepath or get_current_filepath()
 
 	local normalize = get_packages().normalize_package_name
@@ -325,6 +338,7 @@ end
 -- readiness on return told users the environment was ready while uv/pip was
 -- still fetching ~90 MB of jupyterlab.
 function M.install_essentials(filepath, on_complete)
+	vim.validate({ filepath = { filepath, "string", true }, on_complete = { on_complete, "function", true } })
 	filepath = filepath or get_current_filepath()
 	on_complete = on_complete or function() end
 
@@ -443,6 +457,7 @@ end
 
 -- Check if a package is installed (with timeout to prevent UI blocking)
 function M.is_package_installed(package_name, filepath)
+	vim.validate({ package_name = { package_name, "string" }, filepath = { filepath, "string", true } })
 	filepath = filepath or get_current_filepath()
 	local python_path = M.get_python_path(filepath)
 	if not python_path then
@@ -463,6 +478,7 @@ end
 
 -- Get list of installed packages (with timeout to prevent UI blocking)
 function M.get_installed_packages(filepath)
+	vim.validate({ filepath = { filepath, "string", true } })
 	filepath = filepath or get_current_filepath()
 	if not M.has_venv(filepath) then
 		return {}
@@ -669,6 +685,7 @@ end
 --                   finished - the install is async, so anything reporting
 --                   "ready" must wait for this rather than for the return value
 function M.ensure_environment(filepath, opts)
+	vim.validate({ filepath = { filepath, "string", true }, opts = { opts, "table", true } })
 	opts = opts or {}
 	-- Use provided filepath or fall back to current buffer
 	filepath = filepath or get_current_filepath()

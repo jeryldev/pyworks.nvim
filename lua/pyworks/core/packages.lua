@@ -26,6 +26,7 @@ local config = {
 }
 
 function M.configure(opts)
+	vim.validate({ opts = { opts, "table", true } })
 	config = vim.tbl_deep_extend("force", config, opts or {})
 end
 
@@ -324,6 +325,7 @@ local python_stdlib = {
 -- "jupyter_client", so the package was reported missing on every scan and
 -- offered for install forever.
 function M.normalize_package_name(name)
+	vim.validate({ name = { name, "string", true } })
 	if type(name) ~= "string" or name == "" then
 		return ""
 	end
@@ -430,6 +432,7 @@ end
 
 -- Scan file for imports
 function M.scan_imports(filepath, language)
+	vim.validate({ filepath = { filepath, "string", true }, language = { language, "string", true } })
 	-- Validate inputs
 	if not filepath or filepath == "" then
 		return {}
@@ -530,6 +533,7 @@ end
 
 -- Detect missing packages
 function M.detect_missing_packages(filepath, language)
+	vim.validate({ filepath = { filepath, "string" }, language = { language, "string", true } })
 	local imports = M.scan_imports(filepath, language)
 	local installed = M.get_installed_packages(language, filepath) -- Pass filepath!
 
@@ -642,6 +646,7 @@ end
 
 -- Install packages (Python only)
 function M.install_packages(packages, language)
+	vim.validate({ packages = { packages, "table" }, language = { language, "string", true } })
 	if #packages == 0 then
 		return
 	end

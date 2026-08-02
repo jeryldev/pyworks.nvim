@@ -220,6 +220,25 @@ describe("pyworks", function()
 			assert.are.same({ "^acme_" }, prefixes)
 		end)
 
+		-- F1: the list lived in init.lua (8 entries) and languages/python.lua (5),
+		-- hand-synced with nothing enforcing it. This fails the moment they part.
+		it("should be the same list the python module defaults to", function()
+			package.loaded["pyworks.languages.python"] = nil
+			local module_default = require("pyworks.languages.python").get_essentials()
+
+			package.loaded["pyworks"] = nil
+			local pyworks = require("pyworks")
+			pyworks.setup()
+			local configured = pyworks.get_config().python.essentials
+
+			for _, pkg in ipairs(module_default) do
+				assert.is_true(
+					contains(configured, pkg),
+					string.format("%s is a module default but not in the configured list", pkg)
+				)
+			end
+		end)
+
 		it("should include jupyterlab even when setup() was never called", function()
 			package.loaded["pyworks.languages.python"] = nil
 			local python = require("pyworks.languages.python")
