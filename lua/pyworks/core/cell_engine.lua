@@ -1,5 +1,6 @@
 local M = {}
 
+local kernel_ready = require("pyworks.core.kernel_ready")
 local ui = require("pyworks.ui")
 
 local config = {
@@ -227,12 +228,18 @@ function M.run_cell(opts)
 	local cell_num = ui.get_current_cell_number()
 	ui.mark_cell_executed(cell_num)
 
-	local ok = pcall(vim.fn.MoltenEvaluateRange, start_line, end_line)
-	if not ok then
-		vim.fn.setpos("'<", { 0, start_line, 1, 0 })
-		vim.fn.setpos("'>", { 0, end_line, vim.fn.col({ end_line, "$" }) - 1, 0 })
-		pcall(vim.cmd, "'<,'>MoltenEvaluateVisual")
-	end
+	-- The gate belongs here, not on the keymaps: :PyworksRunCell and
+	-- :PyworksRunCellAdvance reach this function directly, and a cell submitted
+	-- before the kernel is ready is dropped by jupyter_client's IOPub flush and
+	-- sits on "* On Hold" forever (issue #10).
+	kernel_ready.run_when_ready(bufnr, function()
+		local ok = pcall(vim.fn.MoltenEvaluateRange, start_line, end_line)
+		if not ok then
+			vim.fn.setpos("'<", { 0, start_line, 1, 0 })
+			vim.fn.setpos("'>", { 0, end_line, vim.fn.col({ end_line, "$" }) - 1, 0 })
+			pcall(vim.cmd, "'<,'>MoltenEvaluateVisual")
+		end
+	end)
 
 	if opts.advance then
 		vim.defer_fn(function()

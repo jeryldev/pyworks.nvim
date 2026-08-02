@@ -452,6 +452,11 @@ describe("cell_engine", function()
 
 	describe("run_cell", function()
 		local ui
+		-- C1 moves the kernel-readiness gate into run_cell itself, so these
+		-- tests declare a ready kernel; the gate's own behaviour is covered below
+		local function mark_ready()
+			vim.b[vim.api.nvim_get_current_buf()].pyworks_kernel_ready = true
+		end
 		local original_mark_executed
 		local original_get_cell_num
 		local original_enter_cell
@@ -465,6 +470,7 @@ describe("cell_engine", function()
 
 		before_each(function()
 			ui = require("pyworks.ui")
+			mark_ready()
 			notify_calls = {}
 			mark_executed_calls = {}
 			enter_cell_calls = {}
@@ -540,6 +546,7 @@ describe("cell_engine", function()
 			vim.api.nvim_set_current_buf(bufnr)
 			vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "# %%", "# %%" })
 			vim.b[bufnr].molten_initialized = true
+			vim.b[bufnr].pyworks_kernel_ready = true
 			vim.api.nvim_win_set_cursor(0, { 1, 0 })
 
 			local ok = cell_engine.run_cell()
@@ -560,6 +567,7 @@ describe("cell_engine", function()
 				"z = 3",
 			})
 			vim.b[bufnr].molten_initialized = true
+			vim.b[bufnr].pyworks_kernel_ready = true
 			vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
 			local ok = cell_engine.run_cell()
@@ -584,6 +592,7 @@ describe("cell_engine", function()
 				"y = 2",
 			})
 			vim.b[bufnr].molten_initialized = true
+			vim.b[bufnr].pyworks_kernel_ready = true
 			vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
 			local ok = cell_engine.run_cell({ advance = true })
@@ -607,6 +616,7 @@ describe("cell_engine", function()
 				"y = 2",
 			})
 			vim.b[bufnr].molten_initialized = true
+			vim.b[bufnr].pyworks_kernel_ready = true
 			vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
 			local ok = cell_engine.run_cell()
@@ -625,6 +635,7 @@ describe("cell_engine", function()
 				"x = 1",
 			})
 			vim.b[bufnr].molten_initialized = true
+			vim.b[bufnr].pyworks_kernel_ready = true
 			vim.api.nvim_win_set_cursor(0, { 2, 0 })
 
 			local ok = cell_engine.run_cell({ advance = true })
@@ -649,6 +660,65 @@ describe("cell_engine", function()
 	-- =========================================================================
 	-- Custom cell_marker configuration (Issue #5 — Databricks support)
 	-- =========================================================================
+
+	-- C1: the gate added in 62c4d12 lived in keymaps.lua, so :PyworksRunCell and
+	-- :PyworksRunCellAdvance bypassed it - and those commands exist for
+	-- skip_keymaps users (issue #4), i.e. the people who opted out of our
+	-- keymaps were the ones still losing cells to the IOPub flush.
+	describe("run_cell kernel readiness gate", function()
+		local kernel_ready
+
+		before_each(function()
+			package.loaded["pyworks.core.kernel_ready"] = nil
+			kernel_ready = require("pyworks.core.kernel_ready")
+			kernel_ready._reset()
+			kernel_ready.setup()
+
+			vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# %%", "print(1)" })
+			vim.api.nvim_win_set_cursor(0, { 2, 0 })
+			local buf = vim.api.nvim_get_current_buf()
+			vim.b[buf].molten_initialized = true
+			vim.b[buf].pyworks_kernel_ready = true
+			vim.b[buf].pyworks_kernel_name = "gate_kernel"
+			vim.b[buf].pyworks_kernel_ready = nil
+		end)
+
+		it("should not evaluate while the kernel is still starting", function()
+			local evaluated = false
+			local original = vim.fn.MoltenEvaluateRange
+			vim.fn.MoltenEvaluateRange = function()
+				evaluated = true
+			end
+
+			cell_engine.run_cell()
+			vim.wait(150, function()
+				return evaluated
+			end, 25)
+
+			vim.fn.MoltenEvaluateRange = original
+			assert.is_false(evaluated)
+		end)
+
+		it("should evaluate once the kernel reports ready", function()
+			local evaluated = false
+			local original = vim.fn.MoltenEvaluateRange
+			vim.fn.MoltenEvaluateRange = function()
+				evaluated = true
+			end
+
+			cell_engine.run_cell()
+			vim.api.nvim_exec_autocmds("User", {
+				pattern = "MoltenKernelReady",
+				data = { kernel_id = "gate_kernel" },
+			})
+			vim.wait(1000, function()
+				return evaluated
+			end, 25)
+
+			vim.fn.MoltenEvaluateRange = original
+			assert.is_true(evaluated)
+		end)
+	end)
 
 	describe("custom cell_marker", function()
 		before_each(function()

@@ -434,16 +434,14 @@ function M.setup_buffer_keymaps()
 		)
 
 		-- Run current cell and move to next (classic Jupyter Shift+Enter behavior)
+		-- run_cell gates on kernel readiness itself, so every entry point
+		-- (keymap or :PyworksRunCell) inherits it
 		vim.keymap.set("n", "<leader>jj", function()
-			ensure_kernel_ready(vim.api.nvim_get_current_buf(), function()
-				get_cell_engine().run_cell({ advance = true })
-			end)
+			get_cell_engine().run_cell({ advance = true })
 		end, vim.tbl_extend("force", opts, { desc = "Run cell and move to next" }))
 
 		vim.keymap.set("n", "<leader>jk", function()
-			ensure_kernel_ready(vim.api.nvim_get_current_buf(), function()
-				get_cell_engine().run_cell()
-			end)
+			get_cell_engine().run_cell()
 		end, vim.tbl_extend("force", opts, { desc = "Run cell (stay in place)" }))
 
 		-- ============================================================================
