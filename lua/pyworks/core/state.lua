@@ -36,10 +36,16 @@ local function load_persistent_state()
 	file:close()
 
 	local ok, data = pcall(vim.json.decode, content)
-	if ok then
+
+	-- The file is written from a debounced timer, so a hard exit can leave it
+	-- truncated - and vim.json.decode("null") returns userdata, not a table.
+	-- init() used to call pairs() on whatever came back, which threw during
+	-- setup() and took the whole plugin down with it.
+	if ok and type(data) == "table" then
 		return data
 	end
 
+	pcall(os.rename, state_file, state_file .. ".corrupt")
 	return {}
 end
 
@@ -141,6 +147,12 @@ end
 function M.remove(key)
 	vim.validate({ key = { key, "string" } })
 	state[key] = nil
+
+	-- Removing a persisted key has to reach disk too, or the next init() brings
+	-- it straight back
+	if key:match("^persistent_") or key:match("^initialized_") then
+		schedule_save()
+	end
 end
 
 -- Track environment status
