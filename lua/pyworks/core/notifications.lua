@@ -87,27 +87,29 @@ function M.notify(message, level, options)
 	end
 
 	-- Determine if we should show the notification
-	local should_show = false
-
-	-- Check force/always flags first (highest priority)
-	if options.force or options.always then
-		should_show = true
-	elseif options.error then
-		should_show = true
+	--
+	-- Warnings and errors are never suppressed. silent_when_ready used to catch
+	-- them first, so "Ignoring stale kernel...", "No venv for ..." and "Notebook
+	-- opened in JSON view" were invisible with the default config - the plugin
+	-- quietly withheld exactly the messages that explain a broken setup.
+	if options.error then
 		level = vim.log.levels.ERROR
 	elseif options.action_required then
-		should_show = true
 		level = vim.log.levels.WARN
+	end
+
+	local always_show = options.force or options.always or options.error or options.action_required
+	local should_show
+
+	if always_show or level >= vim.log.levels.WARN then
+		should_show = true
 	elseif options.first_time then
 		should_show = config.verbose_first_time
 	elseif options.progress then
 		should_show = config.show_progress
-	elseif config.silent_when_ready then
-		-- Silent mode when everything is ready
-		should_show = false
 	else
-		-- Default behavior
-		should_show = level >= vim.log.levels.WARN
+		-- Routine INFO chatter stays quiet once things are working
+		should_show = not config.silent_when_ready
 	end
 
 	if should_show then
@@ -195,11 +197,25 @@ function M.notify_missing_packages(packages, language)
 	M.notify(message, vim.log.levels.WARN, { action_required = true })
 end
 
-function M.notify_environment_ready(language)
+-- Announce that an environment is ready, at most once per project.
+--
+-- The context used to be the language alone, and the flag is persisted, so
+-- after the first successful setup on a machine this message never appeared
+-- again in any project.
+function M.notify_environment_ready(language, project_dir)
 	local context = language .. "_env"
+	if project_dir and project_dir ~= "" then
+		context = context .. "_" .. project_dir
+	end
 	if is_first_time(context) then
+		-- Name the project: the message is per project now, and two projects
+		-- would otherwise produce identical text that the 10s dedup collapses
+		local suffix = ""
+		if project_dir and project_dir ~= "" then
+			suffix = string.format(" (%s)", vim.fn.fnamemodify(project_dir, ":t"))
+		end
 		M.notify(
-			string.format("%s environment ready", language:gsub("^%l", string.upper)),
+			string.format("%s environment ready%s", language:gsub("^%l", string.upper), suffix),
 			vim.log.levels.INFO,
 			{ first_time = true }
 		)

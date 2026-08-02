@@ -643,16 +643,20 @@ function M.ensure_environment(filepath, opts)
 		end
 	end
 
-	-- Step 2: Install essentials, announcing readiness only once they are there
+	-- Step 2: Install essentials, announcing readiness only once they are there.
+	-- The project is passed so "first time" means first time *here* rather than
+	-- first time on this machine.
+	local project_dir = utils.get_project_paths(filepath)
+
 	if config.auto_install_essentials then
 		M.install_essentials(filepath, function(ok, err)
 			if ok then
-				notifications.notify_environment_ready("python")
+				notifications.notify_environment_ready("python", project_dir)
 			end
 			on_complete(ok, err)
 		end)
 	else
-		notifications.notify_environment_ready("python")
+		notifications.notify_environment_ready("python", project_dir)
 		on_complete(true)
 	end
 
