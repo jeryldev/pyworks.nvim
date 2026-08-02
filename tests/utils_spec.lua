@@ -75,6 +75,21 @@ describe("utils", function()
 			vim.fn.delete(project2, "rf")
 		end)
 
+		-- The report asked about "<project>/probe.py", a file that does not exist,
+		-- so every environment question fell back to cwd and answered about the
+		-- wrong directory: it printed "venv present: false / no venv - nothing
+		-- installed" for a project whose venv was right there.
+		it("should resolve a directory path to that directory", function()
+			local helpers = require("helpers.project")
+			local project = helpers.temp_project({ fake_venv = true })
+
+			local project_dir, venv_path = utils.get_project_paths(project.root)
+
+			assert.are.equal(project.root, project_dir)
+			assert.are.equal(project.venv, venv_path)
+			project.cleanup()
+		end)
+
 		it("should handle non-existent files gracefully", function()
 			local fake_file = "/nonexistent/path/to/file.py"
 			local project_dir, venv_path = utils.get_project_paths(fake_file)

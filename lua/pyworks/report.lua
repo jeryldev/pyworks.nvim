@@ -54,9 +54,8 @@ local function environment_section(lines, project_dir)
 	if not ok then
 		return
 	end
-	local probe = project_dir .. "/probe.py"
-	kv(lines, "venv present", python.has_venv(probe))
-	local python_path = python.get_python_path(probe)
+	kv(lines, "venv present", python.has_venv(project_dir))
+	local python_path = python.get_python_path(project_dir)
 	kv(lines, "venv python", python_path or "none")
 	if python_path then
 		local ver_ok, ver = pcall(function()
@@ -116,16 +115,15 @@ local function packages_section(lines, project_dir)
 		return
 	end
 
-	local probe = project_dir .. "/probe.py"
 	local essentials = python.get_essentials()
 	table.insert(lines, "essentials: " .. table.concat(essentials, ", "))
 
-	if not python.has_venv(probe) then
+	if not python.has_venv(project_dir) then
 		table.insert(lines, "no venv - nothing installed")
 		return
 	end
 
-	local installed_ok, installed = pcall(python.get_installed_packages, probe)
+	local installed_ok, installed = pcall(python.get_installed_packages, project_dir)
 	if not installed_ok or type(installed) ~= "table" then
 		table.insert(lines, "could not list installed packages")
 		return

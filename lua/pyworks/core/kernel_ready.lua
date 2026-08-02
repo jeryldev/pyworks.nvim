@@ -17,6 +17,7 @@
 
 local M = {}
 
+local log = require("pyworks.core.log")
 local utils = require("pyworks.utils")
 
 -- kernel_id -> true, for kernels that have reported ready this session
@@ -47,6 +48,10 @@ function M.setup()
 		pattern = "MoltenKernelReady",
 		callback = function(ev)
 			local kernel_id = ev.data and ev.data.kernel_id
+			-- Logged because its *absence* is the diagnosis: with b:kernel_ready
+			-- nil and no line here, Molten never reported the kernel ready, which
+			-- is a different problem from our latch failing to match
+			log.debug("kernel_ready", "MoltenKernelReady received for kernel_id=%s", tostring(kernel_id))
 			if kernel_id then
 				ready_kernels[kernel_id] = true
 			end
@@ -98,6 +103,9 @@ function M.run_when_ready(bufnr, fn, opts)
 		return
 	end
 
+	-- the buffer may already be gone; reading vim.b[<invalid>] would throw
+	local kernel_name = vim.api.nvim_buf_is_valid(bufnr) and vim.b[bufnr].pyworks_kernel_name or nil
+	log.debug("kernel_ready", "waiting for kernel %s on buffer %d", tostring(kernel_name), bufnr)
 	vim.notify("Waiting for the kernel to be ready...", vim.log.levels.INFO)
 
 	local done = false
@@ -130,6 +138,11 @@ function M.run_when_ready(bufnr, fn, opts)
 				timer:close()
 			end
 			if not done and vim.api.nvim_buf_is_valid(bufnr) then
+				log.warn(
+					"kernel_ready",
+					"kernel never reported ready; running anyway after %dms",
+					opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
+				)
 				run_once()
 			end
 		end)

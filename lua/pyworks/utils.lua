@@ -47,21 +47,29 @@ function M.get_project_paths(filepath)
 			abs_filepath = vim.fn.fnamemodify(filepath, ":p")
 		end
 
-		-- Validate the path exists
-		if vim.fn.filereadable(abs_filepath) ~= 1 then
-			-- If file doesn't exist, use cwd as base
+		-- A directory is a perfectly good starting point; only an unreadable
+		-- *file* path is unusable. Treating directories as unresolvable sent
+		-- callers to cwd and made them answer about the wrong project entirely -
+		-- :PyworksReport asked about "<project>/probe.py", a file that never
+		-- exists, and so reported "no venv" for projects that had one.
+		local start_dir
+		if vim.fn.isdirectory(abs_filepath) == 1 then
+			start_dir = abs_filepath
+		elseif vim.fn.filereadable(abs_filepath) == 1 then
+			start_dir = vim.fn.fnamemodify(abs_filepath, ":h")
+		else
 			return vim.fn.getcwd(), vim.fn.getcwd() .. "/.venv"
 		end
 
 		-- SMART LOGIC: Find the project root by walking up the directory tree
-		project_dir = M.find_project_root(vim.fn.fnamemodify(abs_filepath, ":h"))
+		project_dir = M.find_project_root(start_dir)
 		-- nil means "not inside a project". Path resolution still needs an
 		-- answer, and it must stay local to the file: falling back to cwd would
 		-- resolve /tmp/scratch.py against whatever project the editor happens to
 		-- be sitting in, and hand it that project's venv. Callers that need to
 		-- *act* ask M.is_project() instead.
 		if not project_dir then
-			project_dir = vim.fn.fnamemodify(abs_filepath, ":h")
+			project_dir = start_dir
 		end
 	else
 		-- When no file is specified, use current working directory
