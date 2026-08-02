@@ -29,10 +29,7 @@ require("pyworks.report").setup_commands()
 
 -- Check if a file is in a pyworks-managed directory using utils.find_project_root
 local function is_pyworks_project(filepath)
-	local dir = filepath and vim.fn.fnamemodify(filepath, ":h") or vim.fn.getcwd()
-	local utils = require("pyworks.utils")
-	local project_root = utils.find_project_root(dir)
-	return project_root ~= nil
+	return require("pyworks.utils").is_project(filepath)
 end
 
 -- Set up autocmds for file detection

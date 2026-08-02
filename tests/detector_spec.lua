@@ -115,6 +115,8 @@ describe("detector", function()
 			-- Setup
 			local temp_project = vim.fn.tempname()
 			vim.fn.mkdir(temp_project, "p")
+			-- since D1 a directory needs a marker to count as a project
+			vim.fn.writefile({ "" }, temp_project .. "/pyproject.toml")
 			local test_file = temp_project .. "/test.py"
 			vim.fn.writefile({ "print('test')" }, test_file)
 
@@ -143,6 +145,8 @@ describe("detector", function()
 		it("should set pyworks_filepath buffer variable", function()
 			local temp_project = vim.fn.tempname()
 			vim.fn.mkdir(temp_project, "p")
+			-- since D1 a directory needs a marker to count as a project
+			vim.fn.writefile({ "" }, temp_project .. "/pyproject.toml")
 			local test_file = temp_project .. "/test.py"
 			vim.fn.writefile({ "print('test')" }, test_file)
 

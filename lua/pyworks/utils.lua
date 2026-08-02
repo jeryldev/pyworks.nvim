@@ -117,6 +117,14 @@ function M.get_project_paths(filepath)
 
 		-- SMART LOGIC: Find the project root by walking up the directory tree
 		project_dir = M.find_project_root(vim.fn.fnamemodify(abs_filepath, ":h"))
+		-- nil means "not inside a project". Path resolution still needs an
+		-- answer, and it must stay local to the file: falling back to cwd would
+		-- resolve /tmp/scratch.py against whatever project the editor happens to
+		-- be sitting in, and hand it that project's venv. Callers that need to
+		-- *act* ask M.is_project() instead.
+		if not project_dir then
+			project_dir = vim.fn.fnamemodify(abs_filepath, ":h")
+		end
 	else
 		-- When no file is specified, use current working directory
 		project_dir = vim.fn.getcwd()
@@ -190,38 +198,58 @@ function M.detect_project_type(project_dir)
 	end
 end
 
--- Find project root by looking for markers
-function M.find_project_root(start_dir)
-	local markers = {
-		".venv", -- Virtual environment (highest priority)
-		"pyproject.toml", -- Modern Python project
-		"setup.py", -- Python package
-		"requirements.txt", -- Python requirements
-		"manage.py", -- Django project
-		"app.py", -- Flask/Streamlit app
-		"main.py", -- FastAPI/general entry point
-		"Pipfile", -- Pipenv project
-		"poetry.lock", -- Poetry project
-		"conda.yaml", -- Conda environment
-		"environment.yml", -- Conda/Mamba env
-		"dvc.yaml", -- DVC (ML pipelines)
-		"mlflow.yaml", -- MLflow project
-		"setup.cfg", -- Python package config
-		"tox.ini", -- Testing config (often at root)
-		".dvcignore", -- DVC project
-		"uv.lock", -- UV lock file
-		".git", -- Git repository (lower priority)
-	}
+-- Find the project root for a directory, or nil if this is not a project
+--
+-- Only strong markers establish a project. manage.py, app.py and main.py used
+-- to qualify, but they are common enough to appear in any scratch directory,
+-- and a match there means pyworks creates a venv beside the file.
+--
+-- This used to fall back to start_dir, so it never returned nil: every "only
+-- act inside a project" guard was therefore always true, and pyworks would set
+-- up a full environment (including a ~300MB venv) beside any stray .py file,
+-- including one sitting in $HOME.
+local STRONG_MARKERS = {
+	".venv",
+	"pyproject.toml",
+	".git",
+	"setup.py",
+	"setup.cfg",
+	"requirements.txt",
+	"Pipfile",
+	"poetry.lock",
+	"uv.lock",
+	"conda.yaml",
+	"environment.yml",
+	"dvc.yaml",
+	"mlflow.yaml",
+	"tox.ini",
+	".dvcignore",
+}
 
-	local current = start_dir
+local function has_marker(dir, markers)
+	for _, marker in ipairs(markers) do
+		local path = dir .. "/" .. marker
+		if vim.fn.isdirectory(path) == 1 or vim.fn.filereadable(path) == 1 then
+			return true
+		end
+	end
+	return false
+end
+
+function M.find_project_root(start_dir)
+	if not start_dir or start_dir == "" then
+		return nil
+	end
+
+	local home = vim.fn.fnamemodify(vim.env.HOME or "", ":p"):gsub("/$", "")
+	local current = vim.fn.fnamemodify(start_dir, ":p"):gsub("/$", "")
 	local last = ""
 
-	-- Walk up the directory tree
-	while current ~= last do
-		-- Check for markers
-		for _, marker in ipairs(markers) do
-			local marker_path = current .. "/" .. marker
-			if vim.fn.isdirectory(marker_path) == 1 or vim.fn.filereadable(marker_path) == 1 then
+	while current ~= last and current ~= "" do
+		-- $HOME is never a project: a stray main.py there would otherwise put a
+		-- venv in the user's home directory
+		if current ~= home then
+			if has_marker(current, STRONG_MARKERS) then
 				return current
 			end
 		end
@@ -230,22 +258,14 @@ function M.find_project_root(start_dir)
 		current = vim.fn.fnamemodify(current, ":h")
 	end
 
-	-- If no project root found, check if file is under Neovim's working directory
-	local cwd = vim.fn.getcwd()
+	return nil
+end
 
-	if cwd and cwd ~= "" then
-		-- Check if the file is under the current working directory
-		local relative_path = vim.fn.fnamemodify(start_dir, ":p")
-		local cwd_absolute = vim.fn.fnamemodify(cwd, ":p")
-
-		-- If the file is under cwd, use cwd as project root
-		if relative_path:sub(1, #cwd_absolute) == cwd_absolute then
-			return cwd_absolute
-		end
-	end
-
-	-- Last resort: use the file's directory
-	return start_dir
+-- Is this file inside a real project? This is the question every "only act in a
+-- project" guard was asking while find_project_root could never answer no.
+function M.is_project(filepath)
+	local dir = (filepath and filepath ~= "") and vim.fn.fnamemodify(filepath, ":p:h") or vim.fn.getcwd()
+	return M.find_project_root(dir) ~= nil
 end
 
 -- Default timeout for system commands (in milliseconds)

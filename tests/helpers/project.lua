@@ -28,6 +28,13 @@ function M.temp_project(opts)
 	local file = root .. "/probe.py"
 	vim.fn.writefile({ "print('probe')" }, file)
 
+	-- A real project needs a strong marker: since D1, a directory without one is
+	-- not a project and pyworks deliberately does nothing there. Pass
+	-- opts.bare = true to build a non-project for testing that behaviour.
+	if not opts.bare then
+		vim.fn.writefile({ "" }, root .. "/pyproject.toml")
+	end
+
 	for _, marker in ipairs(opts.markers or {}) do
 		vim.fn.writefile({ "" }, root .. "/" .. marker)
 	end

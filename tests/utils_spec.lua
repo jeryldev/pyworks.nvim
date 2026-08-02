@@ -122,15 +122,52 @@ describe("utils", function()
 			vim.fn.delete(outer, "rf")
 		end)
 
-		it("should return start_dir if no markers found", function()
-			local temp_dir = vim.fn.tempname()
+		-- D1: it used to fall back to start_dir, so it never returned nil and
+		-- is_pyworks_project() was always true - every "only act inside a
+		-- project" guard in plugin/pyworks.lua was dead code, and a stray file
+		-- anywhere on disk got full setup including a ~300MB venv beside it.
+		it("should return nil when no marker is found", function()
+			local temp_dir = vim.fn.tempname() .. "/deep/nested"
 			vim.fn.mkdir(temp_dir, "p")
 
 			local root = utils.find_project_root(temp_dir)
 
-			-- Should return the directory itself or cwd
-			assert.is_true(root == temp_dir or root == vim.fn.getcwd())
+			assert.is_nil(root)
+			vim.fn.delete(vim.fn.fnamemodify(temp_dir, ":h:h"), "rf")
+		end)
+
+		-- D2: main.py and app.py are far too common to establish a project.
+		-- ~/main.py made $HOME a project root and installed ~300MB into ~/.venv.
+		it("should not treat a lone main.py as a project root", function()
+			local temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir, "p")
+			vim.fn.writefile({ "print(1)" }, temp_dir .. "/main.py")
+
+			assert.is_nil(utils.find_project_root(temp_dir))
 			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("should accept a weak marker alongside a strong one", function()
+			local temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir, "p")
+			vim.fn.writefile({ "print(1)" }, temp_dir .. "/main.py")
+			vim.fn.writefile({ "" }, temp_dir .. "/pyproject.toml")
+
+			assert.are.equal(temp_dir, utils.find_project_root(temp_dir))
+			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("should accept a git repository as a project root", function()
+			local temp_dir = vim.fn.tempname()
+			vim.fn.mkdir(temp_dir .. "/.git", "p")
+			vim.fn.mkdir(temp_dir .. "/src", "p")
+
+			assert.are.equal(temp_dir, utils.find_project_root(temp_dir .. "/src"))
+			vim.fn.delete(temp_dir, "rf")
+		end)
+
+		it("should never treat the home directory as a project root", function()
+			assert.is_nil(utils.find_project_root(vim.env.HOME))
 		end)
 	end)
 
