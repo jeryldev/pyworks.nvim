@@ -35,6 +35,90 @@ describe("python environment setup", function()
 		end)
 	end)
 
+	-- E2: the missing-set was computed by spawning one `python -c "import X"` per
+	-- essential, synchronously - 2,453 ms of blocked UI on every file open even
+	-- when everything was already installed. One listing answers the same
+	-- question in ~50 ms. Correct only because E1 normalises names first.
+	describe("missing_essentials", function()
+		local helpers = require("helpers.project")
+		local project
+		local original_listing
+
+		-- Hermetic: without its own project the import probe falls back to cwd and
+		-- consults the repo's venv, which has the very packages under test
+		before_each(function()
+			project = helpers.temp_project({ fake_venv = true })
+			original_listing = python.get_installed_packages
+		end)
+
+		after_each(function()
+			python.get_installed_packages = original_listing
+			project.cleanup()
+		end)
+
+		it("should report nothing missing when the listing covers every essential", function()
+			python.configure({ essentials = { "jupyter_client", "numpy" } })
+			python.get_installed_packages = function()
+				return { "jupyter-client", "numpy", "pandas" }
+			end
+
+			assert.are.same({}, python.missing_essentials(project.file))
+		end)
+
+		it("should report an essential that is neither listed nor importable", function()
+			python.configure({ essentials = { "pyworks_definitely_absent_pkg", "numpy" } })
+			python.get_installed_packages = function()
+				return { "numpy" }
+			end
+
+			assert.are.same({ "pyworks_definitely_absent_pkg" }, python.missing_essentials(project.file))
+		end)
+
+		it("should match across separators and case", function()
+			python.configure({ essentials = { "ruamel.yaml", "PyYAML" } })
+			python.get_installed_packages = function()
+				return { "ruamel-yaml", "pyyaml" }
+			end
+
+			assert.are.same({}, python.missing_essentials(project.file))
+		end)
+
+		-- A package can be importable without appearing in the listing: stdlib
+		-- modules, editable installs, namespace packages. Reinstalling those on
+		-- every check would be worse than the delay this replaces.
+		it("should trust an import probe over an absent listing entry", function()
+			python.configure({ essentials = { "json" } })
+			python.get_installed_packages = function()
+				return { "numpy" }
+			end
+
+			assert.are.same({}, python.missing_essentials(project.file))
+		end)
+	end)
+
+	-- Regression net for E2: this path blocked the UI for 2,453 ms on every file
+	-- open before one listing replaced eight sequential import probes. Tagged,
+	-- because it needs a venv with the real packages.
+	describe("performance", function()
+		local helpers = require("helpers.project")
+
+		it("should check a complete environment well under 200ms", function()
+			if not helpers.env_tests_enabled() then
+				pending("set PYWORKS_TEST_ENV=1 (needs a populated venv)")
+				return
+			end
+
+			local probe = vim.env.PYWORKS_TEST_VENV_PROJECT .. "/probe.py"
+			vim.fn.writefile({ "print(1)" }, probe)
+
+			local start = vim.uv.hrtime()
+			python.missing_essentials(probe)
+			local elapsed_ms = (vim.uv.hrtime() - start) / 1e6
+
+			assert.is_true(elapsed_ms < 200, string.format("took %.0f ms (was 2453 ms before E2)", elapsed_ms))
+		end)
+	end)
+
 	describe("install_essentials completion", function()
 		local project, probe
 
