@@ -21,7 +21,10 @@ local DEFAULT_MAX_RECURSION_DEPTH = 3
 local state = {
 	reloading_buffers = {},
 	global_reload_in_progress = false,
-	last_reload_time = 0,
+	-- bufnr -> last reload timestamp. Was a single global value, which meant
+	-- opening a second notebook within the debounce window silently skipped its
+	-- conversion even though it is unrelated to the first (C3).
+	last_reload_time = {},
 	original_tick_rate = nil,
 	recursion_depth = 0,
 }
@@ -39,6 +42,7 @@ vim.api.nvim_create_autocmd("BufDelete", {
 	group = cleanup_augroup,
 	callback = function(ev)
 		state.reloading_buffers[ev.buf] = nil
+		state.last_reload_time[ev.buf] = nil
 	end,
 	desc = "Pyworks: Clean up recursion guard state for deleted buffers",
 })
@@ -62,14 +66,14 @@ function M.can_reload(bufnr)
 		return false
 	end
 
-	-- Check debounce
-	if state.last_reload_time == 0 then
-		return true
-	end
-	local elapsed = now - state.last_reload_time
-	if elapsed < config.debounce_ms then
-		log.debug("recursion_guard", "blocked: debounce (%dms since last reload)", elapsed)
-		return false
+	-- Check debounce for this buffer only
+	local last = bufnr and state.last_reload_time[bufnr] or state.last_reload_time.global
+	if last then
+		local elapsed = now - last
+		if elapsed < config.debounce_ms then
+			log.debug("recursion_guard", "blocked: debounce (%dms since last reload)", elapsed)
+			return false
+		end
 	end
 
 	-- Check recursion depth
@@ -90,16 +94,24 @@ function M.begin_reload(bufnr)
 	vim.validate({ bufnr = { bufnr, "number", true } })
 
 	state.global_reload_in_progress = true
-	state.last_reload_time = vim.uv.now()
+	state.last_reload_time[bufnr or "global"] = vim.uv.now()
 	state.recursion_depth = state.recursion_depth + 1
 
 	if bufnr then
 		state.reloading_buffers[bufnr] = true
 	end
 
-	-- Slow down Molten tick rate during reload to prevent interference
+	-- Slow down Molten tick rate during reload to prevent interference.
+	--
+	-- Only the outermost reload records the real rate. On re-entry the current
+	-- value is already safe_tick_rate, so saving it again made the unwind
+	-- restore 999999 permanently - Molten then stops ticking for the rest of the
+	-- session and every cell sits at "* On Hold" with a healthy kernel, which is
+	-- indistinguishable from the bug fixed in 08214be.
 	if vim.g.molten_tick_rate then
-		state.original_tick_rate = vim.g.molten_tick_rate
+		if state.original_tick_rate == nil then
+			state.original_tick_rate = vim.g.molten_tick_rate
+		end
 		vim.g.molten_tick_rate = config.safe_tick_rate
 	end
 
@@ -151,7 +163,7 @@ function M.force_reset()
 	state.reloading_buffers = {}
 	state.global_reload_in_progress = false
 	state.recursion_depth = 0
-	state.last_reload_time = 0
+	state.last_reload_time = {}
 
 	if state.original_tick_rate then
 		vim.g.molten_tick_rate = state.original_tick_rate
