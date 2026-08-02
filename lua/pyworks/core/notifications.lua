@@ -141,20 +141,6 @@ function M.progress_start(id, title, message)
 	end
 end
 
-function M.progress_update(id, message, percentage)
-	if not config.show_progress then
-		return
-	end
-
-	local handle = progress_handles[id]
-	if handle then
-		handle:report({
-			message = message,
-			percentage = percentage,
-		})
-	end
-end
-
 function M.progress_finish(id, message)
 	if not config.show_progress then
 		return
@@ -169,14 +155,6 @@ function M.progress_finish(id, message)
 		if message then
 			M.notify(message, vim.log.levels.INFO, { progress = true })
 		end
-	end
-end
-
--- Context-aware notification helpers
-function M.notify_first_time(context, message, level)
-	if is_first_time(context) then
-		M.notify(message, level, { first_time = true })
-		mark_initialized(context)
 	end
 end
 
@@ -221,10 +199,6 @@ function M.notify_environment_ready(language, project_dir)
 		)
 		mark_initialized(context)
 	end
-end
-
-function M.notify_package_installed(package, language)
-	M.notify(string.format("[%s] Installed: %s", language, package), vim.log.levels.INFO, { progress = true })
 end
 
 function M.notify_error(message)

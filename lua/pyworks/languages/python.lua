@@ -822,8 +822,10 @@ function M.install_python_packages(packages_str)
 	-- Ensure environment exists
 	if not M.has_venv(filepath) then
 		notifications.notify("Creating Python virtual environment first...", vim.log.levels.INFO)
-		local ok = error_handler.protected_call(M.create_venv, "Failed to create virtual environment", filepath)
-		if not ok then
+		-- second value: protected_call's first return only means "did not throw"
+		local ok, created =
+			error_handler.protected_call(M.create_venv, "Failed to create virtual environment", filepath)
+		if not ok or not created then
 			return
 		end
 	end
@@ -935,49 +937,6 @@ function M.list_python_packages()
 	else
 		notifications.notify_error("Failed to list packages")
 	end
-end
-
--- Check Python version compatibility (with timeout)
-function M.check_compatibility(package_name, filepath)
-	filepath = filepath or get_current_filepath()
-	local python_path = M.get_python_path(filepath) or "python3"
-
-	local cmd = { python_path, "--version" }
-	local success, version_output, _ = utils.system_with_timeout(cmd, IMPORT_CHECK_TIMEOUT_MS)
-	if not success then
-		return nil
-	end
-	local major, minor = version_output:match("Python (%d+)%.(%d+)")
-
-	if not major then
-		return nil
-	end
-
-	local py_version = tonumber(major) + tonumber(minor) / 10
-
-	-- Check known compatibility issues
-	local compatibility_issues = {
-		tensorflow = {
-			max_version = 3.11,
-			message = "TensorFlow may not be compatible with Python 3.12+",
-		},
-		numpy = {
-			min_version = 3.8,
-			message = "NumPy requires Python 3.8+",
-		},
-	}
-
-	local issue = compatibility_issues[package_name:lower()]
-	if issue then
-		if issue.max_version and py_version > issue.max_version then
-			return issue.message
-		end
-		if issue.min_version and py_version < issue.min_version then
-			return issue.message
-		end
-	end
-
-	return nil
 end
 
 return M

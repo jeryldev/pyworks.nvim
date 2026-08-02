@@ -82,48 +82,6 @@ function M.get_python_for_jupytext(filepath)
 	return nil
 end
 
--- Install jupytext
-function M.install_jupytext(filepath)
-	local python_path = M.get_python_for_jupytext(filepath)
-	if not python_path then
-		notifications.notify_error("Python not found. Cannot install jupytext.")
-		return false
-	end
-
-	notifications.progress_start("jupytext_install", "Installing Jupytext", "Installing notebook viewer...")
-
-	-- Determine pip command based on project
-	local _, venv_path = utils.get_project_paths(filepath)
-	local cmd
-	if venv_path and python_path:match(vim.pesc(venv_path)) then
-		cmd = { venv_path .. "/bin/pip", "install", "jupytext" }
-	else
-		cmd = { python_path, "-m", "pip", "install", "jupytext" }
-	end
-
-	-- Use vim.system for modern Neovim 0.10+
-	local ok, _ = pcall(vim.system, cmd, { text = true }, function(obj)
-		vim.schedule(function()
-			if obj.code == 0 then
-				cache.invalidate("jupytext_installed")
-				notifications.progress_finish("jupytext_install", "Jupytext installed successfully")
-				state.set(state.KEYS.PERSISTENT_JUPYTEXT, true)
-			else
-				notifications.progress_finish("jupytext_install")
-				notifications.notify_error("Failed to install jupytext")
-			end
-		end)
-	end)
-
-	if not ok then
-		notifications.progress_finish("jupytext_install")
-		notifications.notify_error("Failed to start jupytext installation")
-		return false
-	end
-
-	return true
-end
-
 -- Ensure jupytext is available
 function M.ensure_jupytext(filepath)
 	return M.is_jupytext_installed(filepath)

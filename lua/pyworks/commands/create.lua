@@ -344,8 +344,10 @@ vim.api.nvim_create_user_command("PyworksNewPythonNotebook", function(opts)
 
 				local dummy_filepath = cwd .. "/setup.py"
 
-				local ok = error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
-				if ok then
+				-- second value: protected_call's first return only means "did not throw"
+				local ok, prepared =
+					error_handler.protected_call(python.ensure_environment, "Setup failed", dummy_filepath)
+				if ok and prepared then
 					-- Poll for jupytext availability (installed as part of essentials), then create notebook
 					local attempts = 0
 					local timer = vim.uv.new_timer()

@@ -10,6 +10,15 @@ local function format_error(message)
 end
 
 -- Protected function execution with user-friendly error messages
+--
+-- Returns (did_not_throw, result). The first value says only that the call did
+-- not raise - a function returning false still yields true here. Callers that
+-- care whether the *operation* succeeded must read the second value; treating
+-- the first as success is what printed "Python environment ready" over a failed
+-- setup.
+--
+-- Convention: use this module for user-facing validation and for calls whose
+-- failure should be reported to the user. Everything else uses plain pcall.
 function M.protected_call(func, error_prefix, ...)
 	local ok, result = pcall(func, ...)
 	if not ok then
@@ -79,20 +88,6 @@ function M.validate_directory(dirpath, operation)
 	return dirpath
 end
 
--- Validate executable
-function M.validate_executable(exe_name, friendly_name)
-	friendly_name = friendly_name or exe_name
-
-	if vim.fn.executable(exe_name) ~= 1 then
-		vim.notify(
-			format_error(string.format("%s not found. Please install %s first.", friendly_name, friendly_name)),
-			vim.log.levels.ERROR
-		)
-		return false
-	end
-	return true
-end
-
 -- Validate package list
 function M.validate_packages(packages, language)
 	language = language or "package"
@@ -118,54 +113,11 @@ function M.validate_packages(packages, language)
 	return valid_packages
 end
 
--- Handle async job errors
-function M.handle_job_error(job_id, exit_code, cmd_description)
-	if exit_code ~= 0 then
-		vim.notify(
-			format_error(string.format("%s failed with exit code %d", cmd_description or "Command", exit_code)),
-			vim.log.levels.ERROR
-		)
-		return false
-	end
-	return true
-end
-
 -- Wrap a function with error handling
 function M.wrap(func, error_prefix)
 	return function(...)
 		return M.protected_call(func, error_prefix, ...)
 	end
-end
-
--- Create error buffer with detailed information
-function M.show_error_details(title, lines)
-	-- Create a new buffer
-	local buf = vim.api.nvim_create_buf(false, true)
-
-	-- Set buffer options
-	vim.bo[buf].buftype = "nofile"
-	vim.bo[buf].bufhidden = "wipe"
-	vim.bo[buf].modifiable = false
-	vim.bo[buf].filetype = "markdown"
-
-	-- Add title and content
-	local content = { "# " .. title, "", "```" }
-	vim.list_extend(content, lines)
-	table.insert(content, "```")
-	table.insert(content, "")
-	table.insert(content, "Press 'q' to close this window")
-
-	-- Set lines
-	vim.bo[buf].modifiable = true
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
-	vim.bo[buf].modifiable = false
-
-	-- Open in a split
-	vim.cmd("split")
-	vim.api.nvim_win_set_buf(0, buf)
-
-	-- Set up keybinding to close
-	vim.api.nvim_buf_set_keymap(buf, "n", "q", ":close<CR>", { noremap = true, silent = true })
 end
 
 return M

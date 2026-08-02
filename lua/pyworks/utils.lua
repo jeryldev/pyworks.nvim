@@ -32,68 +32,6 @@ function M.get_python_path()
 	return python_path
 end
 
--- Check if venv is properly configured
-function M.is_venv_configured()
-	local python_path = M.get_python_path()
-	return python_path and vim.g.python3_host_prog == python_path
-end
-
--- Ensure venv is in PATH
-function M.ensure_venv_in_path()
-	local _, venv_path = M.get_project_paths()
-	local venv_bin = venv_path .. "/bin"
-
-	-- Guard against nil PATH (unlikely but possible)
-	local current_path = vim.env.PATH or ""
-	if not current_path:match(vim.pesc(venv_bin)) then
-		vim.env.PATH = venv_bin .. ":" .. current_path
-		return true
-	end
-	return false
-end
-
--- Detect package manager (uv vs pip)
-function M.detect_package_manager()
-	local _, venv_path = M.get_project_paths()
-
-	-- Check for uv in venv first
-	local venv_uv = venv_path .. "/bin/uv"
-	if vim.fn.executable(venv_uv) == 1 then
-		return "uv", venv_uv
-	end
-
-	-- Check for system uv
-	if vim.fn.executable("uv") == 1 then
-		return "uv", "uv"
-	end
-
-	-- Fall back to pip
-	local venv_pip = venv_path .. "/bin/pip"
-	if vim.fn.executable(venv_pip) == 1 then
-		return "pip", venv_pip
-	end
-
-	return "pip", "pip"
-end
-
--- Better select implementation (single source of truth)
-function M.better_select(prompt, items, callback)
-	if vim.ui then
-		vim.ui.select(items, { prompt = prompt }, callback)
-	else
-		print(prompt .. ":")
-		for i, item in ipairs(items) do
-			print(i .. ": " .. item)
-		end
-		local choice = tonumber(vim.fn.input("Select (enter number): "))
-		if choice and choice > 0 and choice <= #items then
-			callback(items[choice])
-		else
-			callback(nil)
-		end
-	end
-end
-
 -- Get cached project paths
 -- Now accepts optional filepath to detect project from file location
 function M.get_project_paths(filepath)
@@ -420,37 +358,6 @@ function M.safe_file_read(filepath)
 	end
 
 	return content_or_err
-end
-
--- Check if command exists
-function M.command_exists(cmd)
-	-- Use vim.fn.executable for safety instead of shell command
-	if vim.fn.executable(cmd) == 1 then
-		return true
-	end
-	return false
-end
-
--- Safe vim.schedule wrapper with error handling
--- Prevents silent failures in async operations
-function M.safe_schedule(fn, error_context)
-	vim.validate({
-		fn = { fn, "function" },
-		error_context = { error_context, "string", true },
-	})
-	vim.schedule(function()
-		local ok, err = pcall(fn)
-		if not ok then
-			-- Log the error (don't use notifications module to avoid circular dependency)
-			vim.api.nvim_err_writeln(
-				string.format(
-					"[Pyworks] Async error%s: %s",
-					error_context and (" in " .. error_context) or "",
-					tostring(err)
-				)
-			)
-		end
-	end)
 end
 
 -- Path manipulation utilities

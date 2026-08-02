@@ -297,12 +297,4 @@ function M.setup(opts)
 	end, 100)
 end
 
--- Manual command to check and fix dependencies
-function M.install_dependencies()
-	local all_ok = M.ensure_dependencies()
-	if all_ok then
-		vim.notify("Pyworks: All dependencies are properly configured!", vim.log.levels.INFO)
-	end
-end
-
 return M
