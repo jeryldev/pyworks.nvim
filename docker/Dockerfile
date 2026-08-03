@@ -29,8 +29,12 @@ ENV PATH="/root/.local/bin:${PATH}"
 RUN uv python install 3.13
 
 # molten-nvim
-RUN git clone --depth 1 https://github.com/benlubas/molten-nvim /opt/molten-nvim \
-    && git clone --depth 1 https://github.com/3rd/image.nvim /opt/image.nvim
+# The forks pyworks actually ships (see lazy.lua). The molten fork carries
+# fixes for dict-iteration safety and MoltenTick reentrancy that upstream lacks,
+# and the reentrancy one is directly relevant to notebook reload freezes - so
+# testing against upstream would not be testing what users run.
+RUN git clone --depth 1 https://github.com/jeryldev/molten-nvim /opt/molten-nvim \
+    && git clone --depth 1 https://github.com/jeryldev/image.nvim /opt/image.nvim
 
 # A project shaped like theirs: venv at the project root, notebook in a
 # Cyrillic-named subdirectory

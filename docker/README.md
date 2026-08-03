@@ -6,8 +6,14 @@ reach, because the bug lives in the interaction between Molten, jupyter_client
 and a real kernel.
 
 It reproduces the reporter's environment shape: Linux, Neovim 0.12.x, a
-uv-managed Python 3.13, ipykernel 7 / jupyter_client 8, molten-nvim, image.nvim,
-and a notebook whose path is non-ASCII.
+uv-managed Python 3.13, ipykernel 7 / jupyter_client 8, and a notebook whose
+path is non-ASCII.
+
+It clones **`jeryldev/molten-nvim` and `jeryldev/image.nvim`** — the forks
+`lazy.lua` declares, not upstream. The molten fork carries a `MoltenTick`
+reentrancy guard and a dict-iteration fix that upstream lacks, and the
+reentrancy one is directly relevant to notebook-reload freezes, so a container
+built on upstream would not be testing what users actually run.
 
 ```bash
 docker build -t pyworks-issue10 docker/
@@ -23,7 +29,7 @@ Expected output on a healthy setup:
 ```
 MoltenInit ok:                     true
 ready event seen:                  true
-time to ready (ms):                848
+time to ready (ms):                791
 b:pyworks_kernel_ready:            true
 kernel executed the code:          true
 ```
