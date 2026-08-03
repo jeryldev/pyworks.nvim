@@ -125,12 +125,17 @@ function M.run_when_ready(bufnr, fn, opts)
 		end,
 	})
 
-	-- If the event never arrives the kernel is almost certainly ready already
-	-- (a missed edge), so run rather than leave the keypress dead. Kept short:
-	-- waiting longer than kernel startup helps nobody.
+	-- This used to assume a missing event meant a missed edge - that the kernel
+	-- was ready and we were simply not listening - and ran silently on that
+	-- assumption. Issue #10 falsified it: MoltenInit at 17:31:52, we ran anyway
+	-- at 17:32:12, and MoltenKernelReady did not arrive until 18:05:11. Work
+	-- submitted while Molten considers the kernel unready is what leaves a cell
+	-- on "* On Hold", so we still run rather than eat the keypress, but the user
+	-- is told why nothing may come back instead of being left to guess.
+	local timeout = opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
 	local timer = vim.uv.new_timer()
 	timer:start(
-		opts.timeout_ms or KERNEL_READY_TIMEOUT_MS,
+		timeout,
 		0,
 		vim.schedule_wrap(function()
 			if not timer:is_closing() then
@@ -138,10 +143,11 @@ function M.run_when_ready(bufnr, fn, opts)
 				timer:close()
 			end
 			if not done and vim.api.nvim_buf_is_valid(bufnr) then
-				log.warn(
-					"kernel_ready",
-					"kernel never reported ready; running anyway after %dms",
-					opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
+				log.warn("kernel_ready", "kernel never reported ready; running anyway after %dms", timeout)
+				vim.notify(
+					"Kernel not confirmed ready - running anyway. If the cell stays on '* On Hold', "
+						.. "it was submitted too early; re-run it once the kernel reports ready.",
+					vim.log.levels.WARN
 				)
 				run_once()
 			end

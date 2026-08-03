@@ -154,6 +154,41 @@ describe("kernel_ready", function()
 		end)
 	end)
 
+	-- The fallback used to assume a missing event meant a missed edge - that the
+	-- kernel was ready and we simply were not listening. Issue #10 falsified
+	-- that: MoltenInit at 17:31:52, we ran the cell anyway at 17:32:12, and
+	-- MoltenKernelReady did not arrive until 18:05:11, 33 minutes later. Running
+	-- into a kernel Molten does not consider ready is what leaves a cell on
+	-- "* On Hold", so the escape hatch stays but stops being silent about it.
+	describe("running without confirmed readiness", function()
+		it("should tell the user the cell may not produce output", function()
+			local messages = {}
+			local real_notify = vim.notify
+			vim.notify = function(msg)
+				table.insert(messages, tostring(msg))
+			end
+
+			local ran = false
+			kernel_ready.run_when_ready(test_bufnr, function()
+				ran = true
+			end, { timeout_ms = 50 })
+			vim.wait(500, function()
+				return ran
+			end, 25)
+
+			vim.notify = real_notify
+
+			assert.is_true(ran)
+			local warned = false
+			for _, msg in ipairs(messages) do
+				if msg:find("On Hold", 1, true) or msg:find("not confirmed", 1, true) then
+					warned = true
+				end
+			end
+			assert.is_true(warned)
+		end)
+	end)
+
 	-- A kernel that never reports ready is the whole of issue #10 as the user
 	-- experiences it: "Starting kernel..." and then nothing, forever. Molten
 	-- reports its own startup failures asynchronously, so :MoltenInit returns
