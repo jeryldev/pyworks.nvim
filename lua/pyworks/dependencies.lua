@@ -92,6 +92,30 @@ function M.has_reentrancy_guard(molten_dir)
 end
 
 -- Describe the installed molten: { installed, url, dir, is_fork, has_guard }
+-- Whether Molten's repeating tick timer exists.
+--
+-- Molten notices a kernel became ready only inside MoltenBuffer.tick(), and
+-- nothing calls that but the MoltenTick timer started at the end of Molten's
+-- _initialize() - after canvas.init(). If image provider setup throws, Molten
+-- is left half-initialised: :MoltenInit still reports success and the kernel
+-- really does start, but nothing ever polls it, so no MoltenKernelReady is
+-- ever emitted and every cell waits forever with no error (issue #10).
+--
+-- The absence of this timer separates "Molten never started a kernel" from
+-- "Molten started one and is not watching it", which no other signal does.
+function M.molten_tick_timer()
+	-- vim.fn.string(vim.fn.timer_info()) does NOT work here: routing the list
+	-- through Lua turns each callback into vim.NIL, losing the name. Evaluating
+	-- string() in vimscript keeps the Funcref intact. The expression is a fixed
+	-- literal with no interpolation - nothing here is caller-controlled.
+	local ok, rendered = pcall(vim.fn.eval, "string(timer_info())")
+	if not ok or type(rendered) ~= "string" then
+		return { running = false, known = false }
+	end
+
+	return { running = rendered:find("MoltenTick", 1, true) ~= nil, known = true }
+end
+
 function M.molten_source()
 	local info = { installed = false }
 

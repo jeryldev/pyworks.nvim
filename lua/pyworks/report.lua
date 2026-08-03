@@ -127,7 +127,8 @@ local function kernels_section(lines, project_dir)
 		table.insert(lines, "kernel list unavailable (jupyter not on PATH or failed)")
 	end
 
-	local molten = require("pyworks.dependencies").molten_source()
+	local dependencies = require("pyworks.dependencies")
+	local molten = dependencies.molten_source()
 	kv(lines, "molten source", molten.url or "unknown")
 	kv(lines, "molten is pyworks fork", tostring(molten.is_fork))
 	kv(lines, "MoltenTick guard present", tostring(molten.has_guard))
@@ -135,6 +136,11 @@ local function kernels_section(lines, project_dir)
 	-- Molten's timer latches this value when its host starts; a raised rate
 	-- here means it will not be polling the kernel at a useful interval
 	kv(lines, "molten tick rate", tostring(vim.g.molten_tick_rate))
+
+	-- Molten emits MoltenKernelReady only from inside this timer's callback, so
+	-- a missing timer means no kernel will ever be reported ready no matter how
+	-- healthy it is
+	kv(lines, "MoltenTick timer running", tostring(dependencies.molten_tick_timer().running))
 
 	-- Molten writes kernel-<id>.json here and does not create the directory.
 	-- Missing means MoltenInit fails inside the rplugin host while still

@@ -65,8 +65,48 @@ describe("dependencies", function()
 			local info = dependencies.molten_source()
 
 			assert.is_table(info)
-			-- fields are present even when molten is absent, so callers can report
 			assert.is_true(info.installed ~= nil)
+		end)
+	end)
+
+	-- Molten only ever notices a kernel became ready from inside MoltenBuffer.tick(),
+	-- which nothing calls but the repeating MoltenTick timer. That timer is created
+	-- at the end of Molten's _initialize(), after canvas.init() - so if image
+	-- provider setup throws, Molten stays half-initialised: :MoltenInit reports
+	-- success, a kernel really does start, and nothing ever polls it. Cells then sit
+	-- on "* On Hold" forever with no error anywhere (issue #10).
+	describe("tick timer detection", function()
+		local timer_id
+
+		after_each(function()
+			if timer_id then
+				pcall(vim.fn.timer_stop, timer_id)
+				timer_id = nil
+			end
+		end)
+
+		it("should report no tick timer when Molten has not started one", function()
+			assert.is_false(dependencies.molten_tick_timer().running)
+		end)
+
+		it("should detect the timer Molten starts", function()
+			vim.cmd([[
+				function! MoltenTick(t)
+				endfunction
+			]])
+			-- started through eval() because that is how Molten does it, and
+			-- because a Lua-registered callback is not visible to timer_info()
+			timer_id = vim.fn.eval("timer_start(10000, 'MoltenTick', {'repeat': -1})")
+
+			assert.is_true(dependencies.molten_tick_timer().running)
+		end)
+
+		it("should always answer with a table, never throw", function()
+			-- this runs from a watchdog callback, where a throw would be unhandled
+			local info = dependencies.molten_tick_timer()
+
+			assert.is_table(info)
+			assert.is_boolean(info.running)
 		end)
 	end)
 end)

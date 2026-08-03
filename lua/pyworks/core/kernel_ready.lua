@@ -183,11 +183,19 @@ function M.watch(bufnr, kernel_id, opts)
 				return
 			end
 
+			-- Captured here, at the moment of failure, because it is the one
+			-- signal that separates "Molten never started a kernel" from
+			-- "Molten started one and is not polling it": readiness is only
+			-- ever noticed from inside the MoltenTick timer's callback
+			local tick = require("pyworks.dependencies").molten_tick_timer()
+
 			log.warn(
 				"kernel_ready",
-				"kernel '%s' did not report ready within %dms; Molten may have failed to start it",
+				"kernel '%s' did not report ready within %dms (MoltenTick timer running=%s, tick_rate=%s)",
 				tostring(kernel_id),
-				timeout_ms
+				timeout_ms,
+				tostring(tick.running),
+				tostring(vim.g.molten_tick_rate)
 			)
 
 			if opts.on_timeout then
