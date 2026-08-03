@@ -29,10 +29,18 @@ Expected output on a healthy setup:
 ```
 MoltenInit ok:                     true
 ready event seen:                  true
-time to ready (ms):                791
+time to ready (ms):                1011
 b:pyworks_kernel_ready:            true
+MoltenTick timer running:          true
+molten tick rate:                  100
+runtime dir exists:                true
 kernel executed the code:          true
 ```
+
+`MoltenTick timer running` is here to prove a positive: unit tests exercise the
+detection against a stand-in vimscript `MoltenTick`, and only a real running
+Molten can show it is not a false negative. A diagnostic that reports "missing"
+on a healthy setup would send users chasing a timer that was never absent.
 
 ## molten_probe.py
 

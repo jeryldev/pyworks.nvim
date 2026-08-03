@@ -48,6 +48,16 @@ note("ready event seen", ready_events > 0)
 note("time to ready (ms)", ready_events > 0 and (vim.uv.now() - start) or "n/a")
 note("b:pyworks_kernel_ready", vim.b[buf].pyworks_kernel_ready)
 
+-- The tick-timer check is only trustworthy if a real, working Molten makes it
+-- say true. Unit tests use a stand-in vimscript MoltenTick; this is the live
+-- kernel that proves the detection is not a false negative waiting to send
+-- someone chasing a timer that was there all along.
+local dependencies = require("pyworks.dependencies")
+note("MoltenTick timer running", dependencies.molten_tick_timer().running)
+note("molten tick rate", vim.g.molten_tick_rate)
+note("molten runtime dir", require("pyworks.core.detector").molten_runtime_dir())
+note("runtime dir exists", vim.fn.isdirectory(require("pyworks.core.detector").molten_runtime_dir()) == 1)
+
 -- now run a cell the way pyworks does and watch for completion
 local marker = "/work/out/kernel_ran.txt"
 pcall(vim.cmd, string.format("MoltenEvaluateArgument open(%q,'w').write('ok')", marker))
