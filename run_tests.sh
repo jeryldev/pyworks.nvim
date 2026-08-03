@@ -83,10 +83,22 @@ if [ "$COVERAGE" -eq 1 ]; then
     export PYWORKS_COVERAGE_DIR
 fi
 
+# Accept both "utils_spec.lua" and "tests/utils_spec.lua": the path is prefixed
+# with tests/ below, and passing an already-prefixed one produced
+# tests/tests/utils_spec.lua. test_directory() on a path that does not exist
+# runs nothing and exits 0, so the suite reported success while running no
+# tests at all - a false green is worse than a broken flag.
+TEST_FILE="${TEST_FILE#tests/}"
+
+if [ -n "$TEST_FILE" ] && [ ! -f "tests/$TEST_FILE" ]; then
+    echo "❌ Error: tests/$TEST_FILE does not exist"
+    exit 1
+fi
+
 # Run tests
 if [ -n "$TEST_FILE" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Running: $TEST_FILE"
+    echo "  Running: tests/$TEST_FILE"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 

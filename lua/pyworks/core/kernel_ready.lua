@@ -149,6 +149,54 @@ function M.run_when_ready(bufnr, fn, opts)
 	)
 end
 
+-- Watch a freshly initialised kernel and speak up if it never reports ready.
+--
+-- :MoltenInit returning success means only that the command dispatched. Molten
+-- starts the kernel on its rplugin host and reports failures there,
+-- asynchronously - a kernel that dies on startup, or a connection file that
+-- cannot be written, leaves vim.cmd perfectly happy. Pyworks would then set
+-- b:molten_initialized, announce "Starting kernel...", and never speak again,
+-- which is precisely how issue #10 presents: an infinite "* On Hold" with a
+-- healthy interpreter and no error anywhere.
+--
+-- This does not fix a broken kernel. It converts silence into a diagnosis.
+function M.watch(bufnr, kernel_id, opts)
+	opts = opts or {}
+	local timeout_ms = opts.timeout_ms or KERNEL_READY_TIMEOUT_MS
+
+	local timer = vim.uv.new_timer()
+	timer:start(
+		timeout_ms,
+		0,
+		vim.schedule_wrap(function()
+			if not timer:is_closing() then
+				timer:stop()
+				timer:close()
+			end
+
+			-- the buffer closing is not a failure, it is the user moving on
+			if not vim.api.nvim_buf_is_valid(bufnr) then
+				return
+			end
+
+			if M.is_ready(bufnr) then
+				return
+			end
+
+			log.warn(
+				"kernel_ready",
+				"kernel '%s' did not report ready within %dms; Molten may have failed to start it",
+				tostring(kernel_id),
+				timeout_ms
+			)
+
+			if opts.on_timeout then
+				opts.on_timeout(kernel_id)
+			end
+		end)
+	)
+end
+
 -- Test helper: forget every recorded kernel
 function M._reset()
 	ready_kernels = {}

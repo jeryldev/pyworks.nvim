@@ -8,6 +8,7 @@ local notifications = require("pyworks.core.notifications")
 local state = require("pyworks.core.state")
 local log = require("pyworks.core.log")
 local utils = require("pyworks.utils")
+local kernel_ready = require("pyworks.core.kernel_ready")
 
 -- Timeout constants (in milliseconds)
 local KERNEL_LIST_TIMEOUT_MS = 10000 -- 10 seconds for kernel listing
@@ -164,6 +165,80 @@ function M.get_kernelspecs()
 	end
 
 	return data.kernelspecs
+end
+
+-- Where Jupyter keeps its data, following jupyter_core's algorithm.
+--
+-- Reimplemented rather than shelled out to python because this sits on the
+-- path to :MoltenInit, where a subprocess round trip would be felt. The one
+-- case it can disagree with jupyter_core is JUPYTER_PLATFORM_DIRS, which
+-- switches to platformdirs locations; :PyworksReport asks the interpreter
+-- directly and shows both, so a mismatch is visible where it matters. Guessing
+-- wrong costs an empty directory, guessing right prevents a silent hang.
+function M.jupyter_data_dir()
+	local explicit = vim.env.JUPYTER_DATA_DIR
+	if explicit and explicit ~= "" then
+		return explicit
+	end
+
+	local home = vim.uv.os_homedir() or vim.fn.expand("~")
+
+	if vim.fn.has("mac") == 1 then
+		return home .. "/Library/Jupyter"
+	end
+
+	if vim.fn.has("win32") == 1 then
+		local appdata = vim.env.APPDATA
+		if appdata and appdata ~= "" then
+			return appdata .. "/jupyter"
+		end
+		return home .. "/AppData/Roaming/jupyter"
+	end
+
+	local xdg_data = vim.env.XDG_DATA_HOME
+	if xdg_data and xdg_data ~= "" then
+		return xdg_data .. "/jupyter"
+	end
+
+	return home .. "/.local/share/jupyter"
+end
+
+-- The directory Molten writes its connection file into.
+--
+-- Deliberately not jupyter_runtime_dir(): that honours JUPYTER_RUNTIME_DIR,
+-- and Molten does not. It builds the path by hand from the client's data_dir:
+--
+--     connection_file = f"{data_dir}/runtime/kernel-{kernel_id}.json"
+--     write_connection_file()
+--
+-- so the directory we must guarantee is the one Molten names, not the one
+-- jupyter_client would have chosen.
+function M.molten_runtime_dir()
+	return M.jupyter_data_dir() .. "/runtime"
+end
+
+-- write_connection_file() does not create its parent directory. When it is
+-- missing the write raises ENOENT inside the rplugin host, which surfaces as an
+-- async Molten notification - :MoltenInit itself still "succeeds", so pyworks
+-- marks the buffer initialised and every cell then waits on a kernel that was
+-- never started (issue #10).
+function M.ensure_molten_runtime_dir()
+	local dir = M.molten_runtime_dir()
+
+	if vim.fn.isdirectory(dir) == 1 then
+		return true
+	end
+
+	-- mkdir() throws on failure, and this runs inside a deferred callback where
+	-- nothing would catch it
+	local ok = pcall(vim.fn.mkdir, dir, "p")
+	if not ok or vim.fn.isdirectory(dir) ~= 1 then
+		log.warn("detector", "could not create Molten runtime dir: %s", dir)
+		return false
+	end
+
+	log.info("detector", "created missing Molten runtime dir: %s", dir)
+	return true
 end
 
 local function is_python_kernel(spec)
@@ -366,11 +441,44 @@ local function auto_init_molten(language, filepath)
 				return
 			end
 
+			-- Molten writes its connection file into a directory it never
+			-- creates; when that is missing the write fails inside the rplugin
+			-- host and MoltenInit still reports success (issue #10)
+			M.ensure_molten_runtime_dir()
+
+			-- The tick rate is logged because a Molten timer created while the
+			-- reload guard had raised it would never poll the kernel, producing
+			-- an eternal "* On Hold" that is indistinguishable from a kernel
+			-- that failed to start
+			log.info(
+				"detector",
+				"MoltenInit %s (tick_rate=%s runtime_dir=%s)",
+				kernel,
+				tostring(vim.g.molten_tick_rate),
+				M.molten_runtime_dir()
+			)
+
 			-- Try to initialize the kernel
 			local ok, err = pcall(vim.cmd, "MoltenInit " .. kernel)
+			log.info("detector", "MoltenInit dispatched: ok=%s err=%s", tostring(ok), tostring(err))
 			if ok then
 				utils.safe_buf_set_var(bufnr, "molten_initialized", true)
 				utils.safe_buf_set_var(bufnr, "pyworks_kernel_name", kernel)
+
+				-- ok only means the command dispatched; Molten reports startup
+				-- failures asynchronously, so without this the buffer would wait
+				-- for a kernel that does not exist without ever being told
+				kernel_ready.watch(bufnr, kernel, {
+					on_timeout = function(name)
+						notifications.notify(
+							string.format(
+								"Kernel '%s' has not reported ready. Run :PyworksReport and check :messages for Molten errors",
+								name
+							),
+							vim.log.levels.WARN
+						)
+					end,
+				})
 
 				-- MoltenInit only *starts* the kernel; it takes seconds more to
 				-- accept work, and anything sent meanwhile is silently dropped

@@ -69,6 +69,32 @@ local function environment_section(lines, project_dir)
 	kv(lines, "python3_host_prog", vim.g.python3_host_prog or "unset")
 end
 
+-- Ask the project interpreter where Jupyter keeps its data. Only the report
+-- pays this subprocess; the init path uses detector.jupyter_data_dir().
+local function jupyter_data_dir_from_python(project_dir)
+	local ok, python = pcall(require, "pyworks.languages.python")
+	if not ok then
+		return nil
+	end
+
+	local python_path = python.get_python_path(project_dir)
+	if not python_path then
+		return nil
+	end
+
+	local ran, result = pcall(function()
+		return vim.system({
+			python_path,
+			"-c",
+			"from jupyter_core.paths import jupyter_data_dir; print(jupyter_data_dir())",
+		}, { text = true }):wait()
+	end)
+	if ran and result and result.code == 0 then
+		return vim.trim(result.stdout)
+	end
+	return nil
+end
+
 local function kernels_section(lines, project_dir)
 	section(lines, "Kernels")
 
@@ -78,32 +104,54 @@ local function kernels_section(lines, project_dir)
 		return
 	end
 
+	-- Not an early return: a missing kernel list is the case where the Molten
+	-- facts below matter most, and gating them behind it hid them exactly then
 	local specs = detector.get_kernelspecs()
-	if not specs then
-		table.insert(lines, "kernel list unavailable (jupyter not on PATH or failed)")
-		return
-	end
-
-	for name, spec in pairs(specs) do
-		local argv = spec.spec and spec.spec.argv or {}
-		local interpreter = argv[1] or "?"
-		local exists = vim.fn.executable(interpreter) == 1
-		-- The check that decides whether a kernel can ever start (issue #10)
-		table.insert(lines, string.format("%-24s interpreter exists=%-5s %s", name, tostring(exists), interpreter))
-	end
-
-	local stale = detector.list_stale_kernels(specs)
-	if #stale > 0 then
-		table.insert(lines, "")
-		for _, kernel in ipairs(stale) do
-			table.insert(lines, string.format("STALE: %s -> %s", kernel.name, kernel.python))
+	if specs then
+		for name, spec in pairs(specs) do
+			local argv = spec.spec and spec.spec.argv or {}
+			local interpreter = argv[1] or "?"
+			local exists = vim.fn.executable(interpreter) == 1
+			-- The check that decides whether a kernel can ever start (issue #10)
+			table.insert(lines, string.format("%-24s interpreter exists=%-5s %s", name, tostring(exists), interpreter))
 		end
+
+		local stale = detector.list_stale_kernels(specs)
+		if #stale > 0 then
+			table.insert(lines, "")
+			for _, kernel in ipairs(stale) do
+				table.insert(lines, string.format("STALE: %s -> %s", kernel.name, kernel.python))
+			end
+		end
+	else
+		table.insert(lines, "kernel list unavailable (jupyter not on PATH or failed)")
 	end
 
 	local molten = require("pyworks.dependencies").molten_source()
 	kv(lines, "molten source", molten.url or "unknown")
 	kv(lines, "molten is pyworks fork", tostring(molten.is_fork))
 	kv(lines, "MoltenTick guard present", tostring(molten.has_guard))
+
+	-- Molten's timer latches this value when its host starts; a raised rate
+	-- here means it will not be polling the kernel at a useful interval
+	kv(lines, "molten tick rate", tostring(vim.g.molten_tick_rate))
+
+	-- Molten writes kernel-<id>.json here and does not create the directory.
+	-- Missing means MoltenInit fails inside the rplugin host while still
+	-- reporting success to Neovim.
+	local runtime_dir = detector.molten_runtime_dir()
+	kv(lines, "molten runtime dir", runtime_dir)
+	kv(lines, "runtime dir exists", tostring(vim.fn.isdirectory(runtime_dir) == 1))
+
+	-- The interpreter is the authority on where Jupyter data lives, and we
+	-- resolve it ourselves to stay off the subprocess path at init time. Print
+	-- both only when they disagree: that means we created the wrong directory
+	-- and the one Molten actually writes to is still missing.
+	local python_data_dir = jupyter_data_dir_from_python(project_dir)
+	if python_data_dir and python_data_dir ~= detector.jupyter_data_dir() then
+		kv(lines, "jupyter data dir (python)", python_data_dir)
+		kv(lines, "jupyter data dir (pyworks)", detector.jupyter_data_dir())
+	end
 
 	local buf = vim.api.nvim_get_current_buf()
 	kv(lines, "b:molten_initialized", tostring(vim.b[buf].molten_initialized))
