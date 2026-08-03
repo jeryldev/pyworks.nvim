@@ -52,6 +52,70 @@ function M.detect_image_backend()
 	return nil, false, "Unknown terminal - image rendering unavailable"
 end
 
+-- Which molten is actually installed?
+--
+-- pyworks declares jeryldev/molten-nvim in lazy.lua, but lazy resolves plugins
+-- by name: a user who already had benlubas/molten-nvim keeps theirs, and then
+-- runs without the fork's MoltenTick reentrancy guard and dict-iteration fix.
+-- Pyworks cannot uninstall another plugin's spec, so the next best thing is to
+-- notice and say so.
+
+-- Is this a url for the fork pyworks ships? nil when there is nothing to judge.
+function M.is_fork_url(url)
+	if type(url) ~= "string" or url == "" then
+		return nil
+	end
+	return url:lower():find("jeryldev/molten%-nvim") ~= nil
+end
+
+-- Does this molten checkout contain the reentrancy guard? nil if the file is
+-- not there to read. Checked in addition to the url because a fork can be
+-- installed under any remote name, and the behaviour is what matters.
+function M.has_reentrancy_guard(molten_dir)
+	if type(molten_dir) ~= "string" or molten_dir == "" then
+		return nil
+	end
+	local init_py = molten_dir .. "/rplugin/python3/molten/__init__.py"
+	if vim.fn.filereadable(init_py) ~= 1 then
+		return nil
+	end
+	local ok, content = pcall(vim.fn.readfile, init_py)
+	if not ok then
+		return nil
+	end
+	for _, line in ipairs(content) do
+		if line:find("_ticking", 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Describe the installed molten: { installed, url, dir, is_fork, has_guard }
+function M.molten_source()
+	local info = { installed = false }
+
+	local lazy_ok, lazy = pcall(require, "lazy.core.config")
+	if lazy_ok and lazy.plugins then
+		local spec = lazy.plugins["molten-nvim"]
+		if spec then
+			info.installed = true
+			info.url = spec.url
+			info.dir = spec.dir
+		end
+	end
+
+	info.is_fork = M.is_fork_url(info.url)
+	info.has_guard = M.has_reentrancy_guard(info.dir)
+
+	-- The guard is the ground truth; the url only corroborates it
+	if info.has_guard ~= nil then
+		info.is_fork = info.has_guard
+	end
+
+	return info
+end
+
 -- Comprehensive dependency check and auto-fix
 function M.ensure_dependencies()
 	local issues = {}

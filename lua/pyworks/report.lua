@@ -100,6 +100,11 @@ local function kernels_section(lines, project_dir)
 		end
 	end
 
+	local molten = require("pyworks.dependencies").molten_source()
+	kv(lines, "molten source", molten.url or "unknown")
+	kv(lines, "molten is pyworks fork", tostring(molten.is_fork))
+	kv(lines, "MoltenTick guard present", tostring(molten.has_guard))
+
 	local buf = vim.api.nvim_get_current_buf()
 	kv(lines, "b:molten_initialized", tostring(vim.b[buf].molten_initialized))
 	kv(lines, "b:kernel_ready", tostring(vim.b[buf].pyworks_kernel_ready))

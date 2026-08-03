@@ -101,6 +101,24 @@ function M.check()
 		})
 	end
 
+	-- Which molten is loaded matters: the fork pyworks declares carries a
+	-- MoltenTick reentrancy guard, and without it ticks can recurse during a
+	-- notebook reload and cells stop updating
+	local molten = require("pyworks.dependencies").molten_source()
+	if molten.installed then
+		if molten.is_fork == false then
+			health.warn("molten-nvim is not the fork pyworks ships", {
+				string.format("installed from: %s", molten.url or "unknown"),
+				"It lacks the MoltenTick reentrancy guard, which can leave cells stuck on '* On Hold'",
+				"Remove your molten-nvim spec and let pyworks install jeryldev/molten-nvim",
+			})
+		elseif molten.is_fork then
+			health.ok("molten-nvim is the pyworks fork (reentrancy guard present)")
+		else
+			health.info("Could not determine which molten-nvim is installed")
+		end
+	end
+
 	health.start("Jupyter Kernels")
 
 	-- A kernelspec keeps an absolute interpreter path. When a project moves or
