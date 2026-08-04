@@ -23,6 +23,9 @@ test_*.lua
 test_*.vim
 *.ipynb
 !examples/*.ipynb
+# the container's fixture notebook: without it the image cannot build
+# from a fresh clone, which is how CI first failed
+!docker/notebook.ipynb
 # Test scenarios folder (contains many test cases)
 test/scenarios/
 # Keep test documentation
