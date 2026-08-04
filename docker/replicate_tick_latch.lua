@@ -80,8 +80,44 @@ if timer.interval_ms and timer.interval_ms > 1000 then
 	)
 end
 
+-- Asserted, not just printed, because this is what keeps the *detector* honest.
+--
+-- A tick-interval check that silently stopped working would report a healthy
+-- 100ms on a latched timer and send the next reporter chasing the wrong thing -
+-- which is exactly how issue #10 stayed open for six rounds. In LATCH mode the
+-- run is expected to look broken; if it looks healthy, the detection has rotted.
+local failures = {}
+local function check(label, ok, detail)
+	table.insert(
+		results,
+		string.format("%-32s %s%s", label .. ":", ok and "PASS" or "FAIL", detail and ("  " .. detail) or "")
+	)
+	if not ok then
+		table.insert(failures, label)
+	end
+end
+
+table.insert(results, "")
+if latch then
+	check(
+		"latched interval is visible",
+		timer.interval_ms == 999999,
+		string.format("saw %sms, expected 999999", tostring(timer.interval_ms))
+	)
+	check("latched kernel goes unnoticed", not ready_seen)
+else
+	check("control interval is sane", timer.interval_ms ~= nil and timer.interval_ms <= 1000)
+	check("control kernel is noticed", ready_seen)
+end
+
 print("\n===== TICK LATCH RESULTS =====")
 for _, line in ipairs(results) do
 	print(line)
 end
+
+if #failures > 0 then
+	print("\nFAILED: " .. table.concat(failures, ", "))
+	vim.cmd("cq")
+end
+print("\nall checks passed")
 vim.cmd("qa!")

@@ -44,8 +44,9 @@ local start = vim.uv.now()
 vim.wait(60000, function()
 	return ready_events > 0
 end, 250)
+local ready_ms = ready_events > 0 and (vim.uv.now() - start) or nil
 note("ready event seen", ready_events > 0)
-note("time to ready (ms)", ready_events > 0 and (vim.uv.now() - start) or "n/a")
+note("time to ready (ms)", ready_ms or "n/a")
 note("b:pyworks_kernel_ready", vim.b[buf].pyworks_kernel_ready)
 
 -- The tick-timer check is only trustworthy if a real, working Molten makes it
@@ -95,6 +96,43 @@ for name, ns in pairs(vim.api.nvim_get_namespaces()) do
 end
 note("molten virt text", shown)
 
+-- Assertions, so this is a regression net and not just a printout.
+--
+-- Everything below passed for weeks while issue #10 was live in main: 405 unit
+-- tests, green, the entire time. The bug lived between pyworks, Molten's
+-- rplugin host and a real kernel, which is a layer unit tests cannot reach.
+-- These run nightly.
+local MAX_READY_MS = 15000
+local MAX_TICK_INTERVAL_MS = 1000
+
+local failures = {}
+local function check(label, ok, detail)
+	table.insert(
+		results,
+		string.format("%-34s %s%s", label .. ":", ok and "PASS" or "FAIL", detail and ("  " .. detail) or "")
+	)
+	if not ok then
+		table.insert(failures, label)
+	end
+end
+
+table.insert(results, "")
+check("kernel reported ready", ready_events > 0)
+check(
+	"ready within budget",
+	ready_events > 0 and ready_ms and ready_ms < MAX_READY_MS,
+	string.format("%s / %dms", tostring(ready_ms), MAX_READY_MS)
+)
+check("tick timer exists", tick.running == true)
+-- The regression that was issue #10: a timer latched at pyworks' old reload
+-- rate is "running" while polling once every 16.7 minutes
+check(
+	"tick interval is sane",
+	tick.interval_ms ~= nil and tick.interval_ms <= MAX_TICK_INTERVAL_MS,
+	string.format("%sms / %dms", tostring(tick.interval_ms), MAX_TICK_INTERVAL_MS)
+)
+check("kernel executed a cell", vim.fn.filereadable(marker) == 1)
+
 print("\n===== SCENARIO RESULTS =====")
 for _, line in ipairs(results) do
 	print(line)
@@ -103,4 +141,10 @@ print("\n===== PYWORKS LOG =====")
 for _, entry in ipairs(log.entries()) do
 	print(log.format_entry(entry))
 end
+
+if #failures > 0 then
+	print("\nFAILED: " .. table.concat(failures, ", "))
+	vim.cmd("cq")
+end
+print("\nall checks passed")
 vim.cmd("qa!")

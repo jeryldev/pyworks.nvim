@@ -55,7 +55,8 @@ RUN uv pip install --python /work/project/.venv/bin/python jupyterlab numpy pand
 
 RUN mkdir -p "/work/project/нейророботика"
 COPY notebook.ipynb "/work/project/нейророботика/нейророботика_экзамен.ipynb"
-COPY run_scenario.lua init.lua /work/
+COPY run_scenario.lua replicate_tick_latch.lua init.lua /work/
+COPY nvim_readiness_probe.py /work/
 COPY entrypoint.sh /work/entrypoint.sh
 RUN chmod +x /work/entrypoint.sh
 

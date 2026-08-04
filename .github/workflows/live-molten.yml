@@ -1,0 +1,68 @@
+# Layer 4: the only tests that run a real Molten against a real kernel.
+#
+# Issue #10 is why this exists. A latched Molten tick timer left healthy kernels
+# unnoticed for 16.7 minutes, and the entire unit suite - 405 tests - passed
+# green the whole time it was in main. The bug lived between pyworks, Molten's
+# rplugin host and jupyter_client, which is a seam unit tests cannot reach.
+#
+# Nightly rather than per-push: it builds a Debian image with uv, Neovim and two
+# plugin forks, so it costs minutes where the unit suite costs seconds.
+name: Live Molten
+
+on:
+  schedule:
+    # 06:00 UTC daily
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # the code paths that can break the Molten interaction without failing a
+    # single unit test
+    paths:
+      - "docker/**"
+      - "lua/pyworks/core/recursion_guard.lua"
+      - "lua/pyworks/core/detector.lua"
+      - "lua/pyworks/core/kernel_ready.lua"
+      - "lua/pyworks/dependencies.lua"
+      - ".github/workflows/live-molten.yml"
+
+jobs:
+  live-molten:
+    name: Live kernel scenario
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build reproduction container
+        run: docker build -t pyworks-live docker/
+
+      # Asserts the kernel is noticed quickly and, critically, that Molten's
+      # tick timer is at its real interval rather than a latched reload rate.
+      # The scenario exits non-zero when a check fails.
+      - name: Readiness regression net
+        run: |
+          set -o pipefail
+          docker run --rm -v "$PWD:/work/pyworks:ro" pyworks-live \
+            | tee /tmp/live-molten-readiness.log
+
+      # Keeps the detector honest. If the tick-interval check silently stopped
+      # working it would report a healthy 100ms on a latched timer and this
+      # whole job would pass while blind - which is how issue #10 survived six
+      # rounds of diagnostics. Here the latch is induced on purpose and the run
+      # fails unless it is detected.
+      - name: Detector self-check (latch must be visible)
+        run: |
+          set -o pipefail
+          docker run --rm -e LATCH=1 -v "$PWD:/work/pyworks:ro" pyworks-live \
+            /work/replicate_tick_latch.lua | tee /tmp/live-molten-latch.log
+
+      - name: Upload scenario output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-molten-output
+          path: /tmp/live-molten-*.log
+          if-no-files-found: warn
