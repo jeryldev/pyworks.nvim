@@ -31,13 +31,18 @@ local buf = vim.api.nvim_get_current_buf()
 note("buffer lines after open", vim.api.nvim_buf_line_count(buf))
 note("filetype after open", vim.bo.filetype)
 
-vim.b[buf].pyworks_kernel_name = "mypjs_python"
-local init_ok, init_err = pcall(vim.cmd, "MoltenInit mypjs_python")
-note("MoltenInit ok", init_ok)
-if not init_ok then
-	note("MoltenInit error", init_err)
-end
-vim.b[buf].molten_initialized = true
+-- Deliberately no explicit :MoltenInit. Pyworks auto-initialises on open, and
+-- calling it here as well started the same kernelspec twice - Molten names the
+-- second instance mypjs_python_1, then blocks on "Please select a kernel:"
+-- forever, which is how the first CI run burned its whole step budget.
+--
+-- Waiting for pyworks' own initialisation is also the better test: it exercises
+-- the path a user actually takes rather than one the harness stages.
+vim.wait(10000, function()
+	return vim.b[buf].molten_initialized == true
+end, 100)
+note("pyworks auto-initialised molten", vim.b[buf].molten_initialized == true)
+note("kernel pyworks chose", vim.b[buf].pyworks_kernel_name)
 
 -- wait up to 60s for the readiness edge
 local start = vim.uv.now()
@@ -117,6 +122,7 @@ local function check(label, ok, detail)
 end
 
 table.insert(results, "")
+check("pyworks initialised molten", vim.b[buf].molten_initialized == true)
 check("kernel reported ready", ready_events > 0)
 check(
 	"ready within budget",
