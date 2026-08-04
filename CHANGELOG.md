@@ -4,6 +4,60 @@ All notable changes to pyworks.nvim will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-04
+
+Fixes issue #10: cells sitting on `* On Hold` for tens of minutes with a
+perfectly healthy kernel.
+
+### Fixed
+
+- **Molten was left polling the kernel every 16.7 minutes.** The reload guard
+  raised `g:molten_tick_rate` to 999999 while jupytext rewrote the buffer, then
+  restored it. Restoring is not enough: Molten reads that variable exactly once,
+  when its rplugin host initialises, and bakes it into `timer_start()`. A Molten
+  that initialised inside that window kept the huge interval for the rest of the
+  session while the variable read a healthy 100 beside it. Readiness is only
+  ever noticed inside that timer's callback, so a kernel that started in a
+  second went unnoticed for half an hour. The raise is gone entirely — the
+  fork's `MoltenTick` reentrancy guard is what it was working around. This is
+  the same user-visible symptom as the v0.4.1 and v0.5.0 tick-rate fixes, which
+  corrected the unwind without removing the latch underneath
+- **Cells were submitted into kernels Molten considered unready.** After 10s
+  without a `MoltenKernelReady`, `run_when_ready` ran anyway, assuming the event
+  had been missed. Work submitted before Molten is ready is exactly what strands
+  a cell on `* On Hold`. It still runs rather than eating the keypress, but now
+  says why nothing may come back
+- **`:MoltenInit` reporting success meant nothing.** Molten starts kernels on
+  its rplugin host and reports failures there, asynchronously, so `vim.cmd`
+  returned success even when no kernel existed — pyworks then set
+  `b:molten_initialized`, announced "Starting kernel…", and never spoke again. A
+  watchdog now reports a kernel that never becomes ready
+- **Molten's connection-file directory was never created.** Molten builds
+  `<jupyter data dir>/runtime/kernel-<id>.json` by hand and calls
+  `write_connection_file()`, which does not create the parent. When it is
+  missing the write fails inside the host while `:MoltenInit` still looks fine
+
+### Added
+
+- **`:PyworksReport` reports the interval Molten's tick timer actually fires
+  at**, not just that it exists. A timer latched at the old reload rate is
+  "running" while polling twice an hour, with `molten tick rate: 100` beside it
+  — the combination that hid issue #10 through six rounds of diagnostics
+- **`:checkhealth` and `:PyworksReport` name which molten-nvim is installed.**
+  lazy.nvim keeps a pre-existing `benlubas/molten-nvim` over the fork pyworks
+  declares, leaving users without the `MoltenTick` reentrancy guard
+- **`docker/nvim_readiness_probe.py`** — measures Molten's readiness call inside
+  Neovim's own Python host, separating "the call is broken" from "Molten is not
+  reaching it". Run with `:py3file`
+- **`docker/replicate_tick_latch.lua`** — reproduces the tick-rate latch both
+  ways in the container, as a permanent regression demonstration
+
+### Internal
+
+- `run_tests.sh -f tests/foo_spec.lua` doubled the path prefix, and
+  `test_directory()` on a nonexistent path runs nothing and exits 0 — so the
+  suite printed "All tests passed" while running no tests at all
+
 ## [0.5.0] - 2026-08-02
 
 Minor rather than patch: pyworks no longer sets itself up outside real projects,
