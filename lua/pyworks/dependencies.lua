@@ -113,7 +113,24 @@ function M.molten_tick_timer()
 		return { running = false, known = false }
 	end
 
-	return { running = rendered:find("MoltenTick", 1, true) ~= nil, known = true }
+	-- The interval matters more than existence. Molten reads g:molten_tick_rate
+	-- once, when its host starts, and bakes it into timer_start(). Pyworks
+	-- raises that variable during a jupytext reload and restores it after, so a
+	-- Molten that initialised inside that window leaves the variable reading a
+	-- healthy 100 while its timer fires every 16.7 minutes. Reporting only
+	-- "running: true" called that healthy (issue #10).
+	for entry in rendered:gmatch("{[^{}]*}") do
+		-- the exact Funcref, so MoltenTickInput's timer is not mistaken for it
+		if entry:find("function('MoltenTick')", 1, true) then
+			return {
+				running = true,
+				known = true,
+				interval_ms = tonumber(entry:match("'time':%s*(%d+)")),
+			}
+		end
+	end
+
+	return { running = false, known = true }
 end
 
 function M.molten_source()

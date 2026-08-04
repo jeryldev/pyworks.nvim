@@ -14,7 +14,6 @@ local log = require("pyworks.core.log")
 
 -- Constants
 local DEFAULT_DEBOUNCE_MS = 500
-local DEFAULT_SAFE_TICK_RATE = 999999
 local DEFAULT_MAX_RECURSION_DEPTH = 3
 
 -- State tracking for reload operations
@@ -25,14 +24,12 @@ local state = {
 	-- opening a second notebook within the debounce window silently skipped its
 	-- conversion even though it is unrelated to the first (C3).
 	last_reload_time = {},
-	original_tick_rate = nil,
 	recursion_depth = 0,
 }
 
 -- Configuration (can be overridden via M.configure())
 local config = {
 	debounce_ms = DEFAULT_DEBOUNCE_MS,
-	safe_tick_rate = DEFAULT_SAFE_TICK_RATE,
 	max_recursion_depth = DEFAULT_MAX_RECURSION_DEPTH,
 }
 
@@ -101,19 +98,18 @@ function M.begin_reload(bufnr)
 		state.reloading_buffers[bufnr] = true
 	end
 
-	-- Slow down Molten tick rate during reload to prevent interference.
+	-- The tick rate is deliberately left alone. Raising it here to keep Molten
+	-- quiet during a reload could not be made safe: Molten reads
+	-- g:molten_tick_rate exactly once, when its host initialises, and bakes it
+	-- into timer_start(). A Molten that initialised inside the window kept a
+	-- timer firing every 16.7 minutes while the variable read a healthy 100
+	-- afterwards, so a working kernel went unnoticed for half an hour and every
+	-- cell sat on "* On Hold" (issue #10). Restoring the variable does not
+	-- unwind the timer.
 	--
-	-- Only the outermost reload records the real rate. On re-entry the current
-	-- value is already safe_tick_rate, so saving it again made the unwind
-	-- restore 999999 permanently - Molten then stops ticking for the rest of the
-	-- session and every cell sits at "* On Hold" with a healthy kernel, which is
-	-- indistinguishable from the bug fixed in 08214be.
-	if vim.g.molten_tick_rate then
-		if state.original_tick_rate == nil then
-			state.original_tick_rate = vim.g.molten_tick_rate
-		end
-		vim.g.molten_tick_rate = config.safe_tick_rate
-	end
+	-- Nothing replaces it: the fork pyworks ships carries a MoltenTick
+	-- reentrancy guard, which is the interference this was working around, and
+	-- :checkhealth warns anyone running a Molten without it.
 
 	log.debug("recursion_guard", "begin reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth)
 
@@ -136,12 +132,6 @@ function M.end_reload(bufnr)
 	-- Only release global lock when all reloads complete
 	if state.recursion_depth == 0 then
 		state.global_reload_in_progress = false
-
-		-- Restore original Molten tick rate
-		if state.original_tick_rate then
-			vim.g.molten_tick_rate = state.original_tick_rate
-			state.original_tick_rate = nil
-		end
 	end
 
 	log.debug("recursion_guard", "end reload: bufnr=%s, depth=%d", tostring(bufnr), state.recursion_depth)
@@ -164,11 +154,6 @@ function M.force_reset()
 	state.global_reload_in_progress = false
 	state.recursion_depth = 0
 	state.last_reload_time = {}
-
-	if state.original_tick_rate then
-		vim.g.molten_tick_rate = state.original_tick_rate
-		state.original_tick_rate = nil
-	end
 
 	log.debug("recursion_guard", "force reset complete")
 end

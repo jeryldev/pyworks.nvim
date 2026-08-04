@@ -133,14 +133,30 @@ local function kernels_section(lines, project_dir)
 	kv(lines, "molten is pyworks fork", tostring(molten.is_fork))
 	kv(lines, "MoltenTick guard present", tostring(molten.has_guard))
 
-	-- Molten's timer latches this value when its host starts; a raised rate
-	-- here means it will not be polling the kernel at a useful interval
+	-- Molten reads this once, when its host starts. It is reported for contrast
+	-- with the interval below: the two disagreeing is the whole of issue #10.
 	kv(lines, "molten tick rate", tostring(vim.g.molten_tick_rate))
 
-	-- Molten emits MoltenKernelReady only from inside this timer's callback, so
-	-- a missing timer means no kernel will ever be reported ready no matter how
-	-- healthy it is
-	kv(lines, "MoltenTick timer running", tostring(dependencies.molten_tick_timer().running))
+	-- The interval, not just existence: a timer left at pyworks' old reload rate
+	-- is "running" while firing once every 16.7 minutes, and g:molten_tick_rate
+	-- reads a healthy 100 beside it. That combination was issue #10, and
+	-- reporting only "running: true" called it healthy for five rounds.
+	local tick = dependencies.molten_tick_timer()
+	kv(lines, "MoltenTick timer running", tostring(tick.running))
+	if tick.interval_ms then
+		kv(lines, "MoltenTick fires every (ms)", tostring(tick.interval_ms))
+		if tick.interval_ms > 1000 then
+			kv(
+				lines,
+				"WARNING",
+				string.format(
+					"tick timer latched at %dms - readiness takes ~%.0f min",
+					tick.interval_ms,
+					tick.interval_ms / 60000
+				)
+			)
+		end
+	end
 
 	-- Molten writes kernel-<id>.json here and does not create the directory.
 	-- Missing means MoltenInit fails inside the rplugin host while still

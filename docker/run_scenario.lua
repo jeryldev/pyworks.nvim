@@ -53,7 +53,13 @@ note("b:pyworks_kernel_ready", vim.b[buf].pyworks_kernel_ready)
 -- kernel that proves the detection is not a false negative waiting to send
 -- someone chasing a timer that was there all along.
 local dependencies = require("pyworks.dependencies")
-note("MoltenTick timer running", dependencies.molten_tick_timer().running)
+local tick = dependencies.molten_tick_timer()
+note("MoltenTick timer running", tick.running)
+-- The interval is the assertion that matters. Opening the notebook runs the
+-- jupytext reload, which used to raise g:molten_tick_rate to 999999; a Molten
+-- initialising inside that window latched it and only noticed the kernel 16.7
+-- minutes later (issue #10). This must read the real rate, not the reload one.
+note("MoltenTick fires every (ms)", tick.interval_ms)
 note("molten tick rate", vim.g.molten_tick_rate)
 note("molten runtime dir", require("pyworks.core.detector").molten_runtime_dir())
 note("runtime dir exists", vim.fn.isdirectory(require("pyworks.core.detector").molten_runtime_dir()) == 1)

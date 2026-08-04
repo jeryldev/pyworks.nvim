@@ -89,6 +89,33 @@ describe("dependencies", function()
 			assert.is_false(dependencies.molten_tick_timer().running)
 		end)
 
+		-- Existence alone hid issue #10's actual cause. Molten reads
+		-- g:molten_tick_rate once, when its host starts, and bakes it into
+		-- timer_start(). Pyworks raises that variable to 999999 during a
+		-- jupytext reload and restores it after - so if Molten initialises
+		-- inside that window the variable reads a healthy 100 while the timer
+		-- fires every 16.7 minutes. The reporter's kernel was noticed 1999s
+		-- after init: two ticks of 999999ms, to within a second.
+		it("should report the interval the timer actually fires at", function()
+			vim.cmd([[
+				function! MoltenTick(t)
+				endfunction
+			]])
+			timer_id = vim.fn.eval("timer_start(999999, 'MoltenTick', {'repeat': -1})")
+
+			assert.equals(999999, dependencies.molten_tick_timer().interval_ms)
+		end)
+
+		it("should not mistake MoltenTickInput for the tick timer", function()
+			vim.cmd([[
+				function! MoltenTickInput(t)
+				endfunction
+			]])
+			timer_id = vim.fn.eval("timer_start(10000, 'MoltenTickInput', {'repeat': -1})")
+
+			assert.is_false(dependencies.molten_tick_timer().running)
+		end)
+
 		it("should detect the timer Molten starts", function()
 			vim.cmd([[
 				function! MoltenTick(t)

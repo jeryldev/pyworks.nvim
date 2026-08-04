@@ -10,7 +10,7 @@ local guard = require("pyworks.core.recursion_guard")
 describe("recursion_guard", function()
 	before_each(function()
 		guard.force_reset()
-		guard.configure({ debounce_ms = 500, max_recursion_depth = 3, safe_tick_rate = 999999 })
+		guard.configure({ debounce_ms = 500, max_recursion_depth = 3 })
 		vim.g.molten_tick_rate = 100
 	end)
 
@@ -102,33 +102,45 @@ describe("recursion_guard", function()
 		end)
 	end)
 
+	-- The guard used to raise g:molten_tick_rate to 999999 for the duration of a
+	-- reload and restore it after. Restoring it is not enough, and no amount of
+	-- care with the unwind makes it safe: Molten reads that variable exactly
+	-- once, when its host initialises, and bakes it into timer_start(). A Molten
+	-- that initialises inside the window keeps a timer firing every 16.7 minutes
+	-- while the variable reads a healthy 100 forever after.
+	--
+	-- That is issue #10. The reporter's kernel was noticed 1999 seconds after
+	-- MoltenInit; two ticks of 999999ms is 1999.998. Reproduced in the container:
+	-- with the raise, ready=false after 45s and the timer at 999999ms; without
+	-- it, ready in 1531ms at 100ms.
+	--
+	-- Nothing replaces it, because nothing needs to: the fork pyworks ships
+	-- carries a MoltenTick reentrancy guard, which is what the raise was working
+	-- around, and :checkhealth warns anyone running a Molten without it.
 	describe("molten tick rate", function()
-		it("should slow the tick during a reload and restore it after", function()
+		it("should not touch the tick rate during a reload", function()
 			vim.g.molten_tick_rate = 100
 
 			local release = guard.begin_reload(1)
-			assert.are.equal(999999, vim.g.molten_tick_rate)
+			assert.are.equal(100, vim.g.molten_tick_rate)
 
 			release()
 			assert.are.equal(100, vim.g.molten_tick_rate)
 		end)
 
-		-- C8: on re-entry the "original" saved was already the safe value, so
-		-- unwinding restored 999999 and Molten stopped ticking for the session -
-		-- every cell then sits at "* On Hold" with a healthy kernel, which is
-		-- indistinguishable from the bug fixed in 08214be.
-		it("should restore the real tick rate after nested reloads", function()
+		it("should not touch the tick rate across nested reloads", function()
 			vim.g.molten_tick_rate = 100
 
 			local release_outer = guard.begin_reload(1)
 			local release_inner = guard.begin_reload(2)
+			assert.are.equal(100, vim.g.molten_tick_rate)
 			release_inner()
 			release_outer()
 
 			assert.are.equal(100, vim.g.molten_tick_rate)
 		end)
 
-		it("should restore the tick rate on force_reset", function()
+		it("should not touch the tick rate on force_reset", function()
 			vim.g.molten_tick_rate = 100
 			guard.begin_reload(1)
 
