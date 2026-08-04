@@ -43,6 +43,7 @@ jobs:
       # tick timer is at its real interval rather than a latched reload rate.
       # The scenario exits non-zero when a check fails.
       - name: Readiness regression net
+        timeout-minutes: 8
         run: |
           set -o pipefail
           docker run --rm -v "$PWD:/work/pyworks:ro" pyworks-live \
@@ -54,6 +55,7 @@ jobs:
       # rounds of diagnostics. Here the latch is induced on purpose and the run
       # fails unless it is detected.
       - name: Detector self-check (latch must be visible)
+        timeout-minutes: 8
         run: |
           set -o pipefail
           docker run --rm -e LATCH=1 -v "$PWD:/work/pyworks:ro" pyworks-live \

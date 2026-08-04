@@ -29,4 +29,10 @@ echo "--- running scenario: $SCENARIO ---"
 cd /work/project
 # The trailing -c cq only runs if the scenario failed to reach its own exit,
 # which means it threw: exit non-zero rather than hanging or passing silently.
-nvim --headless -u /work/init.lua -c "luafile $SCENARIO" -c "cq" 2>&1
+#
+# stdin comes from /dev/null because a --headless nvim that hits any prompt -
+# "Press ENTER", a swap-file conflict, a message longer than the screen - blocks
+# forever waiting for a keypress that a CI runner will never send. EOF makes it
+# give up instead. Without this the first CI run sat on one step for 8 minutes
+# where the same command takes 90 seconds locally.
+nvim --headless -n -u /work/init.lua -c "luafile $SCENARIO" -c "cq" < /dev/null 2>&1
