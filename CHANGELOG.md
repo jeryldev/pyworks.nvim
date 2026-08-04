@@ -274,7 +274,7 @@ and fifteen unused public functions were removed.
   Example: `require("pyworks").setup({ molten = { virt_text_max_lines = 1000 } })`
 - **`vim.validate` parameter checks** on public `cell_engine` API
   (`run_cell`, `configure`, `count_cells`, `get_cell_positions`) per
-  CLAUDE.md mandate. Misuse from external callers now fails fast with a
+  project guidelines. Misuse from external callers now fails fast with a
   clear error
 - **`PyworksRunCell` / `PyworksRunCellAdvance` in integration test
   expected-commands list** to prevent future regressions

@@ -139,7 +139,7 @@ describe("jupytext notebook validation", function()
 end)
 
 -- E3: conversion cost 720-950 ms on every .ipynb open and again on every save,
--- against a CLAUDE.md target of <500 ms for notebook opening. Most of that is
+-- against the project's target of <500 ms for notebook opening. Most of that is
 -- interpreter startup, so a conversion is reused while the file is unchanged.
 describe("jupytext conversion cache", function()
 	local nb

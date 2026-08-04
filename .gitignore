@@ -36,7 +36,6 @@ test/scenarios/
 
 # Local config
 .nvim.lua
-.claude/
 docs/
 
 # Demo videos (keep only GIFs)
